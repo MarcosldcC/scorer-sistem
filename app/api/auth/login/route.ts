@@ -9,6 +9,15 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if required environment variables are available
+    if (!config.jwt.secret) {
+      console.error('JWT_SECRET is not configured')
+      return NextResponse.json(
+        { error: 'Configuração do servidor incompleta' },
+        { status: 500 }
+      )
+    }
+
     const { name, password } = await request.json()
 
     if (!name || !password) {
@@ -19,9 +28,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user by name
-    const user = await prisma.user.findFirst({
-      where: { name }
-    })
+    let user
+    try {
+      user = await prisma.user.findFirst({
+        where: { name }
+      })
+    } catch (dbError) {
+      console.error('Database connection error:', dbError)
+      return NextResponse.json(
+        { error: 'Erro de conexão com o banco de dados' },
+        { status: 500 }
+      )
+    }
 
     if (!user) {
       return NextResponse.json(
