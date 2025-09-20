@@ -14,11 +14,16 @@ export const config = {
 }
 
 // Validate required environment variables only at runtime, not during build
-if (typeof window === 'undefined' && process.env.NODE_ENV === 'production' && process.env.VERCEL !== '1') {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is required in production')
-  }
-  if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET is required in production')
+function validateEnvironment() {
+  if (typeof window === 'undefined' && process.env.NODE_ENV === 'production' && process.env.VERCEL !== '1') {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL is required in production')
+    }
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is required in production')
+    }
   }
 }
+
+// Only validate when explicitly called, not during module import
+export { validateEnvironment }
