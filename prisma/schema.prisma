@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  password  String
+  isAdmin   Boolean  @default(false)
+  areas     String[] // Array of evaluation areas: programming, research, identity
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  evaluations Evaluation[]
+
+  @@map("users")
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  grade     String   // 2, 3, 4, 5
+  shift     String   // morning, afternoon
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  evaluations Evaluation[]
+
+  @@unique([name, grade, shift])
+  @@map("teams")
+}
+
+model Evaluation {
+  id            String   @id @default(cuid())
+  teamId        String
+  area          String   // programming, research, identity
+  scores        Json     // Array of { criterionId: string, score: number }
+  comments      String?
+  evaluationTime Int     // in seconds
+  evaluatedById String
+  evaluatedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  team      Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  evaluatedBy User    @relation(fields: [evaluatedById], references: [id])
+  penalties Penalty[]
+
+  @@unique([teamId, area, evaluatedById])
+  @@map("evaluations")
+}
+
+model Penalty {
+  id          String   @id @default(cuid())
+  evaluationId String
+  type        String   // robot_touch, etc.
+  points      Int      // negative value
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@map("penalties")
+}

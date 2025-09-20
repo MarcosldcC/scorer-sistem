@@ -1,0 +1,134 @@
+import { useState, useEffect, useCallback } from 'react'
+
+export interface User {
+  id: string
+  name: string
+  isAdmin: boolean
+  areas: string[]
+}
+
+export interface AuthState {
+  isAuthenticated: boolean
+  user: User | null
+  loading: boolean
+}
+
+export function useAuth() {
+  const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: false,
+    user: null,
+    loading: true
+  })
+
+  const login = useCallback(async (name: string, password: string) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, password }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        const token = data.token
+        const user = data.user
+
+        // Store token in localStorage
+        localStorage.setItem('robotics-token', token)
+
+        setAuthState({
+          isAuthenticated: true,
+          user,
+          loading: false
+        })
+
+        return { success: true }
+      } else {
+        return { success: false, error: data.error }
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      return { success: false, error: 'Erro de conexão' }
+    }
+  }, [])
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('robotics-token')
+    setAuthState({
+      isAuthenticated: false,
+      user: null,
+      loading: false
+    })
+  }, [])
+
+  const verifyToken = useCallback(async () => {
+    const token = localStorage.getItem('robotics-token')
+    if (!token) {
+      setAuthState({
+        isAuthenticated: false,
+        user: null,
+        loading: false
+      })
+      return
+    }
+
+    try {
+      const response = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setAuthState({
+          isAuthenticated: true,
+          user: data.user,
+          loading: false
+        })
+      } else {
+        localStorage.removeItem('robotics-token')
+        setAuthState({
+          isAuthenticated: false,
+          user: null,
+          loading: false
+        })
+      }
+    } catch (error) {
+      console.error('Token verification error:', error)
+      localStorage.removeItem('robotics-token')
+      setAuthState({
+        isAuthenticated: false,
+        user: null,
+        loading: false
+      })
+    }
+  }, [])
+
+  useEffect(() => {
+    verifyToken()
+  }, [verifyToken])
+
+  return {
+    ...authState,
+    login,
+    logout,
+    verifyToken
+  }
+}
+
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem('robotics-token')
+}
+
+export function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
