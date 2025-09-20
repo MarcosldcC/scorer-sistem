@@ -4,6 +4,9 @@ import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
 import { calculatePercentage, getMaxPossibleScore, calculateTotalScore, RUBRICS } from '@/lib/rubrics'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 // Middleware to verify JWT token
 async function verifyToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization')

@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 // Middleware to verify JWT token
 async function verifyToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
