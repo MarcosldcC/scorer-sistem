@@ -86,16 +86,29 @@ async function main() {
     }
   }
 
-  // Criar algumas equipes de exemplo
+  // Criar equipes conforme estrutura do torneio
   const teams = [
-    { name: 'Robô Guerreiros', grade: '2', shift: 'morning' },
-    { name: 'Tech Titans', grade: '2', shift: 'morning' },
-    { name: 'Code Masters', grade: '3', shift: 'morning' },
-    { name: 'Robo Rangers', grade: '3', shift: 'afternoon' },
-    { name: 'Digital Dragons', grade: '4', shift: 'afternoon' },
-    { name: 'Cyber Squad', grade: '4', shift: 'morning' },
-    { name: 'Bot Builders', grade: '5', shift: 'afternoon' },
-    { name: 'Future Coders', grade: '5', shift: 'morning' }
+    // Turno Manhã
+    { name: '2ºA', grade: '2', shift: 'morning' },
+    { name: '2ºB', grade: '2', shift: 'morning' },
+    { name: '3ºA', grade: '3', shift: 'morning' },
+    { name: '3ºB', grade: '3', shift: 'morning' },
+    { name: '4ºA', grade: '4', shift: 'morning' },
+    { name: '4ºB', grade: '4', shift: 'morning' },
+    { name: '5ºA', grade: '5', shift: 'morning' },
+    { name: '5ºB', grade: '5', shift: 'morning' },
+    
+    // Turno Tarde
+    { name: '2ºC', grade: '2', shift: 'afternoon' },
+    { name: '2ºD', grade: '2', shift: 'afternoon' },
+    { name: '2ºE', grade: '2', shift: 'afternoon' },
+    { name: '3ºC', grade: '3', shift: 'afternoon' },
+    { name: '3ºD', grade: '3', shift: 'afternoon' },
+    { name: '4ºC', grade: '4', shift: 'afternoon' },
+    { name: '4ºD', grade: '4', shift: 'afternoon' },
+    { name: '4ºE', grade: '4', shift: 'afternoon' },
+    { name: '5ºC', grade: '5', shift: 'afternoon' },
+    { name: '5ºD', grade: '5', shift: 'afternoon' }
   ]
 
   for (const teamData of teams) {
