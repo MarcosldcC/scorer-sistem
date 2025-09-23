@@ -12,28 +12,28 @@ interface EvaluationTimerProps {
 }
 
 export function EvaluationTimer({ timeLimit, onTimeComplete }: EvaluationTimerProps) {
-  const { seconds, isRunning, isPaused, start, pause, resume, stop, reset, formatTime } = useTimer()
+  const { seconds, isRunning, isPaused, isOverTime, start, pause, resume, stop, reset, formatTime } = useTimer()
 
   const handleStart = () => {
     start(timeLimit)
   }
 
   const handleStop = () => {
-    const totalSeconds = stop()
-    onTimeComplete?.(totalSeconds)
+    const elapsedSeconds = stop()
+    onTimeComplete?.(elapsedSeconds)
   }
 
   const minutes = Math.floor(seconds / 60)
-  const isOverTime = minutes >= timeLimit
-  const remainingMinutes = Math.max(0, timeLimit - minutes)
-  const remainingSeconds = Math.max(0, 60 - (seconds % 60))
+  const remainingSeconds = seconds % 60
 
   return (
     <Card className="mb-6">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Cronômetro de Avaliação</CardTitle>
-          <Badge variant={isOverTime ? "destructive" : "default"}>Limite: {timeLimit} min</Badge>
+          <CardTitle className="text-lg">Timer de Avaliação</CardTitle>
+          <Badge variant={isOverTime ? "destructive" : isRunning ? "secondary" : "default"}>
+            Limite: {timeLimit} min
+          </Badge>
         </div>
       </CardHeader>
       <CardContent>
@@ -43,10 +43,10 @@ export function EvaluationTimer({ timeLimit, onTimeComplete }: EvaluationTimerPr
           {isRunning && (
             <div className="text-sm text-muted-foreground">
               {isOverTime ? (
-                <span className="text-destructive font-medium">Tempo excedido em {minutes - timeLimit} min</span>
+                <span className="text-destructive font-medium">Tempo esgotado!</span>
               ) : (
                 <span>
-                  Restam {remainingMinutes}:{remainingSeconds.toString().padStart(2, "0")} min
+                  Restam {minutes}:{remainingSeconds.toString().padStart(2, "0")}
                 </span>
               )}
             </div>
