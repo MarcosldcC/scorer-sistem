@@ -61,7 +61,14 @@ export function RubricScoring({ criterion, currentScore, onScoreChange, area }: 
                       ? 'border-primary bg-primary/5' 
                       : 'border-gray-200 hover:border-primary hover:bg-gray-50'
                   }`}
-                  onClick={() => onScoreChange(score)}
+                  onClick={() => {
+                    // Se já está selecionado, desmarca (define como 0)
+                    if (currentScore === score) {
+                      onScoreChange(0)
+                    } else {
+                      onScoreChange(score)
+                    }
+                  }}
                 >
                   <Checkbox
                     id={`${criterion.id}-${score}`}
@@ -69,9 +76,12 @@ export function RubricScoring({ criterion, currentScore, onScoreChange, area }: 
                     onCheckedChange={(checked) => {
                       if (checked) {
                         onScoreChange(score)
+                      } else {
+                        // Se desmarcou, define como 0
+                        onScoreChange(0)
                       }
                     }}
-                    className="border-2 pointer-events-none"
+                    className="border-2"
                   />
                   <Label htmlFor={`${criterion.id}-${score}`} className="text-xs cursor-pointer font-medium text-center flex flex-col items-center justify-center h-full pointer-events-none">
                     <div className="font-bold mb-1">{score}</div>

@@ -683,8 +683,8 @@ export const RUBRICS: Record<string, EvaluationRubric> = {
       },
     ],
     timeLimit: {
-      grade2: 8,
-      grade3to5: 5,
+      grade2: 10,
+      grade3to5: 10,
     },
   },
   identity: {
@@ -727,8 +727,8 @@ export const RUBRICS: Record<string, EvaluationRubric> = {
       },
     ],
     timeLimit: {
-      grade2: 8,
-      grade3to5: 5,
+      grade2: 0,
+      grade3to5: 0,
     },
   },
 }
@@ -804,8 +804,8 @@ export function getRubricForGrade(area: "programming" | "research" | "identity",
         },
       ],
       timeLimit: {
-        grade2: 8,
-        grade3to5: 5,
+        grade2: 10,
+        grade3to5: 10,
       },
     }
   }

@@ -213,7 +213,9 @@ export default function EvaluatePage() {
 
             {selectedTeam && (
               <>
-                <EvaluationTimer timeLimit={timeLimit} onTimeComplete={handleTimeComplete} />
+                {area !== "identity" && timeLimit > 0 && (
+                  <EvaluationTimer timeLimit={timeLimit} onTimeComplete={handleTimeComplete} />
+                )}
 
                 <div className="space-y-4">
                   <h2 className="text-xl font-semibold text-primary">Critérios de Avaliação</h2>
