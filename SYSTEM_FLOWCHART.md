@@ -991,8 +991,752 @@ PLATAFORMA COMPLETA
 
 ---
 
-**ESTE FLUXOGRAMA ESTÁ PRONTO PARA IMPLEMENTAÇÃO!** 🚀
+## 🔒 PONTOS CRÍTICOS E DECISÕES ARQUITETURAIS ADICIONAIS
 
-Todas as decisões arquiteturais, fluxos de trabalho, permissões e comportamentos estão documentados aqui.
+### 1. CICLO DE VIDA: ESTADOS DE ESCOLA E TORNEIO
 
-Aguardando sua confirmação para iniciar o desenvolvimento completo do sistema! 💪
+#### Estados da ESCOLA
+```
+┌────────────────────────────────────────────────────────────┐
+│                    CICLO DE VIDA ESCOLA                    │
+├────────────────────────────────────────────────────────────┤
+│  DRAFT → ACTIVE → SUSPENDED → ARCHIVED                    │
+│                                                           │
+│  DRAFT:                                                    │
+│  • Criada mas não operacional                             │
+│  • Admin não pode criar torneios ainda                    │
+│  • Aguardando configuração inicial                        │
+│                                                           │
+│  ACTIVE:                                                   │
+│  • Escola operacional                                     │
+│  • Pode criar torneios                                    │
+│  • Usuários ativos                                        │
+│  • Acesso normal                                          │
+│                                                           │
+│  SUSPENDED:                                                │
+│  • Torneios pausados                                      │
+│  • Usuários não podem avaliar                             │
+│  • Dados preservados                                      │
+│  • Admin pode visualizar histórico                        │
+│  • Reativação por Admin Plataforma                        │
+│                                                           │
+│  ARCHIVED:                                                 │
+│  • Escola desativada permanentemente                      │
+│  • Sem novos torneios                                     │
+│  • Dados read-only                                        │
+│  • Usuários desativados                                   │
+└────────────────────────────────────────────────────────────┘
+```
+
+#### Estados do TORNEIO
+```
+┌────────────────────────────────────────────────────────────┐
+│                  CICLO DE VIDA TORNEIO                     │
+├────────────────────────────────────────────────────────────┤
+│  DRAFT → READY → PUBLISHED → PAUSED → FINISHED → ARCHIVED │
+│                                                           │
+│  DRAFT:                                                    │
+│  • Em configuração                                        │
+│  • Não visível para juízes                                │
+│  • Admin pode editar tudo                                 │
+│  • Sem equipes ou áreas publicadas                        │
+│                                                           │
+│  READY:                                                    │
+│  • Configuração completa                                  │
+│  • Equipes importadas                                     │
+│  • Juízes atribuídos                                      │
+│  • Pronto para publicação                                 │
+│  • Admin ainda pode ajustar                               │
+│                                                           │
+│  PUBLISHED (ATIVO):                                        │
+│  • Visível para juízes e visualizadores                   │
+│  • Avaliações podem começar                               │
+│  • Configuração TRAVADA (lock)                            │
+│  • Reavaliação permitida (se configurado)                 │
+│  • Rankings calculados em tempo real                      │
+│                                                           │
+│  PAUSED:                                                   │
+│  • Torneio temporariamente pausado                        │
+│  • Juízes não podem avaliar (novas)                       │
+│  • Avaliações existentes preservadas                      │
+│  • Rankings congelados no momento da pausa                │
+│  • Admin pode revisar/reavaliar                           │
+│                                                           │
+│  FINISHED:                                                 │
+│  • Torneio concluído                                      │
+│  • Último snapshot salvo                                  │
+│  • Rankings finais congelados                             │
+│  • Nenhuma nova avaliação permitida                       │
+│  • Apenas visualização e relatórios                       │
+│  • Reabertura possível (para ajustes)                     │
+│                                                           │
+│  ARCHIVED:                                                 │
+│  • Read-only completo                                     │
+│  • Relatórios históricos                                  │
+│  • Sem edições possíveis                                  │
+└────────────────────────────────────────────────────────────┘
+```
+
+**Transições Permitidas:**
+```
+DRAFT → READY → PUBLISHED ↔ PAUSED → FINISHED → ARCHIVED
+  ↑                            ↓
+  └────────────────────────────┘
+   (Reabertura para ajustes - até 30 dias após FINISHED)
+```
+
+**LOCK DE CONFIGURAÇÃO:** Ao PUBLICAR um torneio, a configuração fica bloqueada. Apenas Admin da Plataforma pode desbloquear em casos excepcionais.
+
+---
+
+### 2. GOVERNANÇA DE TEMPLATES
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              GOVERNANÇA DE TEMPLATES                       │
+└────────────────────────────────────────────────────────────┘
+
+REGRAS FUNDAMENTAIS:
+1. Template Oficial (Zoom) → LOCKADO
+2. Escola SEMPRE trabalha com CÓPIA
+3. Versionamento automático
+4. Lock ao aplicar em torneio publicado
+
+FLUXO:
+──────────────────────────────────────────────────────────────
+Admin Plataforma cria TEMPLATE OFICIAL
+    │
+    ├→ Version: v1.0.0
+    ├→ isOfficial: true
+    └→ Edições futuras → v1.0.1, v1.1.0, etc.
+    │
+    │
+Admin Escola quer usar template oficial
+    │
+    ▼
+ESCOLA SEMPRE CRIA CÓPIA (FORK)
+    │
+    ├→ Template v1.0.0 clonado
+    ├→ Cria: "Meu Template XYZ v1.0.0"
+    ├→ isOfficial: false
+    └→ schoolId: escola específica
+    │
+    │
+Admin Escola edita seu template
+    │
+    ├→ Version: v1.0.1 (auto-incremento)
+    └→ Histórico preservado
+    │
+    │
+Admin Escola cria torneio baseado no template
+    │
+    ▼
+CONFIG DO TEMPLATE É LOCKADA NO TORNEIO
+    │
+    ├→ Torneio armazena snapshot da config v1.0.1
+    ├→ Futuras edições do template NÃO afetam torneio
+    └→ Garantia de consistência
+```
+
+**Versionamento de Template:**
+```json
+{
+  "id": "tmpl_123",
+  "name": "Robótica Educacional 2024",
+  "version": "1.2.3",
+  "semanticVersioning": true,
+  "changelog": [
+    {
+      "version": "1.2.3",
+      "date": "2024-03-15",
+      "changes": ["Adicionada área de Torcida", "Ajuste de pesos"]
+    }
+  ],
+  "appliedInTournaments": ["tourn_1", "tourn_5"],
+  "locked": false
+}
+```
+
+---
+
+### 3. GESTÃO DE USUÁRIOS
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              ONBOARDING E GESTÃO DE USUÁRIOS              │
+└────────────────────────────────────────────────────────────┘
+
+CRIAÇÃO DE USUÁRIO:
+──────────────────────────────────────────────────────────────
+1. Admin Plataforma/Escola cria usuário
+2. Sistema gera SENHA TEMPORÁRIA (8 caracteres aleatórios)
+3. Email enviado com:
+   ├→ Login (email)
+   ├→ Senha temporária
+   ├→ Link de primeiro acesso
+   └→ Instruções
+4. Primeiro acesso:
+   ├→ Usuário DEVE trocar senha
+   ├→ Pode adicionar foto de perfil
+   └→ Confirmar termos
+5. Usuário ativo
+
+GESTÃO:
+──────────────────────────────────────────────────────────────
+Admin pode:
+├→ Resetar senha (gera nova temporária)
+├→ Desativar conta (não deletar)
+├→ Reativar conta
+├→ Alterar role
+├→ Alterar áreas (para juízes)
+└→ Remover usuário (soft delete)
+
+SEGURANÇA:
+──────────────────────────────────────────────────────────────
+├→ Senha temporária expira em 7 dias
+├→ Senhas válidas: min 8 caracteres
+├→ Sessão expira em 8 horas inatividade
+├→ Multi-dispositivo permitido
+└→ Logout automático em caso de suspeita
+
+CONVITE POR EMAIL (Futuro):
+──────────────────────────────────────────────────────────────
+Admin envia convite → Usuário aceita → Define própria senha
+```
+
+---
+
+### 4. MULTI-JUIZ E AGREGAÇÃO
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              MULTI-JUIZ POR ÁREA/PERÍODO                  │
+└────────────────────────────────────────────────────────────┘
+
+PROBLEMA:
+- Uma equipe precisa ser avaliada por MÚLTIPLOS juízes
+- Como agregar as notas?
+
+SOLUÇÃO: CONFIGURÁVEL POR ÁREA
+──────────────────────────────────────────────────────────────
+Admin configura, por área:
+├→ "Método de Agregação"
+│   ├→ Última avaliação vence
+│   ├→ Média aritmética
+│   ├→ Mediana
+│   ├→ Melhor nota
+│   ├→ Pior nota
+│   └→ Remover outliers (top/bottom)
+│
+└→ Aplicar automaticamente no ranking
+
+EXEMPLO: Área "Torcida" com 3 juízes
+──────────────────────────────────────────────────────────────
+Equipe ABC avaliada por:
+├→ Juiz 1: 8.5/10
+├→ Juiz 2: 9.0/10
+└→ Juiz 3: 7.5/10
+
+Agregação = MÉDIA:
+Resultado = (8.5 + 9.0 + 7.5) / 3 = 8.33/10
+
+Agregação = MEDIANA:
+Resultado = 8.5/10
+
+IMPORTANTE:
+- Cada juiz mantém avaliação individual
+- Histórico preservado
+- Admin pode ver todas as notas
+- Visualizador vê apenas resultado agregado
+```
+
+---
+
+### 5. RODADAS/PARTIDAS (OPCIONAL)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              SISTEMA DE RODADAS                           │
+└────────────────────────────────────────────────────────────┘
+
+Quando um torneio tem MÚLTIPLAS TENTATIVAS por área:
+
+EXEMPLO: Torneio com 3 rodadas de Programação
+──────────────────────────────────────────────────────────────
+Cada equipe compete 3 vezes
+├→ Rodada 1: Resultado A
+├→ Rodada 2: Resultado B
+└→ Rodada 3: Resultado C
+
+Agregação por rodada:
+├→ Melhor nota das 3
+├→ Média das 3
+├→ Soma das 3
+└→ Primeiras N rodadas
+
+CONFIGURAÇÃO:
+──────────────────────────────────────────────────────────────
+Admin configura por área:
+├→ "Permitir múltiplas rodadas" (Sim/Não)
+├→ Número de rodadas (1-10)
+├→ Tempo por rodada
+└→ Agregação final (melhor/média/soma)
+
+FLUXO DO JUIZ:
+──────────────────────────────────────────────────────────────
+1. Selecionar equipe
+2. Escolher rodada (1, 2, 3...)
+3. Avaliar
+4. Salvar
+5. Equipe pode ter múltiplas avaliações da mesma área
+6. Ranking usa agregação configurada
+
+RANKING CALCULA:
+──────────────────────────────────────────────────────────────
+Para cada equipe:
+├→ Área X, Rodada 1: 80 pontos
+├→ Área X, Rodada 2: 90 pontos
+├→ Área X, Rodada 3: 85 pontos
+│
+└→ Se agregação = "melhor":
+   Resultado final = 90 pontos
+
+Se agregação = "média":
+Resultado final = (80+90+85)/3 = 85 pontos
+```
+
+**MODELO DE DADOS:**
+```json
+{
+  "evaluationId": "eval_123",
+  "round": 1,
+  "maxRounds": 3,
+  "aggregationMethod": "best"
+}
+```
+
+---
+
+### 6. VALIDAÇÕES E LIMITES
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              VALIDAÇÕES CRÍTICAS                          │
+└────────────────────────────────────────────────────────────┘
+
+PENALIDADES:
+──────────────────────────────────────────────────────────────
+Limites configuráveis por área:
+├→ Máximo de penalidades por tipo
+├→ Penalidade total não pode negativar escore
+├→ Validação em tempo real
+└→ Aviso antes de salvar
+
+TEMPO:
+──────────────────────────────────────────────────────────────
+Anti-trapaça:
+├→ Timestamp do servidor (quando online)
+├→ Relógio local quando offline
+├→ Tolerância: +/- 5 minutos
+├→ Diferença excessiva → flag de auditoria
+└→ Admin pode revisar avaliações suspeitas
+
+CAMPOS:
+──────────────────────────────────────────────────────────────
+Importação de equipes:
+├→ Validação de nome único (por torneio)
+├→ Campos obrigatórios
+├→ Formato de dados (ex.: email válido)
+└→ Relatório de erros
+
+OFFLINE:
+──────────────────────────────────────────────────────────────
+Idempotência:
+├→ Cada avaliação tem chave única
+├→ Duplicatas detectadas e ignoradas
+└→ Log de tentativas
+```
+
+---
+
+### 7. OFFLINE-FIRST ROBUSTO
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              LOGIN OFFLINE SEGURO                         │
+└────────────────────────────────────────────────────────────┘
+
+PRÉ-AUTORIZAÇÃO (Antes do Evento):
+──────────────────────────────────────────────────────────────
+1. Admin faz login ONLINE
+2. Navega até configurações do torneio
+3. Clica "Pré-carregar para Offline"
+4. Sistema baixa:
+   ├→ Token de autenticação (válido 48h)
+   ├→ Lista de equipes
+   ├→ Configuração de áreas
+   ├→ Rubricas
+   ├→ Metadados do usuário
+   └→ Chave de sessão
+5. Cache armazenado em IndexedDB + localStorage
+6. Dispositivo marcado como "offline-enabled"
+
+DURANTE EVENTO (Offline):
+──────────────────────────────────────────────────────────────
+1. Usuário abre app
+2. Sistema verifica:
+   ├→ Token ainda válido? ✓/✗
+   ├→ Cache disponível? ✓/✗
+   └→ Dispositivo autorizado? ✓/✗
+3. Se tudo OK → Login automático
+4. Interface funciona normalmente
+
+PÓS-EVENTO (Sincronização):
+──────────────────────────────────────────────────────────────
+1. Conexão restaurada
+2. Detectar avaliações pendentes
+3. Para cada avaliação:
+   ├→ Verificar idempotência (chave única)
+   ├→ Comparar timestamps
+   ├→ Last-write-wins
+   └→ Marcar como sincronizado
+4. Se conflito: admin é notificado
+
+MULTI-DISPOSITIVO:
+──────────────────────────────────────────────────────────────
+Cenário: Juiz usa 2 tablets offline
+├→ Tablet 1 avalia Equipe A → 80 pontos
+├→ Tablet 2 avalia Equipe A → 90 pontos
+└→ Ambos sync quando online
+
+Resultado: Último timestamp vence
+├→ Tablet 2 (90) sobrescreve Tablet 1
+├→ Histórico preservado
+└→ Admin vê ambas as avaliações no log
+
+Se preferir: Pode configurar "Bloquear multi-dispositivo offline"
+```
+
+---
+
+### 8. RELATÓRIOS: INTERNOS VS EXTERNOS
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              SEGMENTAÇÃO DE RELATÓRIOS                    │
+└────────────────────────────────────────────────────────────┘
+
+RELATÓRIO INTERNO:
+──────────────────────────────────────────────────────────────
+Para: Admin, Juízes (áreas atribuídas)
+Conteúdo:
+├→ Rankings completos
+├→ Rubricas detalhadas de cada juiz
+├→ Nomes dos avaliadores
+├→ Histórico de reavaliações
+├→ Tempo de cada avaliação
+├→ Discrepâncias entre juízes
+└→ Estatísticas avançadas
+
+RELATÓRIO EXTERNO:
+──────────────────────────────────────────────────────────────
+Para: Visualizadores, Público, Imprensa
+Conteúdo:
+├→ Rankings (posição + total)
+├→ Pontos por área (sem detalhes)
+├→ Sem nomes de juízes
+├→ Sem rubricas individuais
+├→ Anonimização opcional
+└→ Design público (branding)
+
+LINK PÚBLICO OPCIONAL:
+──────────────────────────────────────────────────────────────
+Admin pode gerar:
+├→ Link único com expiração
+├→ Accesso sem login
+├→ Ranking em tempo real
+├→ Auto-refresh (ex.: a cada 30s)
+└→ Modo "telão" (grande contraste)
+
+EXEMPLO:
+──────────────────────────────────────────────────────────────
+Link gerado: https://plataforma.com/t/YMpHoKq3
+├→ Qualquer um com link acessa
+├→ Vê ranking atualizado
+├→ Pode filtrar (turno, série)
+└→ Não vê rubricas/juízes
+```
+
+---
+
+### 9. SNAPSHOTS DE RANKING
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              SNAPSHOTS AUTOMÁTICOS                        │
+└────────────────────────────────────────────────────────────┘
+
+QUANDO SÃO CRIADOS:
+──────────────────────────────────────────────────────────────
+1. Ao PUBLICAR torneio
+2. Ao PAUSAR torneio
+3. Ao FINALIZAR torneio
+4. Manualmente (admin)
+5. Antes de reabertura/reconfiguração
+
+O QUE É SALVO:
+──────────────────────────────────────────────────────────────
+{
+  "tournamentId": "tourn_123",
+  "snapshotId": "snap_456",
+  "timestamp": "2024-03-15T14:00:00Z",
+  "event": "tournament_finished",
+  "rankings": [...], // Array completo ordenado
+  "metadata": {
+    "totalTeams": 30,
+    "totalEvaluated": 30,
+    "method": "percentage",
+    "weights": {...}
+  }
+}
+
+ACESSO:
+──────────────────────────────────────────────────────────────
+Admin pode:
+├→ Ver histórico de snapshots
+├→ Comparar snapshots
+├→ Exportar snapshot específico
+├→ "Reverter" para snapshot (se apropriado)
+└→ Enviar snapshot para cerimônia
+
+CASO DE USO:
+──────────────────────────────────────────────────────────────
+1. Torneio finaliza em 15/03 14:00
+2. Snapshot #1 criado automaticamente
+3. Equipe reclama de avaliação incorreta
+4. Admin reabre e corrige
+5. Rankings recalculados
+6. Snapshot #2 criado
+7. Cerimônia usa Snapshot #1 (oficial)
+8. Admin tem ambos os snapshots
+```
+
+---
+
+### 10. FEATURE FLAGS E CUSTOMIZAÇÃO
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              FEATURE FLAGS POR TORNEIO                    │
+└────────────────────────────────────────────────────────────┘
+
+FEATURES CONFIGURÁVEIS:
+──────────────────────────────────────────────────────────────
+Por torneio, admin pode ativar/desativar:
+├→ Reavaliação
+├→ Múltiplas rodadas
+├→ Penalidades
+├→ Timer de prova
+├→ Link público de ranking
+├→ Agregação multi-juiz
+├→ Anonimização
+└→ Check-in de equipes (QR code)
+
+BRANDING POR ESCOLA:
+──────────────────────────────────────────────────────────────
+Configuração persistente:
+├→ Cores (primary, secondary, accent)
+├→ Logotipo
+├→ Tipografia
+├→ Favicon
+└→ Mensagens customizadas
+
+APLICAÇÃO:
+──────────────────────────────────────────────────────────────
+Toda interface usa branding da escola:
+├→ Header
+├→ Botões
+├→ Links
+├→ Relatórios exportados
+└→ Link público
+
+TEMPLATES DE RELATÓRIO:
+──────────────────────────────────────────────────────────────
+Escola pode salvar:
+├→ Templates de exportação
+├→ Filtros padrão
+├→ Formato preferido
+└→ Destinatários (email)
+```
+
+---
+
+### 11. MODOS DE TELA
+
+```
+┌────────────────────────────────────────────────────────────┐
+│              MODOS DE EXIBIÇÃO                            │
+└────────────────────────────────────────────────────────────┘
+
+MODO JUÍZ (Tablet/Kiosk):
+──────────────────────────────────────────────────────────────
+Tela otimizada para avaliação rápida:
+├→ Fonte grande (20pt+)
+├→ Botões grandes (touch-friendly)
+├→ Atalhos de teclado (1-5 para notas)
+├→ Timer bem visível
+├→ Confirmação clara (salvou/sincronizando)
+└→ Sem distrações
+
+MODO PLACAR PÚBLICO (Telão):
+──────────────────────────────────────────────────────────────
+Ranking para tela grande:
+├→ Auto-refresh (30-60s)
+├→ Top 10 destacado
+├→ Contraste alto
+├→ Animação suave
+├→ Filtros pré-definidos
+└→ Link público compatível
+
+MODO PAINEL COMITÊ (Desktop):
+──────────────────────────────────────────────────────────────
+Dashboard administrativo:
+├→ Resumo de pendências
+├→ Sincronização em tempo real
+├→ Alertas de conflitos
+├→ Tempo médio por avaliação
+├→ Distrbuição de avaliadores
+└→ Estatísticas avançadas
+
+MODO VISUALIZADOR (Mobile/Tablet):
+──────────────────────────────────────────────────────────────
+Interface simplificada:
+├→ Rankings principais
+├→ Filtros básicos
+├→ Exportação rápida
+└→ Sem funcionalidades administrativas
+```
+
+---
+
+### 12. CHECKLIST DE IMPLEMENTAÇÃO
+
+```
+┌────────────────────────────────────────────────────────────┐
+│           PRIORIDADES DE IMPLEMENTAÇÃO                    │
+└────────────────────────────────────────────────────────────┘
+
+FASE 1: FUNDAÇÃO (Obrigatório)
+──────────────────────────────────────────────────────────────
+✅ Estados de Escola/Torneio
+✅ Lock de configuração ao publicar
+✅ Governança de templates (sempre cópia)
+✅ Versionamento de templates
+✅ Gestão de usuários (CRUD + reset)
+✅ Multi-juiz com agregação
+✅ Validações e limites
+✅ Login offline com janela de validade
+✅ Conflito offline (last-write-wins robusto)
+✅ Snapshot de ranking ao finalizar
+
+FASE 2: CRÍTICO PARA OPERAÇÃO (Obrigatório)
+──────────────────────────────────────────────────────────────
+✅ Relatórios internos vs externos
+✅ Offline-first com fila de sync
+✅ Idempotência de avaliações
+✅ Log de sincronização
+✅ Timer anti-trapaça
+✅ Feature flags básicas
+
+FASE 3: UX E BRANDING (Importante)
+──────────────────────────────────────────────────────────────
+✅ Acessibilidade WCAG AA
+✅ i18n completo (pt-BR/en)
+✅ Branding por escola
+✅ Modos de tela (kiosk, placar, comitê)
+✅ Estados vazios e erros claros
+✅ Link público opcional
+
+FASE 4: AVANÇADO (Opcional mas Recomendado)
+──────────────────────────────────────────────────────────────
+⚙️ Sistema de rodadas
+⚙️ Check-in de equipes (QR code)
+⚙️ Snapshots intermediários
+⚙️ Comparação de snapshots
+⚙️ Templates de exportação
+⚙️ Anonimização avançada
+⚙️ Multi-dispositivo bloqueável
+⚙️ Auditoria de avaliações suspeitas
+```
+
+---
+
+### 13. DIAGRAMA DE DECISÃO: FLUXO CRÍTICO
+
+```
+┌────────────────────────────────────────────────────────────┐
+│           FLUXO DE DECISÃO: REAVALIAÇÃO                   │
+└────────────────────────────────────────────────────────────┘
+
+Usuário solicita reavaliar Equipe X
+    │
+    ▼
+Torneio permite reavaliação?
+    ├──→ NÃO
+    │     └→ ❌ Bloqueado
+    │
+    └──→ SIM
+          │
+          ▼
+Usuário tem permissão?
+    ├──→ NÃO
+    │     └→ ❌ Bloqueado
+    │
+    └──→ SIM
+          │
+          ▼
+Torneio está ativo/pausado?
+    ├──→ NÃO (finalizado/arquivado)
+    │     ├──→ Torneio > 30 dias finalizado?
+    │     │     ├──→ SIM: ❌ Bloqueado permanentemente
+    │     │     └──→ NÃO: ⚠️ Aviso + confirmação admin
+    │     └──→ Permitir apenas Admin Plataforma
+    │
+    └──→ SIM
+          │
+          ▼
+Criar nova avaliação
+    │
+    ├→ Preservar avaliação anterior
+    ├→ Nova timestamp
+    ├→ Version = previous + 1
+    ├→ Marcar como ativa
+    │
+    ▼
+Salvar
+    │
+    ├→ Offline?
+    │   ├→ Salvar local + fila
+    │   └→ Marcar como pending
+    │
+    └→ Online?
+        ├→ Salvar no servidor
+        └→ Marcar como synced
+    │
+    ▼
+Recalcular ranking
+    │
+    └→ Usar apenas versão mais recente
+    │
+    ▼
+Notificar admin (se configurado)
+    │
+    ▼
+✅ Concluído
+```
+
+---
+
+**ESTE FLUXOGRAMA ESTÁ COMPLETO E PRONTO PARA IMPLEMENTAÇÃO!** 🚀
+
+Todas as decisões arquiteturais, pontos críticos, validações e estados estão detalhadamente documentados.

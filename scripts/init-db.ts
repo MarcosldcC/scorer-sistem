@@ -4,72 +4,116 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Inicializando banco de dados...')
+  console.log('Inicializando banco de dados Multi-Tenant...')
 
   // Hash da senha padrão
   const hashedPassword = await bcrypt.hash('inicial@123', 10)
 
-  // Criar usuários
+  // Criar escola padrão para compatibilidade legada
+  let legacySchool = await prisma.school.findFirst({
+    where: { code: 'DEFAULT_LEGACY' }
+  })
+
+  if (!legacySchool) {
+    legacySchool = await prisma.school.create({
+      data: {
+        name: 'Sistema Legado',
+        code: 'DEFAULT_LEGACY',
+        email: 'legacy@system.local',
+        status: 'active'
+      }
+    })
+    console.log('Escola padrão criada')
+  }
+
+  // Criar usuários com novo modelo multi-tenant
   const users = [
     {
       name: 'Marina Vitória',
+      email: 'marina.vitoria@example.com',
       password: hashedPassword,
       areas: ['programming'],
-      isAdmin: false
+      role: 'judge',
+      isAdmin: false,
+      schoolId: legacySchool.id
     },
     {
       name: 'Gabrielly Barreto',
+      email: 'gabrielly.barreto@example.com',
       password: hashedPassword,
       areas: ['programming'],
-      isAdmin: false
+      role: 'judge',
+      isAdmin: false,
+      schoolId: legacySchool.id
     },
     {
       name: 'Gabrielly Araújo',
+      email: 'gabrielly.araujo@example.com',
       password: hashedPassword,
       areas: ['programming'],
-      isAdmin: false
+      role: 'judge',
+      isAdmin: false,
+      schoolId: legacySchool.id
     },
     {
       name: 'Camila Letícia',
+      email: 'camila.leticia@example.com',
       password: hashedPassword,
       areas: ['programming'],
-      isAdmin: false
+      role: 'judge',
+      isAdmin: false,
+      schoolId: legacySchool.id
     },
     {
       name: 'Ana Carolina',
+      email: 'ana.carolina@example.com',
       password: hashedPassword,
       areas: ['programming'],
-      isAdmin: false
+      role: 'judge',
+      isAdmin: false,
+      schoolId: legacySchool.id
     },
     {
       name: 'Felipe Leão',
+      email: 'felipe.leao@example.com',
       password: hashedPassword,
       areas: ['research'],
-      isAdmin: false
+      role: 'judge',
+      isAdmin: false,
+      schoolId: legacySchool.id
     },
     {
       name: 'Rafael',
+      email: 'rafael@example.com',
       password: hashedPassword,
       areas: ['research'],
-      isAdmin: false
+      role: 'judge',
+      isAdmin: false,
+      schoolId: legacySchool.id
     },
     {
       name: 'Lucas Gambarini',
+      email: 'lucas.gambarini@example.com',
       password: hashedPassword,
       areas: ['identity'],
-      isAdmin: false
+      role: 'judge',
+      isAdmin: false,
+      schoolId: legacySchool.id
     },
     {
       name: 'Marcos',
+      email: 'marcos@example.com',
       password: hashedPassword,
       areas: ['programming', 'research', 'identity'],
-      isAdmin: true
+      role: 'school_admin',
+      isAdmin: true,
+      schoolId: legacySchool.id
     }
   ]
 
   for (const userData of users) {
     const existingUser = await prisma.user.findFirst({
-      where: { name: userData.name }
+      where: { email: userData.email }
     })
     
     if (existingUser) {
@@ -86,47 +130,104 @@ async function main() {
     }
   }
 
+  // Criar torneio padrão para compatibilidade
+  let defaultTournament = await prisma.tournament.findFirst({
+    where: { code: 'DEFAULT_TOURNAMENT' }
+  })
+
+  if (!defaultTournament) {
+    defaultTournament = await prisma.tournament.create({
+      data: {
+        schoolId: legacySchool.id,
+        name: 'Torneio Principal',
+        code: 'DEFAULT_TOURNAMENT',
+        status: 'published',
+        rankingMethod: 'percentage',
+        allowReevaluation: true,
+        configLocked: false
+      }
+    })
+    console.log('Torneio padrão criado')
+  }
+
+  // Criar áreas avaliativas padrão
+  const areas = [
+    {
+      tournamentId: defaultTournament.id,
+      name: 'Programação',
+      code: 'programming',
+      scoringType: 'performance',
+      weight: 1.0,
+      order: 1
+    },
+    {
+      tournamentId: defaultTournament.id,
+      name: 'Pesquisa/Storytelling',
+      code: 'research',
+      scoringType: 'rubric',
+      weight: 1.0,
+      order: 2
+    },
+    {
+      tournamentId: defaultTournament.id,
+      name: 'Torcida',
+      code: 'identity',
+      scoringType: 'rubric',
+      weight: 1.0,
+      order: 3
+    }
+  ]
+
+  for (const areaData of areas) {
+    const existingArea = await prisma.tournamentArea.findFirst({
+      where: {
+        tournamentId: areaData.tournamentId,
+        code: areaData.code
+      }
+    })
+    
+    if (!existingArea) {
+      await prisma.tournamentArea.create({
+        data: areaData
+      })
+      console.log(`Área ${areaData.name} criada`)
+    }
+  }
+
   // Criar equipes conforme estrutura do torneio
   const teams = [
     // Turno Manhã
-    { name: '2ºA', grade: '2', shift: 'morning' },
-    { name: '2ºB', grade: '2', shift: 'morning' },
-    { name: '3ºA', grade: '3', shift: 'morning' },
-    { name: '3ºB', grade: '3', shift: 'morning' },
-    { name: '4ºA', grade: '4', shift: 'morning' },
-    { name: '4ºB', grade: '4', shift: 'morning' },
-    { name: '5ºA', grade: '5', shift: 'morning' },
-    { name: '5ºB', grade: '5', shift: 'morning' },
+    { name: '2ºA', grade: '2', shift: 'morning', tournamentId: defaultTournament.id },
+    { name: '2ºB', grade: '2', shift: 'morning', tournamentId: defaultTournament.id },
+    { name: '3ºA', grade: '3', shift: 'morning', tournamentId: defaultTournament.id },
+    { name: '3ºB', grade: '3', shift: 'morning', tournamentId: defaultTournament.id },
+    { name: '4ºA', grade: '4', shift: 'morning', tournamentId: defaultTournament.id },
+    { name: '4ºB', grade: '4', shift: 'morning', tournamentId: defaultTournament.id },
+    { name: '5ºA', grade: '5', shift: 'morning', tournamentId: defaultTournament.id },
+    { name: '5ºB', grade: '5', shift: 'morning', tournamentId: defaultTournament.id },
     
     // Turno Tarde
-    { name: '2ºC', grade: '2', shift: 'afternoon' },
-    { name: '2ºD', grade: '2', shift: 'afternoon' },
-    { name: '2ºE', grade: '2', shift: 'afternoon' },
-    { name: '3ºC', grade: '3', shift: 'afternoon' },
-    { name: '3ºD', grade: '3', shift: 'afternoon' },
-    { name: '4ºC', grade: '4', shift: 'afternoon' },
-    { name: '4ºD', grade: '4', shift: 'afternoon' },
-    { name: '4ºE', grade: '4', shift: 'afternoon' },
-    { name: '5ºC', grade: '5', shift: 'afternoon' },
-    { name: '5ºD', grade: '5', shift: 'afternoon' }
+    { name: '2ºC', grade: '2', shift: 'afternoon', tournamentId: defaultTournament.id },
+    { name: '2ºD', grade: '2', shift: 'afternoon', tournamentId: defaultTournament.id },
+    { name: '2ºE', grade: '2', shift: 'afternoon', tournamentId: defaultTournament.id },
+    { name: '3ºC', grade: '3', shift: 'afternoon', tournamentId: defaultTournament.id },
+    { name: '3ºD', grade: '3', shift: 'afternoon', tournamentId: defaultTournament.id },
+    { name: '4ºC', grade: '4', shift: 'afternoon', tournamentId: defaultTournament.id },
+    { name: '4ºD', grade: '4', shift: 'afternoon', tournamentId: defaultTournament.id },
+    { name: '4ºE', grade: '4', shift: 'afternoon', tournamentId: defaultTournament.id },
+    { name: '5ºC', grade: '5', shift: 'afternoon', tournamentId: defaultTournament.id },
+    { name: '5ºD', grade: '5', shift: 'afternoon', tournamentId: defaultTournament.id }
   ]
 
   for (const teamData of teams) {
     const existingTeam = await prisma.team.findFirst({
       where: { 
-        name: teamData.name,
-        grade: teamData.grade,
-        shift: teamData.shift
+        tournamentId: teamData.tournamentId,
+        name: teamData.name
       }
     })
     
-    if (existingTeam) {
-      await prisma.team.update({
-        where: { id: existingTeam.id },
-        data: teamData
-      })
-      console.log(`Equipe ${teamData.name} atualizada`)
-    } else {
+    if (!existingTeam) {
       await prisma.team.create({
         data: teamData
       })

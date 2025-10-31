@@ -16,7 +16,7 @@ model School {
   name          String
   email         String?  @unique
   code          String   @unique // Unique identifier code for the school
-  isActive      Boolean  @default(true)
+  status        String   @default("draft") // draft, active, suspended, archived
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -34,6 +34,7 @@ model TournamentTemplate {
   id          String   @id @default(cuid())
   name        String
   description String?
+  version     String   @default("1.0.0") // Semantic versioning
   isOfficial  Boolean  @default(false) // Official templates by Zoom Education
   isActive    Boolean  @default(true)
   createdBy   String?  // Platform admin or school ID
@@ -43,6 +44,9 @@ model TournamentTemplate {
 
   // Template configuration as JSON
   config      Json     // Stores area types, rubrics, penalties, etc.
+  
+  // Changelog and tracking
+  changelog   Json?    // Version history and changes
 
   // Relations
   school      School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -58,8 +62,10 @@ model Tournament {
   name          String
   code          String   @unique // Unique code within platform
   description   String?
+  status        String   @default("draft") // draft, ready, published, paused, finished, archived
   isActive      Boolean  @default(true)
   templateId    String?  // Reference to template used
+  templateVersion String? // Locked version when tournament is published
   startDate     DateTime?
   endDate       DateTime?
   createdAt     DateTime @default(now())
@@ -71,6 +77,12 @@ model Tournament {
   tieBreak      Json?    // Tie-break criteria order
   allowReevaluation Boolean @default(true)
   
+  // Config lock when published
+  configLocked  Boolean  @default(false)
+  
+  // Feature flags
+  features      Json?    // { reevaluation, multiRounds, penalties, timer, publicLink, etc. }
+  
   // Relations
   school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   template      TournamentTemplate? @relation(fields: [templateId], references: [id])
@@ -78,6 +90,7 @@ model Tournament {
   teams         Team[]
   evaluations   Evaluation[]
   userAreas     UserTournamentArea[]
+  snapshots     RankingSnapshot[]
 
   @@map("tournaments")
 }
@@ -101,9 +114,20 @@ model TournamentArea {
   // Performance configuration (if scoringType is performance or mixed)
   performanceConfig Json?
   
+  // Multi-judge aggregation
+  aggregationMethod String @default("last") // "last", "average", "median", "best", "worst"
+  
   // Time settings
   timeLimit    Int?     // in seconds
   timeAction   String   @default("alert") // "alert" or "block"
+  
+  // Rounds support (optional)
+  allowRounds  Boolean  @default(false)
+  maxRounds    Int      @default(1)
+  roundsAggregation String? // "best", "average", "sum"
+  
+  // Validation limits
+  penaltyLimits Json?   // Max penalties per type and validation rules
   
   // Pricing (optional)
   hasPrice     Boolean  @default(false)
@@ -136,6 +160,13 @@ model User {
   areas       String[] // Deprecated, use UserTournamentArea instead
   
   isActive    Boolean  @default(true)
+  isFirstLogin Boolean  @default(true) // Force password change on first login
+  
+  // Session and security
+  lastLoginAt DateTime?
+  sessionExpiresAt DateTime? // Token expiration for offline mode
+  tempPassword String? // Temporary password with expiration
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -194,6 +225,7 @@ model Evaluation {
   tournamentId  String
   teamId        String
   areaId        String
+  round         Int      @default(1) // For multi-round support
   scores        Json     // Array of { criterionId: string, score: number }
   comments      String?
   evaluationTime Int     // in seconds
@@ -201,11 +233,18 @@ model Evaluation {
   evaluatedAt   DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  // Version and history
+  version       Int      @default(1) // Increments on re-evaluation
+  isActive      Boolean  @default(true) // Only active version counts for ranking
 
   // Offline sync support
   isSynced      Boolean  @default(true)
   syncVersion   Int      @default(0) // For conflict resolution (last-write-wins)
   syncedAt      DateTime @default(now())
+  
+  // Idempotency key for sync
+  idempotencyKey String? @unique // Prevents duplicate syncs
 
   // Relations
   tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
@@ -219,9 +258,10 @@ model Evaluation {
   parentEvaluation   Evaluation? @relation("EvaluationHistory", fields: [parentEvaluationId], references: [id])
   childEvaluations   Evaluation[] @relation("EvaluationHistory")
 
-  @@unique([tournamentId, teamId, areaId, evaluatedById])
+  @@unique([tournamentId, teamId, areaId, evaluatedById, round])
   @@index([teamId, areaId])
   @@index([isSynced])
+  @@index([isActive])
   @@map("evaluations")
 }
 
@@ -261,4 +301,20 @@ model SchoolSettings {
   school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@map("school_settings")
+}
+
+// Ranking Snapshots (for historical tracking)
+model RankingSnapshot {
+  id            String   @id @default(cuid())
+  tournamentId  String
+  event         String   // published, paused, finished, manual
+  rankings      Json     // Complete rankings array
+  metadata      Json?    // Additional metadata
+  createdAt     DateTime @default(now())
+
+  // Relations
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
+  @@map("ranking_snapshots")
 }
