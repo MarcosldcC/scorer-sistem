@@ -156,25 +156,58 @@ async function main() {
       tournamentId: defaultTournament.id,
       name: 'Programação',
       code: 'programming',
+      description: 'Avaliação de programação e robótica',
       scoringType: 'performance',
       weight: 1.0,
-      order: 1
+      order: 1,
+      rubricConfig: {
+        type: 'performance',
+        minScore: 0,
+        maxScore: 100
+      },
+      performanceConfig: {
+        timerEnabled: true,
+        timeLimit: 600,
+        penaltyEnabled: true
+      },
+      aggregationMethod: 'average',
+      allowRounds: false,
+      maxRounds: 1,
+      hasPrice: false
     },
     {
       tournamentId: defaultTournament.id,
       name: 'Pesquisa/Storytelling',
       code: 'research',
+      description: 'Avaliação de pesquisa e storytelling',
       scoringType: 'rubric',
       weight: 1.0,
-      order: 2
+      order: 2,
+      rubricConfig: {
+        type: 'rubric',
+        criteria: []
+      },
+      aggregationMethod: 'average',
+      allowRounds: false,
+      maxRounds: 1,
+      hasPrice: false
     },
     {
       tournamentId: defaultTournament.id,
       name: 'Torcida',
       code: 'identity',
+      description: 'Avaliação de torcida',
       scoringType: 'rubric',
       weight: 1.0,
-      order: 3
+      order: 3,
+      rubricConfig: {
+        type: 'rubric',
+        criteria: []
+      },
+      aggregationMethod: 'average',
+      allowRounds: false,
+      maxRounds: 1,
+      hasPrice: false
     }
   ]
 
