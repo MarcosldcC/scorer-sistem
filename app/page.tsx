@@ -6,14 +6,19 @@ import { useAuth } from "@/hooks/use-auth-api"
 import { LoginFormNew } from "@/components/login-form-new"
 
 export default function HomePage() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push("/dashboard")
+      // Redirect based on user role
+      if (user?.role === 'platform_admin') {
+        router.push("/dashboard/platform")
+      } else {
+        router.push("/dashboard")
+      }
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, user, router])
 
   if (isLoading) {
     return (
