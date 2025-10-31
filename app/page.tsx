@@ -2,8 +2,8 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
-import { LoginForm } from "@/components/login-form"
+import { useAuth } from "@/hooks/use-auth-api"
+import { LoginFormNew } from "@/components/login-form-new"
 
 export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -30,5 +30,5 @@ export default function HomePage() {
     return null // Will redirect to dashboard
   }
 
-  return <LoginForm />
+  return <LoginFormNew />
 }

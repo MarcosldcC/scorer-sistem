@@ -20,14 +20,18 @@ export function useAuth() {
     loading: true
   })
 
-  const login = useCallback(async (name: string, password: string) => {
+  const login = useCallback(async (emailOrName: string, password: string) => {
     try {
+      // Check if it's an email or name
+      const isEmail = emailOrName.includes('@')
+      const body = isEmail ? { email: emailOrName, password } : { name: emailOrName, password }
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, password }),
+        body: JSON.stringify(body),
       })
 
       const data = await response.json()
@@ -117,6 +121,7 @@ export function useAuth() {
 
   return {
     ...authState,
+    isLoading: authState.loading,
     login,
     logout,
     verifyToken
