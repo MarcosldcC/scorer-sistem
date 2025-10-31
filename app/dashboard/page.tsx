@@ -20,6 +20,7 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, authLoading, router])
 
+
   if (authLoading || teamsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">

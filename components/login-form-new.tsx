@@ -36,12 +36,25 @@ export function LoginFormNew() {
       return
     }
 
-    // For now, we need to check if login API accepts email or name
-    // We'll try email first
     const result = await login(email, password)
 
     if (result.success) {
-      router.push("/dashboard")
+      // Check user role and redirect accordingly
+      const token = localStorage.getItem('robotics-token')
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          if (payload.role === 'platform_admin') {
+            router.push("/dashboard/platform")
+          } else {
+            router.push("/dashboard")
+          }
+        } catch {
+          router.push("/dashboard")
+        }
+      } else {
+        router.push("/dashboard")
+      }
     } else {
       setError(result.error || "Erro ao fazer login. Verifique suas credenciais.")
     }
