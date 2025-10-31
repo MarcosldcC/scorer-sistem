@@ -18,20 +18,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, password } = await request.json()
+    const { email, name, password } = await request.json()
 
-    if (!name || !password) {
+    // Support both email and name login for backward compatibility
+    if ((!email && !name) || !password) {
       return NextResponse.json(
-        { error: 'Nome e senha são obrigatórios' },
+        { error: 'Email/nome e senha são obrigatórios' },
         { status: 400 }
       )
     }
 
-    // Find user by name
+    // Find user by email or name
     let user
     try {
+      const where: any = email ? { email } : { name }
+      
       user = await prisma.user.findFirst({
-        where: { name }
+        where,
+        include: {
+          school: {
+            select: {
+              id: true,
+              name: true,
+              status: true
+            }
+          },
+          assignedAreas: {
+            include: {
+              area: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true
+                }
+              }
+            }
+          }
+        }
       })
     } catch (dbError) {
       console.error('Database connection error:', dbError)
@@ -48,26 +71,64 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify password
+    // Check if user is active
+    if (!user.isActive) {
+      return NextResponse.json(
+        { error: 'Usuário inativo' },
+        { status: 403 }
+      )
+    }
+
+    // Check if school is active (if user belongs to a school)
+    if (user.schoolId && user.school?.status !== 'active') {
+      return NextResponse.json(
+        { error: 'Escola inativa' },
+        { status: 403 }
+      )
+    }
+
+    // Verify password (check both regular and temp password)
     const isValidPassword = await bcrypt.compare(password, user.password)
-    if (!isValidPassword) {
+    const isValidTempPassword = user.tempPassword 
+      ? await bcrypt.compare(password, user.tempPassword)
+      : false
+
+    if (!isValidPassword && !isValidTempPassword) {
       return NextResponse.json(
         { error: 'Senha incorreta' },
         { status: 401 }
       )
     }
 
-    // Generate JWT token
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: new Date()
+      }
+    })
+
+    // Generate JWT token with extended info
     const token = jwt.sign(
       { 
-        userId: user.id, 
-        name: user.name, 
+        userId: user.id,
+        schoolId: user.schoolId,
+        name: user.name,
+        email: user.email,
+        role: user.role,
         isAdmin: user.isAdmin,
-        areas: user.areas 
+        areas: user.areas // Legacy compatibility
       },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     )
+
+    // Get assigned areas for the user
+    const assignedAreas = user.assignedAreas.map(ua => ({
+      areaId: ua.areaId,
+      areaCode: ua.area.code,
+      areaName: ua.area.name
+    }))
 
     return NextResponse.json({
       success: true,
@@ -75,8 +136,13 @@ export async function POST(request: NextRequest) {
       user: {
         id: user.id,
         name: user.name,
+        email: user.email,
+        role: user.role,
         isAdmin: user.isAdmin,
-        areas: user.areas
+        areas: user.areas, // Legacy
+        assignedAreas,
+        schoolId: user.schoolId,
+        isFirstLogin: user.isFirstLogin
       }
     })
 
