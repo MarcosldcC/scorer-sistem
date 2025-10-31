@@ -4,10 +4,8 @@ import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
 import { calculatePercentage, getMaxPossibleScore, calculateTotalScore, RUBRICS } from '@/lib/rubrics'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-// Middleware to verify JWT token
 async function verifyToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -22,32 +20,64 @@ async function verifyToken(request: NextRequest) {
   }
 }
 
+// GET /api/rankings - Get tournament rankings
 export async function GET(request: NextRequest) {
   try {
     const user = await verifyToken(request)
     if (!user) {
       return NextResponse.json(
-        { error: 'Token inválido' },
+        { error: 'Não autenticado' },
         { status: 401 }
       )
     }
 
     const { searchParams } = new URL(request.url)
+    const tournamentId = searchParams.get('tournamentId') || 'DEFAULT_TOURNAMENT' // Backward compatibility
     const shift = searchParams.get('shift')
     const grade = searchParams.get('grade')
 
-    // Build where clause
-    const where: any = {}
+    // Get tournament
+    const tournament = await prisma.tournament.findFirst({
+      where: { id: tournamentId }
+    })
+
+    if (!tournament) {
+      return NextResponse.json(
+        { error: 'Torneio não encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Verify tournament access
+    if (tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
+    // Get tournament areas
+    const areas = await prisma.tournamentArea.findMany({
+      where: { tournamentId }
+    })
+
+    // Build team where clause
+    const where: any = { tournamentId }
     if (shift) where.shift = shift
     if (grade) where.grade = grade
 
+    // Get teams with evaluations
     const teams = await prisma.team.findMany({
       where,
       include: {
         evaluations: {
+          where: { isActive: true }, // Only active evaluations count
           include: {
             evaluatedBy: {
               select: { id: true, name: true }
+            },
+            area: {
+              select: { id: true, code: true, name: true }
             },
             penalties: true
           }
@@ -64,17 +94,31 @@ export async function GET(request: NextRequest) {
       const areaPercentages: number[] = []
 
       // Calculate scores for each area
-      const areas: Array<"programming" | "research" | "identity"> = ["programming", "research", "identity"]
-
       areas.forEach((area) => {
-        const rubric = RUBRICS[area]
-        const maxAreaScore = getMaxPossibleScore(rubric)
+        const rubric = RUBRICS[area.code as keyof typeof RUBRICS]
+        const maxAreaScore = rubric ? getMaxPossibleScore(rubric) : 0
         maxPossibleScore += maxAreaScore
 
-        const evaluation = team.evaluations.find(evaluation => evaluation.area === area)
-        if (evaluation) {
+        // Find evaluations for this area
+        const evaluations = team.evaluations.filter(evaluation => 
+          evaluation.area.id === area.id
+        )
+
+        if (evaluations.length > 0) {
+          // For now, use first evaluation (later we'll implement multi-judge aggregation)
+          const evaluation = evaluations[0]
           const scores = evaluation.scores as any[]
-          const areaTotal = calculateTotalScore(scores)
+          
+          // Calculate area total based on scoring type
+          let areaTotal = 0
+          if (area.scoringType === 'rubric') {
+            areaTotal = calculateTotalScore(scores)
+          } else if (area.scoringType === 'performance') {
+            areaTotal = scores.reduce((sum, s) => sum + (s.score || 0), 0)
+          } else {
+            // Mixed
+            areaTotal = calculateTotalScore(scores)
+          }
           
           // Apply penalties
           let finalAreaScore = areaTotal
@@ -85,10 +129,12 @@ export async function GET(request: NextRequest) {
           finalAreaScore = Math.max(0, finalAreaScore)
           totalScore += finalAreaScore
           
-          const areaPercentage = calculatePercentage(finalAreaScore, maxAreaScore)
+          const areaPercentage = maxAreaScore > 0 
+            ? calculatePercentage(finalAreaScore, maxAreaScore)
+            : 0
           areaPercentages.push(areaPercentage)
           
-          areaScores[area] = {
+          areaScores[area.code] = {
             score: finalAreaScore,
             percentage: areaPercentage,
             evaluatedBy: evaluation.evaluatedBy.name,
@@ -99,10 +145,19 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      // Calculate final percentage as average of area percentages
-      const percentage = areaPercentages.length > 0 
-        ? Math.round(areaPercentages.reduce((sum, p) => sum + p, 0) / areaPercentages.length)
-        : 0
+      // Calculate final percentage based on tournament configuration
+      let percentage = 0
+      if (tournament.rankingMethod === 'percentage') {
+        // Average of area percentages
+        percentage = areaPercentages.length > 0 
+          ? Math.round(areaPercentages.reduce((sum, p) => sum + p, 0) / areaPercentages.length)
+          : 0
+      } else {
+        // Raw score percentage
+        percentage = maxPossibleScore > 0
+          ? Math.round((totalScore / maxPossibleScore) * 100)
+          : 0
+      }
 
       return {
         position: 0, // Will be set when sorting
@@ -119,7 +174,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Sort by percentage (descending) and then by total score
+    // Sort by tournament configuration
     rankings.sort((a, b) => {
       if (b.percentage !== a.percentage) {
         return b.percentage - a.percentage
