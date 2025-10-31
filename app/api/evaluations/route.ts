@@ -266,9 +266,9 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform evaluations to include area code for backward compatibility
-    const transformedEvaluations = evaluations.map(eval => ({
-      ...eval,
-      area: eval.area.code // Legacy field
+    const transformedEvaluations = evaluations.map((evaluation) => ({
+      ...evaluation,
+      area: evaluation.area.code // Legacy field
     }))
 
     return NextResponse.json({ evaluations: transformedEvaluations })
