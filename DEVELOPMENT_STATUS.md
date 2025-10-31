@@ -45,18 +45,18 @@
 - ⏳ **app/api/tournaments/** - CRUD e gestão de torneios
 - ⏳ **app/api/tournament-areas/** - Configuração de áreas
 - ⏳ **app/api/users/** - Gestão de usuários
-- ⏳ **app/api/auth/** - Atualizar para multi-tenant
-- ⏳ **app/api/evaluations/** - Atualizar para offline + multi-tenant
-- ⏳ **app/api/rankings/** - Atualizar para novos cálculos
+- ✅ **app/api/auth/login** - Atualizado para multi-tenant
+- ✅ **app/api/evaluations/** - Atualizado para multi-tenant + compatibilidade
+- ✅ **app/api/rankings/** - Atualizado para novos cálculos
 - ⏳ **app/api/snapshots/** - CRUD de snapshots
 
 ### Middleware & Permissões
-- ⏳ `lib/permissions.ts` - Verificação de permissões
+- ✅ `lib/permissions.ts` - Verificação de permissões (criada)
 - ⏳ `lib/middleware.ts` - Tenant isolation
 - ⏳ `hooks/use-permissions.ts` - Hook de permissões
 
 ### Offline-First
-- ⏳ `lib/offline-sync.ts` - Gerenciador de sync
+- ✅ `lib/offline-sync.ts` - Estrutura de sync (criada)
 - ⏳ `workers/sync-service-worker.ts` - Service Worker
 - ⏳ `lib/indexed-db.ts` - Interface IndexedDB
 - ⏳ `hooks/use-offline.ts` - Hook de status offline
@@ -118,8 +118,8 @@
 - [x] APIs de Templates (estrutura criada)
 - [x] APIs de Tournaments (estrutura criada)
 - [x] Atualizar API de Teams
-- [ ] Atualizar API de Evaluations
-- [ ] Atualizar API de Rankings
+- [x] Atualizar API de Evaluations
+- [x] Atualizar API de Rankings
 
 ### FASE 2: Funcionalidades Core
 - [ ] Configuração de áreas flexíveis
@@ -199,7 +199,7 @@
 
 ---
 
-**Status Atual: Schema gerado com sucesso. Backend parcialmente implementado. Próximo: Migração e Frontend** 🚀
+**Status Atual: Backend Core 70% completo. APIs de Teams, Evaluations e Rankings atualizadas. Próximo: Migração e Frontend** 🚀
 
 **Última Atualização:** Agora
 
