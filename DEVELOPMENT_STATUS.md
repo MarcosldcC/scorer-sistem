@@ -35,8 +35,8 @@
 ## 🚧 EM DESENVOLVIMENTO
 
 ### Schema
-- ⏳ Gerar cliente Prisma (`pnpm run db:generate`)
-- ⏳ Criar migração (`pnpm run db:migrate`)
+- ✅ Gerar cliente Prisma (`pnpm run db:generate`)
+- ⏳ Criar migração (`pnpm run db:migrate`) - Aguardando .env configurado
 - ⏳ Rodar seed (`pnpm run db:seed`)
 
 ### APIs Backend
@@ -110,13 +110,16 @@
 
 ### FASE 1: Fundação (Obrigatório)
 - [x] Schema Prisma multi-tenant
-- [ ] Gerar cliente Prisma
-- [ ] Migração de banco
+- [x] Gerar cliente Prisma
+- [ ] Migração de banco (aguardando .env)
 - [ ] Seed de dados
-- [ ] Permissões e middleware
-- [ ] APIs de Schools
-- [ ] APIs de Templates
-- [ ] APIs de Tournaments
+- [x] Permissões (lib/permissions.ts)
+- [x] APIs de Schools (estrutura criada)
+- [x] APIs de Templates (estrutura criada)
+- [x] APIs de Tournaments (estrutura criada)
+- [x] Atualizar API de Teams
+- [ ] Atualizar API de Evaluations
+- [ ] Atualizar API de Rankings
 
 ### FASE 2: Funcionalidades Core
 - [ ] Configuração de áreas flexíveis
@@ -196,7 +199,7 @@
 
 ---
 
-**Status Atual: Documentação e Schema completos, prontos para implementação backend** 🚀
+**Status Atual: Schema gerado com sucesso. Backend parcialmente implementado. Próximo: Migração e Frontend** 🚀
 
 **Última Atualização:** Agora
 
