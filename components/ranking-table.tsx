@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronRight, Trophy, Medal, Award, Trash2 } from "lucide-react"
-import type { TeamRanking } from "@/lib/rankings"
+import { RUBRICS, getRubricForGrade } from "@/lib/rubrics"
+import type { TeamRanking } from "@/hooks/use-rankings"
 
 interface RankingTableProps {
   rankings: TeamRanking[]
@@ -131,6 +132,8 @@ export function RankingTable({ rankings, isAdmin = false, onDeleteEvaluation, de
 
                               if (!scores) return null
 
+                              const rubric = getRubricForGrade(area as any, ranking.team.grade)
+
                               return (
                                 <div key={area} className="bg-background p-3 rounded-lg border">
                                   <h5 className="font-medium text-sm mb-2">
@@ -161,6 +164,54 @@ export function RankingTable({ rankings, isAdmin = false, onDeleteEvaluation, de
                                         </span>
                                       </div>
                                     )}
+                                    
+                                    {/* Exibir rubrica preenchida */}
+                                    {scores.detailedScores && scores.detailedScores.length > 0 && (
+                                      <div className="mt-3 pt-3 border-t">
+                                        <p className="text-xs font-semibold text-muted-foreground mb-2">
+                                          Rubrica Preenchida:
+                                        </p>
+                                        <div className="space-y-1.5">
+                                          {scores.detailedScores.map((detail) => {
+                                            const criterion = rubric.criteria.find(c => c.id === detail.criterionId)
+                                            if (!criterion) return null
+                                            
+                                            return (
+                                              <div key={detail.criterionId} className="flex items-start justify-between text-xs">
+                                                <span className="text-muted-foreground truncate flex-1 mr-2">
+                                                  {criterion.name}
+                                                </span>
+                                                <Badge variant="secondary" className="text-xs shrink-0">
+                                                  {detail.score}/{criterion.maxScore}
+                                                </Badge>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Exibir penalidades */}
+                                    {scores.penalties && scores.penalties.length > 0 && (
+                                      <div className="mt-2 pt-2 border-t">
+                                        <p className="text-xs font-semibold text-red-600 mb-1">
+                                          Penalidades:
+                                        </p>
+                                        <div className="space-y-1">
+                                          {scores.penalties.map((penalty, idx) => (
+                                            <div key={idx} className="flex items-start justify-between text-xs">
+                                              <span className="text-muted-foreground">
+                                                {penalty.description || penalty.type}
+                                              </span>
+                                              <Badge variant="destructive" className="text-xs">
+                                                {penalty.points} pts
+                                              </Badge>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
                                     {isAdmin && onDeleteEvaluation && (
                                       <div className="mt-2 pt-2 border-t">
                                         <Button

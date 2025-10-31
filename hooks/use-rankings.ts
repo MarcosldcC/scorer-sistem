@@ -16,6 +16,9 @@ export interface TeamRanking {
     score: number
     percentage: number
     evaluatedBy?: string
+    evaluationTime?: number
+    detailedScores?: Array<{ criterionId: string; score: number }>
+    penalties?: Array<{ type: string; points: number; description?: string }>
   }>
 }
 

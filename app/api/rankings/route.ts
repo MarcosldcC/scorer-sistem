@@ -92,7 +92,9 @@ export async function GET(request: NextRequest) {
             score: finalAreaScore,
             percentage: areaPercentage,
             evaluatedBy: evaluation.evaluatedBy.name,
-            evaluationTime: evaluation.evaluationTime
+            evaluationTime: evaluation.evaluationTime,
+            detailedScores: scores,
+            penalties: evaluation.penalties
           }
         }
       })
