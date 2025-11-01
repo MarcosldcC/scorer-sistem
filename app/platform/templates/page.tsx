@@ -42,7 +42,27 @@ export default function TemplatesManagement() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    isOfficial: false
+    isOfficial: false,
+    areas: [
+      {
+        name: "Programação",
+        code: "programming",
+        scoringType: "performance" as "performance" | "rubric" | "mixed",
+        weight: 1.0
+      },
+      {
+        name: "Pesquisa",
+        code: "research",
+        scoringType: "rubric" as "performance" | "rubric" | "mixed",
+        weight: 1.0
+      },
+      {
+        name: "Torcida",
+        code: "identity",
+        scoringType: "rubric" as "performance" | "rubric" | "mixed",
+        weight: 1.0
+      }
+    ]
   })
 
   useEffect(() => {
@@ -93,6 +113,55 @@ export default function TemplatesManagement() {
 
     try {
       const token = localStorage.getItem('robotics-token')
+      
+      // Build complete config from form data
+      const config = {
+        areas: formData.areas.map(area => ({
+          name: area.name,
+          code: area.code,
+          scoringType: area.scoringType,
+          weight: area.weight,
+          // Default configurations
+          rubricConfig: area.scoringType === 'rubric' || area.scoringType === 'mixed' ? {
+            criteria: [
+              {
+                id: `${area.code}_criterion1`,
+                name: "Categoria 1",
+                maxScore: 10,
+                options: [0, 2, 5, 8, 10]
+              }
+            ]
+          } : null,
+          performanceConfig: area.scoringType === 'performance' || area.scoringType === 'mixed' ? {
+            missions: [
+              {
+                id: `${area.code}_mission1`,
+                name: "Missão 1",
+                points: 10,
+                quantity: 1
+              }
+            ],
+            penalties: [
+              {
+                type: "robot_touch",
+                points: -5
+              }
+            ]
+          } : null,
+          timeLimit: 300, // 5 minutes default
+          timeAction: "alert",
+          aggregationMethod: "last"
+        })),
+        ranking: {
+          method: "percentage",
+          weights: formData.areas.reduce((acc, area) => {
+            acc[area.code] = area.weight
+            return acc
+          }, {} as Record<string, number>),
+          tieBreak: ["totalScore", "programming", "research"]
+        }
+      }
+
       const response = await fetch('/api/templates', {
         method: 'POST',
         headers: {
@@ -100,8 +169,10 @@ export default function TemplatesManagement() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          ...formData,
-          config: {} // Default empty config
+          name: formData.name,
+          description: formData.description,
+          isOfficial: formData.isOfficial,
+          config: config
         })
       })
 
@@ -109,13 +180,38 @@ export default function TemplatesManagement() {
 
       if (response.ok) {
         setDialogOpen(false)
-        setFormData({ name: "", description: "", isOfficial: false })
+        setFormData({ 
+          name: "", 
+          description: "", 
+          isOfficial: false,
+          areas: [
+            {
+              name: "Programação",
+              code: "programming",
+              scoringType: "performance" as const,
+              weight: 1.0
+            },
+            {
+              name: "Pesquisa",
+              code: "research",
+              scoringType: "rubric" as const,
+              weight: 1.0
+            },
+            {
+              name: "Torcida",
+              code: "identity",
+              scoringType: "rubric" as const,
+              weight: 1.0
+            }
+          ]
+        })
         fetchTemplates()
       } else {
         setError(data.error || 'Erro ao criar template')
       }
     } catch (err) {
       setError('Erro de conexão')
+      console.error('Create template error:', err)
     }
   }
 
@@ -178,11 +274,11 @@ export default function TemplatesManagement() {
                     Novo Template
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Criar Novo Template</DialogTitle>
                     <DialogDescription>
-                      Crie um novo template oficial de torneio
+                      Crie um novo template com configuração completa de áreas e pontuação
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleCreateTemplate} className="space-y-4">
@@ -225,6 +321,58 @@ export default function TemplatesManagement() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    <div className="space-y-4 pt-4 border-t">
+                      <Label className="text-base font-semibold">Áreas de Avaliação</Label>
+                      {formData.areas.map((area, index) => (
+                        <div key={area.code} className="space-y-3 p-3 border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <Label className="font-medium">{area.name}</Label>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label className="text-sm">Tipo de Pontuação</Label>
+                              <Select 
+                                value={area.scoringType}
+                                onValueChange={(value: "performance" | "rubric" | "mixed") => {
+                                  const newAreas = [...formData.areas]
+                                  newAreas[index].scoringType = value
+                                  setFormData({ ...formData, areas: newAreas })
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="performance">Desempenho</SelectItem>
+                                  <SelectItem value="rubric">Rubrica</SelectItem>
+                                  <SelectItem value="mixed">Misto</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm">Peso (0.1 - 2.0)</Label>
+                              <Input
+                                type="number"
+                                min="0.1"
+                                max="2.0"
+                                step="0.1"
+                                value={area.weight}
+                                onChange={(e) => {
+                                  const newAreas = [...formData.areas]
+                                  newAreas[index].weight = parseFloat(e.target.value) || 1.0
+                                  setFormData({ ...formData, areas: newAreas })
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground">
+                        * O template será criado com configurações padrão para cada área. Você pode editar depois.
+                      </p>
+                    </div>
+
                     <Button type="submit" className="w-full">Criar Template</Button>
                   </form>
                 </DialogContent>
