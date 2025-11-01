@@ -257,3 +257,85 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+// DELETE /api/schools - Delete school (Platform Admin only)
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await verifyToken(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Não autenticado' },
+        { status: 401 }
+      )
+    }
+
+    if (user.role !== 'platform_admin') {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID da escola é obrigatório' },
+        { status: 400 }
+      )
+    }
+
+    // Check if school has associated tournaments
+    const school = await prisma.school.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            tournaments: true,
+            users: true
+          }
+        }
+      }
+    })
+
+    if (!school) {
+      return NextResponse.json(
+        { error: 'Escola não encontrada' },
+        { status: 404 }
+      )
+    }
+
+    // Check if school has tournaments or users
+    if (school._count.tournaments > 0 || school._count.users > 0) {
+      return NextResponse.json(
+        { 
+          error: `Não é possível excluir a escola. Ela possui ${school._count.tournaments} torneio(s) e ${school._count.users} usuário(s) associados. Primeiro remova ou transfira esses dados.` 
+        },
+        { status: 400 }
+      )
+    }
+
+    // Delete school settings first (if exists)
+    await prisma.schoolSettings.deleteMany({
+      where: { schoolId: id }
+    })
+
+    // Delete the school
+    await prisma.school.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Escola excluída com sucesso'
+    })
+
+  } catch (error) {
+    console.error('Delete school error:', error)
+    return NextResponse.json(
+      { error: 'Erro interno do servidor' },
+      { status: 500 }
+    )
+  }
+}
+

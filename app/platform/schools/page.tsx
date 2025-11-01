@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building2, Plus, Search, Edit } from "lucide-react"
+import { Building2, Plus, Search, Edit, Trash2 } from "lucide-react"
 
 interface School {
   id: string
@@ -158,6 +158,30 @@ export default function SchoolsManagement() {
         fetchSchools()
       } else {
         setError(data.error || 'Erro ao atualizar escola')
+      }
+    } catch (err) {
+      setError('Erro de conexão')
+    }
+  }
+
+  const handleDeleteSchool = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta escola? Esta ação não pode ser desfeita.')) return
+
+    try {
+      const token = localStorage.getItem('robotics-token')
+      const response = await fetch(`/api/schools?id=${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        fetchSchools()
+      } else {
+        setError(data.error || 'Erro ao excluir escola')
       }
     } catch (err) {
       setError('Erro de conexão')
@@ -425,6 +449,14 @@ export default function SchoolsManagement() {
                       className="h-8 w-8 p-0"
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteSchool(school.id)}
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
