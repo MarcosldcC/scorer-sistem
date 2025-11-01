@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge"
 import { Users, Plus, Search, Edit, Trash2, Eye, AlertTriangle, Info } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 interface PlatformUser {
   id: string
