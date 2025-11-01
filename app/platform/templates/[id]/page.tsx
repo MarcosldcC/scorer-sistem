@@ -744,6 +744,32 @@ function AreaCard({
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label>Ação ao Estourar Tempo</Label>
+            <Select
+              value={area.timeAction}
+              onValueChange={(value: "alert" | "block") => onUpdate({ timeAction: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alert">Alertar</SelectItem>
+                <SelectItem value="block">Bloquear</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Observações ao Juiz</Label>
+            <Textarea
+              value={area.notes || ""}
+              onChange={(e) => onUpdate({ notes: e.target.value })}
+              placeholder="Instruções que aparecerão na tela de avaliação"
+              rows={3}
+            />
+          </div>
+
           {area.scoringType === "rubric" && (
             <RubricAreaConfig area={area} onUpdate={onUpdate} />
           )}
@@ -759,61 +785,426 @@ function AreaCard({
   )
 }
 
-// Placeholder components for area configurations - these will be fully implemented
+// Fully implemented Rubric Area Configuration
 function RubricAreaConfig({ area, onUpdate }: { area: Area; onUpdate: (updates: Partial<Area>) => void }) {
+  const addCriterion = () => {
+    const newCriterion = {
+      id: `criterion_${Date.now()}`,
+      name: "Novo Critério",
+      maxScore: 10,
+      weight: 1.0,
+      description: "",
+      options: [0, 2, 5, 8, 10],
+      anchors: []
+    }
+    const criteria = [...(area.rubricCriteria || []), newCriterion]
+    onUpdate({ rubricCriteria: criteria })
+  }
+
+  const updateCriterion = (criterionId: string, updates: any) => {
+    const criteria = (area.rubricCriteria || []).map(c =>
+      c.id === criterionId ? { ...c, ...updates } : c
+    )
+    onUpdate({ rubricCriteria: criteria })
+  }
+
+  const deleteCriterion = (criterionId: string) => {
+    const criteria = (area.rubricCriteria || []).filter(c => c.id !== criterionId)
+    onUpdate({ rubricCriteria: criteria })
+  }
+
   return (
     <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
       <div className="flex items-center justify-between">
         <Label className="text-base font-semibold">Critérios de Rubrica</Label>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="outline" onClick={addCriterion}>
           <Plus className="h-4 w-4 mr-2" />
           Adicionar Critério
         </Button>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Configure os critérios de avaliação para esta área do tipo Rubrica.
-      </p>
+
+      {(area.rubricCriteria || []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nenhum critério configurado. Adicione critérios para definir como esta área será avaliada.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {(area.rubricCriteria || []).map((criterion, index) => (
+            <Card key={criterion.id} className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">Critério #{index + 1}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => deleteCriterion(criterion.id)}
+                  className="text-destructive h-6 w-6 p-0"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-sm">Nome do Critério *</Label>
+                    <Input
+                      value={criterion.name}
+                      onChange={(e) => updateCriterion(criterion.id, { name: e.target.value })}
+                      placeholder="Ex: Clareza"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-sm">Pontuação Máxima</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={criterion.maxScore}
+                        onChange={(e) => updateCriterion(criterion.id, { maxScore: parseInt(e.target.value) || 10 })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-sm">Peso</Label>
+                      <Input
+                        type="number"
+                        min="0.1"
+                        max="5.0"
+                        step="0.1"
+                        value={criterion.weight}
+                        onChange={(e) => updateCriterion(criterion.id, { weight: parseFloat(e.target.value) || 1.0 })}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm">Descrição</Label>
+                  <Textarea
+                    value={criterion.description || ""}
+                    onChange={(e) => updateCriterion(criterion.id, { description: e.target.value })}
+                    placeholder="Descrição explicativa do critério"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm">Escala de Pontuação (separar por vírgula)</Label>
+                  <Input
+                    value={criterion.options?.join(", ") || ""}
+                    onChange={(e) => {
+                      const options = e.target.value.split(",")
+                        .map(v => parseFloat(v.trim()))
+                        .filter(v => !isNaN(v))
+                      updateCriterion(criterion.id, { options })
+                    }}
+                    placeholder="Ex: 0, 2, 5, 8, 10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Valores fixos de pontuação disponíveis para este critério
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
+// Fully implemented Performance Area Configuration
 function PerformanceAreaConfig({ area, onUpdate }: { area: Area; onUpdate: (updates: Partial<Area>) => void }) {
+  const addMission = () => {
+    const newMission = {
+      id: `mission_${Date.now()}`,
+      name: "Nova Missão",
+      points: 10,
+      quantity: 1,
+      description: "",
+      dependencies: [],
+      penalties: []
+    }
+    const missions = [...(area.performanceMissions || []), newMission]
+    onUpdate({ performanceMissions: missions })
+  }
+
+  const updateMission = (missionId: string, updates: any) => {
+    const missions = (area.performanceMissions || []).map(m =>
+      m.id === missionId ? { ...m, ...updates } : m
+    )
+    onUpdate({ performanceMissions: missions })
+  }
+
+  const deleteMission = (missionId: string) => {
+    const missions = (area.performanceMissions || []).filter(m => m.id !== missionId)
+    onUpdate({ performanceMissions: missions })
+  }
+
+  const addPenalty = () => {
+    const newPenalty = {
+      type: "robot_touch",
+      points: -5,
+      description: ""
+    }
+    const penalties = [...(area.penalties || []), newPenalty]
+    onUpdate({ penalties })
+  }
+
+  const updatePenalty = (index: number, updates: any) => {
+    const penalties = [...(area.penalties || [])]
+    penalties[index] = { ...penalties[index], ...updates }
+    onUpdate({ penalties })
+  }
+
+  const deletePenalty = (index: number) => {
+    const penalties = (area.penalties || []).filter((_, i) => i !== index)
+    onUpdate({ penalties })
+  }
+
   return (
-    <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-      <div className="flex items-center justify-between">
-        <Label className="text-base font-semibold">Missões de Desempenho</Label>
-        <Button size="sm" variant="outline">
-          <Plus className="h-4 w-4 mr-2" />
-          Adicionar Missão
-        </Button>
+    <div className="space-y-6 p-4 border rounded-lg bg-muted/50">
+      {/* Missions Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold">Missões de Desempenho</Label>
+          <Button size="sm" variant="outline" onClick={addMission}>
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Missão
+          </Button>
+        </div>
+
+        {(area.performanceMissions || []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma missão configurada. Adicione missões para definir tarefas práticas desta área.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {(area.performanceMissions || []).map((mission, index) => (
+              <Card key={mission.id} className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-muted-foreground">Missão #{index + 1}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => deleteMission(mission.id)}
+                    className="text-destructive h-6 w-6 p-0"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm">Nome da Missão *</Label>
+                      <Input
+                        value={mission.name}
+                        onChange={(e) => updateMission(mission.id, { name: e.target.value })}
+                        placeholder="Ex: Levantar lixo"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-sm">Pontos</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={mission.points}
+                          onChange={(e) => updateMission(mission.id, { points: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm">Quantidade Máx</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={mission.quantity}
+                          onChange={(e) => updateMission(mission.id, { quantity: parseInt(e.target.value) || 1 })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm">Descrição</Label>
+                    <Textarea
+                      value={mission.description || ""}
+                      onChange={(e) => updateMission(mission.id, { description: e.target.value })}
+                      placeholder="Descrição da missão"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm">Dependências (IDs das missões separadas por vírgula)</Label>
+                    <Input
+                      value={mission.dependencies?.join(", ") || ""}
+                      onChange={(e) => {
+                        const deps = e.target.value.split(",").map(d => d.trim()).filter(d => d)
+                        updateMission(mission.id, { dependencies: deps })
+                      }}
+                      placeholder="Ex: mission_1, mission_2"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Só conta se estas missões foram concluídas
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
-      <p className="text-sm text-muted-foreground">
-        Configure as missões e tarefas práticas para esta área do tipo Desempenho.
-      </p>
+
+      {/* Penalties Section */}
+      <Separator />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold">Penalidades Globais</Label>
+          <Button size="sm" variant="outline" onClick={addPenalty}>
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Penalidade
+          </Button>
+        </div>
+        {(area.penalties || []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma penalidade global configurada.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {(area.penalties || []).map((penalty, index) => (
+              <Card key={index} className="p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 grid grid-cols-3 gap-2">
+                    <Input
+                      value={penalty.type}
+                      onChange={(e) => updatePenalty(index, { type: e.target.value })}
+                      placeholder="Tipo (ex: robot_touch)"
+                    />
+                    <Input
+                      type="number"
+                      value={penalty.points}
+                      onChange={(e) => updatePenalty(index, { points: parseInt(e.target.value) || 0 })}
+                      placeholder="Pontos negativos"
+                    />
+                    <Input
+                      value={penalty.description || ""}
+                      onChange={(e) => updatePenalty(index, { description: e.target.value })}
+                      placeholder="Descrição"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => deletePenalty(index)}
+                    className="text-destructive h-8 w-8 p-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
+// Fully implemented Mixed Area Configuration
 function MixedAreaConfig({ area, onUpdate }: { area: Area; onUpdate: (updates: Partial<Area>) => void }) {
+  const [activeTab, setActiveTab] = useState<"rubric" | "performance">("rubric")
+
   return (
     <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-      <Label className="text-base font-semibold">Área Mista - Configuração Combinada</Label>
-      <p className="text-sm text-muted-foreground">
-        Esta área combina rubrica e desempenho. Configure ambos os tipos.
-      </p>
+      <div className="flex items-center justify-between mb-4">
+        <Label className="text-base font-semibold">Área Mista - Configuração Combinada</Label>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant={activeTab === "rubric" ? "default" : "outline"}
+            onClick={() => setActiveTab("rubric")}
+          >
+            Rubrica
+          </Button>
+          <Button
+            size="sm"
+            variant={activeTab === "performance" ? "default" : "outline"}
+            onClick={() => setActiveTab("performance")}
+          >
+            Desempenho
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <Label className="text-sm font-medium mb-2 block">Forma de Agregação</Label>
+        <Select
+          value={area.mixedAggregation || "sum"}
+          onValueChange={(value: "sum" | "weighted_average" | "percentage") => 
+            onUpdate({ mixedAggregation: value })
+          }
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="sum">Soma Direta</SelectItem>
+            <SelectItem value="weighted_average">Média Ponderada</SelectItem>
+            <SelectItem value="percentage">Percentual Combinado</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          Como as pontuações de rubrica e desempenho serão combinadas
+        </p>
+      </div>
+
+      {activeTab === "rubric" && (
+        <RubricAreaConfig area={area} onUpdate={onUpdate} />
+      )}
+      {activeTab === "performance" && (
+        <PerformanceAreaConfig area={area} onUpdate={onUpdate} />
+      )}
     </div>
   )
 }
 
-// Placeholder components for other sections
-function RankingSection({ ranking, areas, onChange }: any) {
+// Fully implemented Ranking Section
+function RankingSection({ ranking, areas, onChange }: { ranking: any; areas: Area[]; onChange: (ranking: any) => void }) {
+  const addTieBreak = () => {
+    const tieBreak = [...(ranking.tieBreak || []), "totalScore"]
+    onChange({ ...ranking, tieBreak })
+  }
+
+  const updateTieBreak = (index: number, value: string) => {
+    const tieBreak = [...(ranking.tieBreak || [])]
+    tieBreak[index] = value
+    onChange({ ...ranking, tieBreak })
+  }
+
+  const removeTieBreak = (index: number) => {
+    const tieBreak = (ranking.tieBreak || []).filter((_: any, i: number) => i !== index)
+    onChange({ ...ranking, tieBreak })
+  }
+
+  // Auto-update weights from areas when areas change
+  useEffect(() => {
+    const weights: Record<string, number> = {}
+    areas.forEach((area: Area) => {
+      if (area.isActive) {
+        weights[area.code] = area.weight
+      }
+    })
+    // Only update if weights actually changed
+    const weightsChanged = JSON.stringify(weights) !== JSON.stringify(ranking.weights)
+    if (weightsChanged) {
+      onChange({ ...ranking, weights })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areas.length, areas.map(a => `${a.code}-${a.weight}-${a.isActive}`).join(',')])
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Regras de Ranking</CardTitle>
         <CardDescription>Configure como os resultados serão calculados</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Método de Cálculo</Label>
@@ -825,8 +1216,8 @@ function RankingSection({ ranking, areas, onChange }: any) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="percentage">Percentual</SelectItem>
-                <SelectItem value="raw">Bruto</SelectItem>
+                <SelectItem value="percentage">Percentual (normaliza notas)</SelectItem>
+                <SelectItem value="raw">Bruto (soma ponderada)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -849,7 +1240,75 @@ function RankingSection({ ranking, areas, onChange }: any) {
             </Select>
           </div>
         </div>
+
         <Separator />
+
+        <div className="space-y-4">
+          <Label className="text-base font-semibold">Pesos das Áreas</Label>
+          <p className="text-sm text-muted-foreground">
+            Os pesos são atualizados automaticamente a partir das áreas configuradas.
+          </p>
+          <div className="space-y-2">
+            {Object.entries(ranking.weights || {}).map(([code, weight]) => {
+              const area = areas.find((a: Area) => a.code === code)
+              if (!area) return null
+              return (
+                <div key={code} className="flex items-center justify-between p-2 border rounded">
+                  <span className="text-sm">{area.name} ({code})</span>
+                  <Badge variant="outline">{weight}x</Badge>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-base font-semibold">Critérios de Desempate</Label>
+            <Button size="sm" variant="outline" onClick={addTieBreak}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Critério
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Ordem de critérios para desempate em caso de empate no ranking
+          </p>
+          <div className="space-y-2">
+            {(ranking.tieBreak || []).map((criteria: string, index: number) => (
+              <div key={index} className="flex items-center gap-2">
+                <Badge variant="secondary">#{index + 1}</Badge>
+                <Select
+                  value={criteria}
+                  onValueChange={(value) => updateTieBreak(index, value)}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="totalScore">Pontuação Total</SelectItem>
+                    {areas.map((area: Area) => (
+                      <SelectItem key={area.code} value={area.code}>{area.name}</SelectItem>
+                    ))}
+                    <SelectItem value="time">Tempo</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => removeTieBreak(index)}
+                  className="text-destructive h-8 w-8 p-0"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
         <div className="space-y-2">
           <Label>Reavaliação</Label>
           <div className="flex items-center space-x-2">
@@ -857,7 +1316,12 @@ function RankingSection({ ranking, areas, onChange }: any) {
               checked={ranking.allowReevaluation}
               onCheckedChange={(checked) => onChange({ ...ranking, allowReevaluation: checked })}
             />
-            <Label>Permitir reavaliações (mantém histórico)</Label>
+            <div>
+              <Label>Permitir reavaliações (mantém histórico)</Label>
+              <p className="text-xs text-muted-foreground">
+                Se habilitado, permite que juízes reavaliam equipes, mantendo histórico de todas as avaliações
+              </p>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -865,29 +1329,190 @@ function RankingSection({ ranking, areas, onChange }: any) {
   )
 }
 
-function TeamsSection({ teams, onChange }: any) {
+// Fully implemented Teams Section
+function TeamsSection({ teams, onChange }: { teams: any; onChange: (teams: any) => void }) {
+  const addMetadata = () => {
+    const newMetadata = {
+      key: `field_${Date.now()}`,
+      label: "Novo Campo",
+      type: "text" as "text" | "select" | "number",
+      required: false,
+      options: [] as string[]
+    }
+    const metadata = [...(teams.metadata || []), newMetadata]
+    onChange({ ...teams, metadata })
+  }
+
+  const updateMetadata = (index: number, updates: any) => {
+    const metadata = [...(teams.metadata || [])]
+    metadata[index] = { ...metadata[index], ...updates }
+    onChange({ ...teams, metadata })
+  }
+
+  const deleteMetadata = (index: number) => {
+    const metadata = (teams.metadata || []).filter((_: any, i: number) => i !== index)
+    onChange({ ...teams, metadata })
+  }
+
+  // Default metadata fields
+  const defaultFields = [
+    { key: "grade", label: "Série/Ano", type: "text" as const },
+    { key: "shift", label: "Turno", type: "select" as const, options: ["Manhã", "Tarde", "Noite"] },
+    { key: "division", label: "Divisão/Arena", type: "text" as const },
+    { key: "category", label: "Categoria", type: "select" as const, options: ["Iniciante", "Avançado"] }
+  ]
+
+  const initializeDefaults = () => {
+    if (!teams.metadata || teams.metadata.length === 0) {
+      onChange({ ...teams, metadata: defaultFields.map(f => ({
+        ...f,
+        required: false
+      })) })
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Equipes e Organização</CardTitle>
         <CardDescription>Configure metadados e campos personalizados para equipes</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
             <Switch
               checked={teams.uniqueName}
               onCheckedChange={(checked) => onChange({ ...teams, uniqueName: checked })}
             />
-            <Label>Nome das equipes deve ser único por torneio</Label>
+            <div>
+              <Label>Nome das equipes deve ser único por torneio</Label>
+              <p className="text-xs text-muted-foreground">
+                Impede que duas equipes tenham o mesmo nome dentro do mesmo torneio
+              </p>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <Switch
               checked={teams.allowMixed}
               onCheckedChange={(checked) => onChange({ ...teams, allowMixed: checked })}
             />
-            <Label>Permitir equipes mistas (diferentes turnos)</Label>
+            <div>
+              <Label>Permitir equipes mistas (diferentes turnos)</Label>
+              <p className="text-xs text-muted-foreground">
+                Permite que integrantes de diferentes turnos participem da mesma equipe
+              </p>
+            </div>
           </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-base font-semibold">Campos de Metadados</Label>
+              <p className="text-sm text-muted-foreground">
+                Defina campos padrão e personalizados que aparecerão no cadastro das equipes
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={initializeDefaults}>
+                Usar Padrões
+              </Button>
+              <Button size="sm" variant="outline" onClick={addMetadata}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Campo
+              </Button>
+            </div>
+          </div>
+
+          {(teams.metadata || []).length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhum campo configurado. Clique em "Usar Padrões" para adicionar campos padrão ou "Novo Campo" para criar um personalizado.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {(teams.metadata || []).map((field: any, index: number) => (
+                <Card key={index} className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-muted-foreground">Campo #{index + 1}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => deleteMetadata(index)}
+                      className="text-destructive h-6 w-6 p-0"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm">Chave (ID interno) *</Label>
+                        <Input
+                          value={field.key}
+                          onChange={(e) => updateMetadata(index, { key: e.target.value })}
+                          placeholder="Ex: coach_name"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm">Rótulo (nome exibido) *</Label>
+                        <Input
+                          value={field.label}
+                          onChange={(e) => updateMetadata(index, { label: e.target.value })}
+                          placeholder="Ex: Nome do Treinador"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-sm">Tipo *</Label>
+                        <Select
+                          value={field.type}
+                          onValueChange={(value: "text" | "select" | "number") => {
+                            const updates: any = { type: value }
+                            if (value === "select" && !field.options) {
+                              updates.options = []
+                            }
+                            updateMetadata(index, updates)
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Texto</SelectItem>
+                            <SelectItem value="select">Seleção</SelectItem>
+                            <SelectItem value="number">Número</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1 flex items-center space-x-2 pt-6">
+                        <Switch
+                          checked={field.required}
+                          onCheckedChange={(checked) => updateMetadata(index, { required: checked })}
+                        />
+                        <Label className="text-sm">Campo obrigatório</Label>
+                      </div>
+                    </div>
+                    {field.type === "select" && (
+                      <div className="space-y-1">
+                        <Label className="text-sm">Opções (separar por vírgula)</Label>
+                        <Input
+                          value={field.options?.join(", ") || ""}
+                          onChange={(e) => {
+                            const options = e.target.value.split(",").map(o => o.trim()).filter(o => o)
+                            updateMetadata(index, { options })
+                          }}
+                          placeholder="Ex: Opção 1, Opção 2, Opção 3"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
