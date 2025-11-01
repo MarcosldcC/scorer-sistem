@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth-api"
 import { Button } from "@/components/ui/button"
@@ -81,12 +81,56 @@ export default function PlatformAdminDashboard() {
     }
   ]
 
-  const stats = [
+  const [stats, setStats] = useState([
     { label: "Escolas Ativas", value: "0", icon: Building2 },
     { label: "Torneios Ativos", value: "0", icon: Award },
     { label: "Templates Oficiais", value: "0", icon: FileText },
     { label: "Total de Usuários", value: "0", icon: Users }
-  ]
+  ])
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchStats()
+    }
+  }, [isAuthenticated, user])
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('robotics-token')
+      
+      // Fetch all data in parallel
+      const [schoolsRes, tournamentsRes, templatesRes, usersRes] = await Promise.all([
+        fetch('/api/schools?status=active', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/tournaments?status=published', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/templates?isOfficial=true', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/users', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ])
+
+      const [schoolsData, tournamentsData, templatesData, usersData] = await Promise.all([
+        schoolsRes.json(),
+        tournamentsRes.json(),
+        templatesRes.json(),
+        usersRes.json()
+      ])
+
+      setStats([
+        { label: "Escolas Ativas", value: String(schoolsData.schools?.length || 0), icon: Building2 },
+        { label: "Torneios Ativos", value: String(tournamentsData.tournaments?.length || 0), icon: Award },
+        { label: "Templates Oficiais", value: String(templatesData.templates?.length || 0), icon: FileText },
+        { label: "Total de Usuários", value: String(usersData.users?.length || 0), icon: Users }
+      ])
+    } catch (err) {
+      console.error('Error fetching stats:', err)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
