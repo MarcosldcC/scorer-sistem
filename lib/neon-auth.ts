@@ -46,9 +46,10 @@ export function getNeonAuthConfig() {
                      'https://api.stack-auth.com'
   
   // Stack Auth UI/Auth URL (para OAuth redirect)
+  // Stack Auth usa a API diretamente para OAuth: /api/v1/projects/{projectId}/oauth/google
   const authUrl = process.env.STACK_AUTH_URL || 
                   process.env.NEXT_PUBLIC_STACK_AUTH_UI_URL ||
-                  'https://auth.stack-auth.com'
+                  apiBaseUrl // Usa a mesma URL da API
   
   // Stack Auth API Key - deve ser privada (server-side only)
   const stackAuthApiKey = process.env.STACK_AUTH_API_KEY || 

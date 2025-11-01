@@ -160,14 +160,12 @@ export function LoginFormNew() {
       const response = await fetch('/api/auth/neon-auth/check')
       const data = await response.json()
 
-      if (data.enabled && data.authUrl && data.projectId) {
+      if (data.enabled && data.projectId && data.apiBaseUrl) {
         // Build OAuth URL with redirect callback
         const callbackUrl = `${window.location.origin}/api/auth/neon-auth/callback`
         
-        // Stack Auth OAuth URL format
-        // https://auth.stack-auth.com/oauth/google?redirect_uri=...
-        // OR using API: /api/v1/projects/{projectId}/oauth/google
-        const oauthUrl = `${data.authUrl}/oauth/google?redirect_uri=${encodeURIComponent(callbackUrl)}`
+        // Stack Auth OAuth URL format: /api/v1/projects/{projectId}/oauth/google
+        const oauthUrl = `${data.apiBaseUrl}/api/v1/projects/${data.projectId}/oauth/google?redirect_uri=${encodeURIComponent(callbackUrl)}`
         
         // Redirect to Stack Auth Google OAuth
         window.location.href = oauthUrl
