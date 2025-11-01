@@ -68,8 +68,8 @@ export default function PlatformUsersManagement() {
         return
       }
       
-      // Fetch only platform admins and users without school
-      const response = await fetch('/api/users?role=platform_admin', {
+      // Fetch all users (platform admins and school admins)
+      const response = await fetch('/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -77,9 +77,9 @@ export default function PlatformUsersManagement() {
       const data = await response.json()
       
       if (response.ok) {
-        // Filter only platform admins (no school or platform_admin role)
+        // Filter only platform admins and school admins (all administrative users)
         const filtered = data.users.filter((u: PlatformUser) => 
-          u.role === 'platform_admin' || !u.school
+          u.role === 'platform_admin' || u.role === 'school_admin'
         )
         setPlatformUsers(filtered)
       } else {
@@ -289,6 +289,11 @@ export default function PlatformUsersManagement() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
+                  {platformUser.school && (
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Escola:</strong> {platformUser.school.name}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     <strong>Status:</strong> {platformUser.isActive ? 'Ativo' : 'Inativo'}
                   </p>
