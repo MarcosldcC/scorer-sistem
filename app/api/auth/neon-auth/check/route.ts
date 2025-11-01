@@ -11,16 +11,14 @@ export async function GET() {
   try {
     const config = getNeonAuthConfig()
 
-    // Retorna URL pública para uso no frontend
-    const publicUrl = process.env.NEXT_PUBLIC_STACK_AUTH_URL || config.stackAuthUrl
-
     return NextResponse.json({
       enabled: config.enabled,
-      stackAuthUrl: publicUrl || null,
       projectId: config.projectId || null,
+      authUrl: config.authUrl || null,
+      apiBaseUrl: config.apiBaseUrl || null,
       message: config.enabled 
         ? 'Neon Auth está configurado e pronto para uso'
-        : 'Neon Auth não está configurado. Configure no console do Neon.'
+        : 'Neon Auth não está configurado. Configure NEXT_PUBLIC_STACK_PROJECT_ID e STACK_SECRET_SERVER_KEY.'
     })
   } catch (error) {
     console.error('Neon Auth check error:', error)

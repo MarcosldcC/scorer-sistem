@@ -37,24 +37,36 @@ export async function validateGmailExists(email: string): Promise<boolean> {
  * - NEXT_PUBLIC_STACK_PROJECT_ID (opcional)
  */
 export function getNeonAuthConfig() {
-  // Stack Auth URL - pode ser pública ou privada
-  const stackAuthUrl = process.env.STACK_AUTH_URL || 
-                       process.env.NEXT_PUBLIC_STACK_AUTH_URL ||
-                       process.env.NEXT_PUBLIC_STACK_URL
+  // Project ID - obrigatório
+  const projectId = process.env.NEXT_PUBLIC_STACK_PROJECT_ID
+  
+  // Stack Auth API Base URL (padrão: https://api.stack-auth.com)
+  const apiBaseUrl = process.env.STACK_AUTH_API_URL || 
+                     process.env.NEXT_PUBLIC_STACK_AUTH_URL ||
+                     'https://api.stack-auth.com'
+  
+  // Stack Auth UI/Auth URL (para OAuth redirect)
+  const authUrl = process.env.STACK_AUTH_URL || 
+                  process.env.NEXT_PUBLIC_STACK_AUTH_UI_URL ||
+                  'https://auth.stack-auth.com'
   
   // Stack Auth API Key - deve ser privada (server-side only)
   const stackAuthApiKey = process.env.STACK_AUTH_API_KEY || 
                           process.env.STACK_SECRET_SERVER_KEY ||
                           process.env.STACK_SERVER_KEY
   
-  // Project ID (opcional, usado em alguns fluxos)
-  const projectId = process.env.NEXT_PUBLIC_STACK_PROJECT_ID
+  // Build full API URL with project ID
+  const stackAuthApiUrl = projectId 
+    ? `${apiBaseUrl}/api/v1/projects/${projectId}`
+    : apiBaseUrl
   
   return {
-    enabled: !!(stackAuthUrl && stackAuthApiKey),
-    stackAuthUrl,
-    stackAuthApiKey,
-    projectId
+    enabled: !!(projectId && stackAuthApiKey),
+    projectId,
+    stackAuthApiUrl, // URL completa da API (com project ID)
+    authUrl, // URL para OAuth redirects
+    apiBaseUrl, // URL base da API
+    stackAuthApiKey
   }
 }
 

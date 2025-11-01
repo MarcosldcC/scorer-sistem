@@ -32,14 +32,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/?error=no-code', request.url))
     }
 
-    // Exchange code for token via Stack Auth
-    const tokenResponse = await fetch(`${neonConfig.stackAuthUrl}/oauth/callback`, {
+    // Exchange code for token via Stack Auth API
+    // Stack Auth API endpoint: /api/v1/projects/{projectId}/oauth/callback
+    const callbackEndpoint = `${neonConfig.stackAuthApiUrl}/oauth/callback`
+    
+    const tokenResponse = await fetch(callbackEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${neonConfig.stackAuthApiKey}`
+        'Authorization': `Bearer ${neonConfig.stackAuthApiKey}`,
+        'X-Stack-Auth-Project-Id': neonConfig.projectId || ''
       },
-      body: JSON.stringify({ code })
+      body: JSON.stringify({ 
+        code,
+        redirect_uri: `${new URL(request.url).origin}/api/auth/neon-auth/callback`
+      })
     })
 
     if (!tokenResponse.ok) {
