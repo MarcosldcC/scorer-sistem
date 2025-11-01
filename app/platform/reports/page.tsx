@@ -33,13 +33,21 @@ export default function PlatformReports() {
   }, [isAuthenticated, authLoading, user, router])
 
   useEffect(() => {
-    fetchStats()
-  }, [])
+    if (isAuthenticated && user?.role === 'platform_admin') {
+      fetchStats()
+    }
+  }, [isAuthenticated, user])
 
   const fetchStats = async () => {
     try {
+      if (typeof window === 'undefined') return
+      
       setLoading(true)
       const token = localStorage.getItem('robotics-token')
+      if (!token) {
+        setLoading(false)
+        return
+      }
       
       // Fetch all data in parallel
       const [schoolsRes, tournamentsRes, templatesRes, usersRes] = await Promise.all([

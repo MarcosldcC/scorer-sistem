@@ -52,13 +52,22 @@ export default function PlatformUsersManagement() {
   }, [isAuthenticated, authLoading, user, router])
 
   useEffect(() => {
-    fetchUsers()
-  }, [])
+    if (isAuthenticated && user?.role === 'platform_admin') {
+      fetchUsers()
+    }
+  }, [isAuthenticated, user])
 
   const fetchUsers = async () => {
     try {
+      if (typeof window === 'undefined') return
+      
       setLoading(true)
       const token = localStorage.getItem('robotics-token')
+      if (!token) {
+        setLoading(false)
+        return
+      }
+      
       // Fetch only platform admins and users without school
       const response = await fetch('/api/users?role=platform_admin', {
         headers: {

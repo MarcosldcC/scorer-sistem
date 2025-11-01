@@ -52,13 +52,22 @@ export default function TemplatesManagement() {
   }, [isAuthenticated, authLoading, user, router])
 
   useEffect(() => {
-    fetchTemplates()
-  }, [])
+    if (isAuthenticated && user?.role === 'platform_admin') {
+      fetchTemplates()
+    }
+  }, [isAuthenticated, user])
 
   const fetchTemplates = async () => {
     try {
+      if (typeof window === 'undefined') return
+      
       setLoading(true)
       const token = localStorage.getItem('robotics-token')
+      if (!token) {
+        setLoading(false)
+        return
+      }
+      
       const response = await fetch('/api/templates?isOfficial=true', {
         headers: {
           'Authorization': `Bearer ${token}`
