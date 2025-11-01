@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, email, code } = await request.json()
+    const { name, email, code, password, location, status } = await request.json()
 
     if (!name || !code) {
       return NextResponse.json(
@@ -114,7 +114,9 @@ export async function POST(request: NextRequest) {
         name,
         email,
         code,
-        status: 'draft'
+        password,
+        location,
+        status: status || 'draft'
       }
     })
 
@@ -159,7 +161,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { id, name, email, status } = await request.json()
+    const { id, name, email, password, location, status } = await request.json()
 
     if (!id) {
       return NextResponse.json(
@@ -168,13 +170,16 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    const updateData: any = {}
+    if (name) updateData.name = name
+    if (email !== undefined) updateData.email = email
+    if (password !== undefined) updateData.password = password
+    if (location !== undefined) updateData.location = location
+    if (status) updateData.status = status
+
     const school = await prisma.school.update({
       where: { id },
-      data: {
-        ...(name && { name }),
-        ...(email !== undefined && { email }),
-        ...(status && { status })
-      }
+      data: updateData
     })
 
     return NextResponse.json({
