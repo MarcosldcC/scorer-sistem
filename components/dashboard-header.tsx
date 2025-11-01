@@ -22,19 +22,21 @@ export function DashboardHeader() {
             <p className="text-muted-foreground">Torneio de Robótica - Bem-vindo, {user?.name}</p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="text-sm text-muted-foreground">
-              Áreas:{" "}
-              {user?.areas
-                .map((area) => {
-                  const areaNames = {
-                    programming: "Programação",
-                    research: "Pesquisa",
-                    identity: "Identidade",
-                  }
-                  return areaNames[area as keyof typeof areaNames]
-                })
-                .join(", ")}
-            </div>
+            {user?.areas && user.areas.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                Áreas:{" "}
+                {user.areas
+                  .map((area) => {
+                    const areaNames = {
+                      programming: "Programação",
+                      research: "Pesquisa",
+                      identity: "Identidade",
+                    }
+                    return areaNames[area as keyof typeof areaNames] || area
+                  })
+                  .join(", ")}
+              </div>
+            )}
             <Button variant="outline" onClick={handleLogout}>
               Sair
             </Button>

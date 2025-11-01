@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth-api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, Template, Users, Award } from "lucide-react"
+import { Building2, FileText, Users, Award } from "lucide-react"
 
 export default function PlatformAdminDashboard() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -39,7 +39,7 @@ export default function PlatformAdminDashboard() {
   }
 
   // Redirect if not platform admin
-  if (user.role !== 'platform_admin') {
+  if (!user.role || user.role !== 'platform_admin') {
     router.push('/dashboard')
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -61,7 +61,7 @@ export default function PlatformAdminDashboard() {
     {
       title: "Templates Oficiais",
       description: "Criar e gerenciar templates de torneio",
-      icon: Template,
+      icon: FileText,
       href: "/platform/templates",
       color: "text-purple-600"
     },
@@ -84,7 +84,7 @@ export default function PlatformAdminDashboard() {
   const stats = [
     { label: "Escolas Ativas", value: "0", icon: Building2 },
     { label: "Torneios Ativos", value: "0", icon: Award },
-    { label: "Templates Oficiais", value: "0", icon: Template },
+    { label: "Templates Oficiais", value: "0", icon: FileText },
     { label: "Total de Usuários", value: "0", icon: Users }
   ]
 

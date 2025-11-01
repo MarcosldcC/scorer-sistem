@@ -51,14 +51,14 @@ export default function DashboardPage() {
       <DashboardHeader />
 
       <main className="container mx-auto px-4 py-6">
-        <DashboardStats teams={teams} judgeAreas={user.areas} />
+        <DashboardStats teams={teams} judgeAreas={user.areas || []} />
 
         <div className="space-y-6">
           <div>
             <h2 className="text-xl font-semibold text-primary mb-4">Áreas de Avaliação</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {EVALUATION_AREAS.map((area) => {
-                const canEvaluate = user.areas.includes(area.id)
+                const canEvaluate = (user.areas || []).includes(area.id)
                 const evaluatedTeams = teams.filter(team => team.evaluations[area.id] !== undefined)
                 const totalTeams = teams.length
                 const stats = {

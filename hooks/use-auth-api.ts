@@ -3,8 +3,17 @@ import { useState, useEffect, useCallback } from 'react'
 export interface User {
   id: string
   name: string
+  email?: string
   isAdmin: boolean
+  role: string
   areas: string[]
+  schoolId?: string | null
+  isFirstLogin?: boolean
+  assignedAreas?: Array<{
+    areaId: string
+    areaCode: string
+    areaName: string
+  }>
 }
 
 export interface AuthState {
@@ -38,7 +47,20 @@ export function useAuth() {
 
       if (data.success) {
         const token = data.token
-        const user = data.user
+        const userData = data.user
+
+        // Normalize user object to ensure all required properties exist
+        const user: User = {
+          id: userData.id,
+          name: userData.name || '',
+          email: userData.email,
+          isAdmin: userData.isAdmin || false,
+          role: userData.role || 'viewer',
+          areas: userData.areas || [],
+          schoolId: userData.schoolId,
+          isFirstLogin: userData.isFirstLogin,
+          assignedAreas: userData.assignedAreas
+        }
 
         // Store token in localStorage
         localStorage.setItem('robotics-token', token)
@@ -91,9 +113,24 @@ export function useAuth() {
       const data = await response.json()
 
       if (data.success) {
+        const userData = data.user
+        
+        // Normalize user object to ensure all required properties exist
+        const user: User = {
+          id: userData.id,
+          name: userData.name || '',
+          email: userData.email,
+          isAdmin: userData.isAdmin || false,
+          role: userData.role || 'viewer',
+          areas: userData.areas || [],
+          schoolId: userData.schoolId,
+          isFirstLogin: userData.isFirstLogin,
+          assignedAreas: userData.assignedAreas
+        }
+
         setAuthState({
           isAuthenticated: true,
-          user: data.user,
+          user,
           loading: false
         })
       } else {

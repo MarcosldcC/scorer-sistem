@@ -41,7 +41,7 @@ export default function EvaluatePage() {
   }, [isAuthenticated, loading, router])
 
   useEffect(() => {
-    if (user && !user.areas.includes(area)) {
+    if (user && (!user.areas || !Array.isArray(user.areas) || !user.areas.includes(area))) {
       router.push("/dashboard")
     }
   }, [user, area, router])
