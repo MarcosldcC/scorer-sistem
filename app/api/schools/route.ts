@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
+import bcrypt from 'bcryptjs'
 
 export const dynamic = 'force-dynamic'
+
+// Helper function to generate temporary password
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let password = ''
+  for (let i = 0; i < 8; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return password
+}
 
 // Middleware to verify JWT token
 async function verifyToken(request: NextRequest) {
@@ -129,9 +140,36 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Create automatic admin user for the school
+    const adminEmail = email || `admin@${code.toLowerCase()}.com`
+    const adminPassword = password || generateTempPassword()
+    const hashedPassword = await bcrypt.hash(adminPassword, 10)
+
+    const adminUser = await prisma.user.create({
+      data: {
+        name: `Admin - ${name}`,
+        email: adminEmail,
+        password: hashedPassword,
+        tempPassword: adminPassword,
+        role: 'school_admin',
+        schoolId: school.id,
+        isFirstLogin: true,
+        isActive: true,
+        areas: []
+      }
+    })
+
+    // Remove sensitive data from response
+    const { password: _, tempPassword: __, ...safeUser } = adminUser
+
     return NextResponse.json({
       success: true,
-      school
+      school,
+      adminUser: {
+        ...safeUser,
+        tempPassword: adminPassword // Include temp password so admin can share it
+      },
+      message: `Escola criada! Usuário admin criado automaticamente com email: ${adminEmail} e senha temporária: ${adminPassword}`
     })
 
   } catch (error) {
