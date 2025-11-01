@@ -1,5 +1,6 @@
 /**
  * Validates if an email is a valid Gmail address
+ * Uses basic validation - for actual Gmail verification, use Neon Auth
  */
 export function isValidGmail(email: string): boolean {
   if (!email || typeof email !== 'string') {
@@ -20,6 +21,15 @@ export function isValidGmail(email: string): boolean {
   ]
 
   return gmailDomains.some(domain => emailLower.endsWith(domain))
+}
+
+/**
+ * Validates if Gmail email exists (checks format only)
+ * For real validation, Neon Auth should be configured and email verified through OAuth flow
+ */
+export async function validateGmailExists(email: string): Promise<boolean> {
+  // Format validation only - real existence check requires Neon Auth/Stack Auth
+  return isValidGmail(email)
 }
 
 /**

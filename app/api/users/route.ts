@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { config } from '@/lib/config'
+import { isValidGmail, normalizeGmail } from '@/lib/email-validation'
 import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
