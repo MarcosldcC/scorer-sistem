@@ -11,7 +11,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Users, Plus, Search, Edit, Trash2, Eye } from "lucide-react"
+import { Users, Plus, Search, Edit, Trash2, Eye, AlertTriangle, Info } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 interface PlatformUser {
   id: string
@@ -32,12 +35,18 @@ interface PlatformUser {
 export default function PlatformUsersManagement() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   
   const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [userToView, setUserToView] = useState<PlatformUser | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<PlatformUser | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -120,9 +129,22 @@ export default function PlatformUsersManagement() {
       if (response.ok) {
         setDialogOpen(false)
         setFormData({ name: "", email: "", password: "", role: "platform_admin" })
+        
+        toast({
+          title: "Usuário criado com sucesso!",
+          description: `O usuário "${formData.name}" foi criado com sucesso.`,
+          variant: "default",
+        })
+        
         fetchUsers()
       } else {
-        setError(data.error || 'Erro ao criar usuário')
+        const errorMsg = data.error || 'Erro ao criar usuário'
+        setError(errorMsg)
+        toast({
+          title: "Erro ao criar usuário",
+          description: errorMsg,
+          variant: "destructive",
+        })
       }
     } catch (err) {
       setError('Erro de conexão')
@@ -130,16 +152,8 @@ export default function PlatformUsersManagement() {
   }
 
   const handleViewUser = (user: PlatformUser) => {
-    const details = `
-Usuário: ${user.name}
-Email: ${user.email}
-Role: ${getRoleLabel(user.role)}
-Status: ${user.isActive ? 'Ativo' : 'Inativo'}
-Escola: ${user.school?.name || 'N/A'}
-Avaliações: ${user._count.evaluations}
-Criado em: ${new Date(user.createdAt).toLocaleString('pt-BR')}
-    `
-    alert(details)
+    setUserToView(user)
+    setViewDialogOpen(true)
   }
 
   const handleEditUser = (user: PlatformUser) => {
@@ -149,30 +163,57 @@ Criado em: ${new Date(user.createdAt).toLocaleString('pt-BR')}
       password: "",
       role: user.role
     })
-    // TODO: Implementar edição
-    alert('Funcionalidade de edição será implementada em breve')
+    toast({
+      title: "Funcionalidade em desenvolvimento",
+      description: "A edição de usuários será implementada em breve.",
+      variant: "default",
+    })
   }
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este usuário?')) return
+  const handleDeleteClick = (user: PlatformUser) => {
+    setUserToDelete(user)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return
 
     try {
+      setDeleting(true)
       const token = localStorage.getItem('robotics-token')
-      const response = await fetch(`/api/users?id=${userId}`, {
+      const response = await fetch(`/api/users?id=${userToDelete.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
 
+      const data = await response.json()
+
       if (response.ok) {
+        setDeleteDialogOpen(false)
+        setUserToDelete(null)
+        toast({
+          title: "Usuário excluído!",
+          description: `O usuário "${userToDelete.name}" foi excluído com sucesso.`,
+          variant: "default",
+        })
         fetchUsers()
       } else {
-        const data = await response.json()
-        setError(data.error || 'Erro ao excluir usuário')
+        toast({
+          title: "Erro ao excluir usuário",
+          description: data.error || 'Não foi possível excluir o usuário.',
+          variant: "destructive",
+        })
       }
     } catch (err) {
-      setError('Erro de conexão')
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -370,7 +411,7 @@ Criado em: ${new Date(user.createdAt).toLocaleString('pt-BR')}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDeleteUser(platformUser.id)}
+                    onClick={() => handleDeleteClick(platformUser)}
                     className="text-destructive hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -392,6 +433,99 @@ Criado em: ${new Date(user.createdAt).toLocaleString('pt-BR')}
           </Card>
         )}
       </main>
+
+      {/* View User Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Detalhes do Usuário</DialogTitle>
+            <DialogDescription>
+              Informações completas do usuário
+            </DialogDescription>
+          </DialogHeader>
+          {userToView && (
+            <div className="space-y-4">
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Nome:</span>
+                  <span className="text-sm">{userToView.name}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Email:</span>
+                  <span className="text-sm">{userToView.email}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Função:</span>
+                  <Badge className={getRoleColor(userToView.role)}>
+                    {getRoleLabel(userToView.role)}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Status:</span>
+                  <Badge variant={userToView.isActive ? "default" : "secondary"}>
+                    {userToView.isActive ? 'Ativo' : 'Inativo'}
+                  </Badge>
+                </div>
+                {userToView.school && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Escola:</span>
+                    <span className="text-sm">{userToView.school.name}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Avaliações:</span>
+                  <span className="text-sm">{userToView._count.evaluations}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Criado em:</span>
+                  <span className="text-sm">{new Date(userToView.createdAt).toLocaleString('pt-BR')}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <AlertDialogTitle>Excluir Usuário</AlertDialogTitle>
+                <AlertDialogDescription className="mt-1">
+                  Esta ação não pode ser desfeita. O usuário e todos os dados associados serão permanentemente removidos.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          {userToDelete && (
+            <div className="py-4 px-2 bg-muted rounded-lg">
+              <p className="text-sm font-medium">Usuário: <span className="font-semibold">{userToDelete.name}</span></p>
+              <p className="text-sm text-muted-foreground">Email: {userToDelete.email}</p>
+              <p className="text-sm text-muted-foreground">Função: {getRoleLabel(userToDelete.role)}</p>
+              {userToDelete._count.evaluations > 0 && (
+                <p className="text-sm text-amber-600 mt-1">
+                  ⚠️ Este usuário possui {userToDelete._count.evaluations} avaliação(ões).
+                </p>
+              )}
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir Usuário"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

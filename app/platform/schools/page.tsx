@@ -10,7 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building2, Plus, Search, Edit, Trash2 } from "lucide-react"
+import { Building2, Plus, Search, Edit, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 interface School {
   id: string
@@ -26,6 +28,7 @@ interface School {
 export default function SchoolsManagement() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   
   const [schools, setSchools] = useState<School[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,6 +37,9 @@ export default function SchoolsManagement() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingSchool, setEditingSchool] = useState<School | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [schoolToDelete, setSchoolToDelete] = useState<School | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -97,9 +103,21 @@ export default function SchoolsManagement() {
         setDialogOpen(false)
         setFormData({ name: "", code: "", email: "", password: "", location: "", status: "active" })
         
+        toast({
+          title: "Escola criada com sucesso!",
+          description: `A escola "${formData.name}" foi criada e um usuário admin foi criado automaticamente.`,
+          variant: "default",
+        })
+        
         fetchSchools()
       } else {
-        setError(data.error || 'Erro ao criar escola')
+        const errorMsg = data.error || 'Erro ao criar escola'
+        setError(errorMsg)
+        toast({
+          title: "Erro ao criar escola",
+          description: errorMsg,
+          variant: "destructive",
+        })
       }
     } catch (err) {
       setError('Erro de conexão')
@@ -155,21 +173,40 @@ export default function SchoolsManagement() {
         setEditDialogOpen(false)
         setEditingSchool(null)
         setFormData({ name: "", code: "", email: "", password: "", location: "", status: "active" })
+        
+        toast({
+          title: "Escola atualizada!",
+          description: "As informações da escola foram atualizadas com sucesso.",
+          variant: "default",
+        })
+        
         fetchSchools()
       } else {
-        setError(data.error || 'Erro ao atualizar escola')
+        const errorMsg = data.error || 'Erro ao atualizar escola'
+        setError(errorMsg)
+        toast({
+          title: "Erro ao atualizar escola",
+          description: errorMsg,
+          variant: "destructive",
+        })
       }
     } catch (err) {
       setError('Erro de conexão')
     }
   }
 
-  const handleDeleteSchool = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta escola? Esta ação não pode ser desfeita.')) return
+  const handleDeleteClick = (school: School) => {
+    setSchoolToDelete(school)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!schoolToDelete) return
 
     try {
+      setDeleting(true)
       const token = localStorage.getItem('robotics-token')
-      const response = await fetch(`/api/schools?id=${id}`, {
+      const response = await fetch(`/api/schools?id=${schoolToDelete.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -179,12 +216,29 @@ export default function SchoolsManagement() {
       const data = await response.json()
 
       if (response.ok) {
+        setDeleteDialogOpen(false)
+        setSchoolToDelete(null)
+        toast({
+          title: "Escola excluída!",
+          description: `A escola "${schoolToDelete.name}" foi excluída com sucesso.`,
+          variant: "default",
+        })
         fetchSchools()
       } else {
-        setError(data.error || 'Erro ao excluir escola')
+        toast({
+          title: "Erro ao excluir escola",
+          description: data.error || 'Não foi possível excluir a escola.',
+          variant: "destructive",
+        })
       }
     } catch (err) {
-      setError('Erro de conexão')
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -411,6 +465,41 @@ export default function SchoolsManagement() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <AlertDialogTitle>Excluir Escola</AlertDialogTitle>
+                <AlertDialogDescription className="mt-1">
+                  Esta ação não pode ser desfeita. A escola e todos os dados associados serão permanentemente removidos.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          {schoolToDelete && (
+            <div className="py-4 px-2 bg-muted rounded-lg">
+              <p className="text-sm font-medium">Escola: <span className="font-semibold">{schoolToDelete.name}</span></p>
+              <p className="text-sm text-muted-foreground">Código: {schoolToDelete.code}</p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir Escola"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <main className="container mx-auto px-4 py-6">
         {/* Search */}
         <div className="mb-6">
@@ -453,7 +542,7 @@ export default function SchoolsManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDeleteSchool(school.id)}
+                      onClick={() => handleDeleteClick(school)}
                       className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />

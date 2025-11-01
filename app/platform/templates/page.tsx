@@ -10,7 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { FileText, Plus, Search, Edit, Trash2 } from "lucide-react"
+import { FileText, Plus, Search, Edit, Trash2, AlertTriangle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 interface Template {
   id: string
@@ -32,11 +34,15 @@ interface Template {
 export default function TemplatesManagement() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [templateToDelete, setTemplateToDelete] = useState<Template | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || user?.role !== 'platform_admin')) {
@@ -81,26 +87,50 @@ export default function TemplatesManagement() {
   }
 
 
-  const handleDeleteTemplate = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este template?')) return
+  const handleDeleteClick = (template: Template) => {
+    setTemplateToDelete(template)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!templateToDelete) return
 
     try {
+      setDeleting(true)
       const token = localStorage.getItem('robotics-token')
-      const response = await fetch(`/api/templates?id=${id}`, {
+      const response = await fetch(`/api/templates?id=${templateToDelete.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
 
+      const data = await response.json()
+
       if (response.ok) {
+        setDeleteDialogOpen(false)
+        setTemplateToDelete(null)
+        toast({
+          title: "Template excluído!",
+          description: `O template "${templateToDelete.name}" foi excluído com sucesso.`,
+          variant: "default",
+        })
         fetchTemplates()
       } else {
-        const data = await response.json()
-        setError(data.error || 'Erro ao excluir template')
+        toast({
+          title: "Erro ao excluir template",
+          description: data.error || 'Não foi possível excluir o template.',
+          variant: "destructive",
+        })
       }
     } catch (err) {
-      setError('Erro de conexão')
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -189,7 +219,7 @@ export default function TemplatesManagement() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteTemplate(template.id)}
+                      onClick={() => handleDeleteClick(template)}
                       className="h-8 w-8 p-0 text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />

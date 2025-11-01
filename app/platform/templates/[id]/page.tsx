@@ -26,8 +26,11 @@ import {
   Upload,
   Download,
   AlertCircle,
-  Languages
+  Languages,
+  AlertTriangle
 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 interface Area {
   id: string
@@ -117,12 +120,15 @@ export default function TemplateEditPage() {
   const params = useParams()
   const templateId = params.id as string
   const isNew = templateId === "new"
+  const { toast } = useToast()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [activeTab, setActiveTab] = useState("general")
+  const [deleteAreaDialogOpen, setDeleteAreaDialogOpen] = useState(false)
+  const [areaToDelete, setAreaToDelete] = useState<string | null>(null)
 
   const [templateData, setTemplateData] = useState<TemplateData>({
     name: "",
@@ -364,8 +370,12 @@ export default function TemplateEditPage() {
     }))
   }
 
+  const handleDeleteAreaClick = (areaId: string) => {
+    setAreaToDelete(areaId)
+    setDeleteAreaDialogOpen(true)
+  }
+
   const deleteArea = (areaId: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta área?')) return
     setTemplateData(prev => ({
       ...prev,
       areas: prev.areas.filter(area => area.id !== areaId).map((area, index) => ({
@@ -373,6 +383,11 @@ export default function TemplateEditPage() {
         order: index
       }))
     }))
+    toast({
+      title: "Área excluída!",
+      description: "A área foi removida do template.",
+      variant: "default",
+    })
   }
 
   if (authLoading || loading) {
@@ -595,7 +610,7 @@ export default function TemplateEditPage() {
                         area={area}
                         index={index}
                         onUpdate={(updates) => updateArea(area.id, updates)}
-                        onDelete={() => deleteArea(area.id)}
+                        onDelete={() => handleDeleteAreaClick(area.id)}
                       />
                     ))
                 )}
@@ -654,6 +669,47 @@ export default function TemplateEditPage() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Delete Area Confirmation Dialog */}
+      <AlertDialog open={deleteAreaDialogOpen} onOpenChange={setDeleteAreaDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <AlertDialogTitle>Excluir Área</AlertDialogTitle>
+                <AlertDialogDescription className="mt-1">
+                  Esta ação não pode ser desfeita. A área será permanentemente removida do template.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          {areaToDelete && (
+            <div className="py-4 px-2 bg-muted rounded-lg">
+              <p className="text-sm font-medium">
+                Área: <span className="font-semibold">{templateData.areas.find(a => a.id === areaToDelete)?.name || 'Área'}</span>
+              </p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (areaToDelete) {
+                  deleteArea(areaToDelete)
+                  setAreaToDelete(null)
+                  setDeleteAreaDialogOpen(false)
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir Área
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -1978,7 +2034,11 @@ function ImportExportSection({ onImport, onExport }: any) {
         const data = JSON.parse(event.target?.result as string)
         onImport(data)
       } catch (err) {
-        alert('Erro ao importar template. Verifique o formato do arquivo.')
+        toast({
+          title: "Erro ao importar template",
+          description: "Verifique o formato do arquivo JSON.",
+          variant: "destructive",
+        })
       }
     }
     reader.readAsText(file)
