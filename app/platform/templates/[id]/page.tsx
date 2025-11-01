@@ -412,11 +412,15 @@ export default function TemplateEditPage() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Salvando...' : 'Salvar'}
+                {saving ? 'Salvando...' : 'Salvar Rascunho'}
               </Button>
-              <Button onClick={() => handleSave(true)} disabled={saving}>
+              <Button 
+                onClick={() => handleSave(true)} 
+                disabled={saving || templateData.status === 'published'}
+                variant={templateData.status === 'published' ? 'secondary' : 'default'}
+              >
                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                Publicar
+                {templateData.status === 'published' ? 'Já Publicado' : 'Publicar Template'}
               </Button>
             </div>
           </div>
@@ -1561,33 +1565,392 @@ function OfflineSection({ offline, onChange }: any) {
   )
 }
 
-function LanguagesSection({ translations, areas, onChange }: any) {
+// Fully implemented Languages Section
+function LanguagesSection({ translations, areas, onChange }: { translations: any; areas: Area[]; onChange: (translations: any) => void }) {
+  const [targetLanguage, setTargetLanguage] = useState<"en-US">("en-US")
+  
+  const updateTranslation = (key: string, value: string) => {
+    const newTranslations = { ...translations }
+    if (!newTranslations[targetLanguage]) {
+      newTranslations[targetLanguage] = {}
+    }
+    newTranslations[targetLanguage][key] = value
+    onChange(newTranslations)
+  }
+
+  const getTranslation = (key: string) => {
+    return translations?.[targetLanguage]?.[key] || ""
+  }
+
+  const getMissingTranslations = () => {
+    const missing: string[] = []
+    areas.forEach(area => {
+      if (!getTranslation(`area_${area.code}_name`)) missing.push(`area_${area.code}_name`)
+      if (area.notes && !getTranslation(`area_${area.code}_notes`)) missing.push(`area_${area.code}_notes`)
+      
+      if (area.rubricCriteria) {
+        area.rubricCriteria.forEach(criterion => {
+          if (!getTranslation(`criterion_${criterion.id}_name`)) missing.push(`criterion_${criterion.id}_name`)
+          if (criterion.description && !getTranslation(`criterion_${criterion.id}_description`)) {
+            missing.push(`criterion_${criterion.id}_description`)
+          }
+        })
+      }
+      
+      if (area.performanceMissions) {
+        area.performanceMissions.forEach(mission => {
+          if (!getTranslation(`mission_${mission.id}_name`)) missing.push(`mission_${mission.id}_name`)
+          if (mission.description && !getTranslation(`mission_${mission.id}_description`)) {
+            missing.push(`mission_${mission.id}_description`)
+          }
+        })
+      }
+    })
+    return missing
+  }
+
+  const missingTranslations = getMissingTranslations()
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Textos e Idiomas</CardTitle>
         <CardDescription>Configure traduções para áreas e critérios</CardDescription>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          Funcionalidade de traduções será implementada em breve.
-        </p>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-base font-semibold">Idioma de Destino</Label>
+            <p className="text-sm text-muted-foreground">Traduzindo para: Inglês (EUA)</p>
+          </div>
+          {missingTranslations.length > 0 && (
+            <Badge variant="outline" className="text-orange-600">
+              {missingTranslations.length} tradução(ões) pendente(s)
+            </Badge>
+          )}
+        </div>
+
+        <Separator />
+
+        {areas.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Configure áreas primeiro antes de adicionar traduções.
+          </p>
+        ) : (
+          <div className="space-y-6">
+            {areas.map((area) => (
+              <Card key={area.id} className="p-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-semibold">{area.name}</Label>
+                    <div className="space-y-2 mt-2">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Nome da Área</Label>
+                        <Input
+                          value={getTranslation(`area_${area.code}_name`) || ""}
+                          onChange={(e) => updateTranslation(`area_${area.code}_name`, e.target.value)}
+                          placeholder={`Tradução de "${area.name}"`}
+                        />
+                      </div>
+                      {area.notes && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Observações ao Juiz</Label>
+                          <Textarea
+                            value={getTranslation(`area_${area.code}_notes`) || ""}
+                            onChange={(e) => updateTranslation(`area_${area.code}_notes`, e.target.value)}
+                            placeholder={`Tradução das observações`}
+                            rows={2}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {area.rubricCriteria && area.rubricCriteria.length > 0 && (
+                    <div className="space-y-3 pt-2 border-t">
+                      <Label className="text-sm font-medium">Critérios de Rubrica</Label>
+                      {area.rubricCriteria.map((criterion) => (
+                        <div key={criterion.id} className="space-y-2 pl-4 border-l-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Nome do Critério</Label>
+                            <Input
+                              value={getTranslation(`criterion_${criterion.id}_name`) || ""}
+                              onChange={(e) => updateTranslation(`criterion_${criterion.id}_name`, e.target.value)}
+                              placeholder={`Tradução de "${criterion.name}"`}
+                            />
+                          </div>
+                          {criterion.description && (
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Descrição</Label>
+                              <Textarea
+                                value={getTranslation(`criterion_${criterion.id}_description`) || ""}
+                                onChange={(e) => updateTranslation(`criterion_${criterion.id}_description`, e.target.value)}
+                                placeholder={`Tradução da descrição`}
+                                rows={2}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {area.performanceMissions && area.performanceMissions.length > 0 && (
+                    <div className="space-y-3 pt-2 border-t">
+                      <Label className="text-sm font-medium">Missões de Desempenho</Label>
+                      {area.performanceMissions.map((mission) => (
+                        <div key={mission.id} className="space-y-2 pl-4 border-l-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Nome da Missão</Label>
+                            <Input
+                              value={getTranslation(`mission_${mission.id}_name`) || ""}
+                              onChange={(e) => updateTranslation(`mission_${mission.id}_name`, e.target.value)}
+                              placeholder={`Tradução de "${mission.name}"`}
+                            />
+                          </div>
+                          {mission.description && (
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Descrição</Label>
+                              <Textarea
+                                value={getTranslation(`mission_${mission.id}_description`) || ""}
+                                onChange={(e) => updateTranslation(`mission_${mission.id}_description`, e.target.value)}
+                                placeholder={`Tradução da descrição`}
+                                rows={2}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )
 }
 
+// Fully implemented Preview Section
 function PreviewSection({ templateData }: { templateData: TemplateData }) {
+  const [selectedArea, setSelectedArea] = useState<Area | null>(
+    templateData.areas.length > 0 ? templateData.areas[0] : null
+  )
+
+  useEffect(() => {
+    if (templateData.areas.length > 0 && !selectedArea) {
+      setSelectedArea(templateData.areas[0])
+    }
+  }, [templateData.areas, selectedArea])
+
+  if (templateData.areas.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Pré-visualização</CardTitle>
+          <CardDescription>Visualize como o template aparecerá nas avaliações</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground text-center py-8">
+            Configure pelo menos uma área para ver a pré-visualização.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Pré-visualização</CardTitle>
         <CardDescription>Visualize como o template aparecerá nas avaliações</CardDescription>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          Pré-visualização será implementada em breve.
-        </p>
+      <CardContent className="space-y-6">
+        {/* Template Info */}
+        <div className="p-4 border rounded-lg bg-muted/30">
+          <h3 className="font-semibold text-lg mb-2">{templateData.name}</h3>
+          {templateData.description && (
+            <p className="text-sm text-muted-foreground mb-4">{templateData.description}</p>
+          )}
+          <div className="flex gap-2 flex-wrap">
+            <Badge>{templateData.language}</Badge>
+            <Badge variant={templateData.isOfficial ? "default" : "secondary"}>
+              {templateData.isOfficial ? "Oficial" : "Personalizado"}
+            </Badge>
+            <Badge variant="outline">{templateData.areas.length} área(s)</Badge>
+          </div>
+        </div>
+
+        {/* Areas Selector */}
+        <div>
+          <Label className="text-sm font-medium mb-2 block">Selecione uma área para pré-visualizar:</Label>
+          <div className="flex gap-2 flex-wrap">
+            {templateData.areas.filter(a => a.isActive).map((area) => (
+              <Button
+                key={area.id}
+                variant={selectedArea?.id === area.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedArea(area)}
+              >
+                {area.name}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Selected Area Preview */}
+        {selectedArea && (
+          <Card className="border-2">
+            <CardHeader className="bg-primary/5">
+              <CardTitle className="text-xl">{selectedArea.name}</CardTitle>
+              <CardDescription>
+                Código: {selectedArea.code} | Tipo: {selectedArea.scoringType} | Peso: {selectedArea.weight}x
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {selectedArea.notes && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Observações ao Juiz:</strong> {selectedArea.notes}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {selectedArea.timeLimit && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Badge variant="outline">⏱️ {selectedArea.timeLimit / 60} minutos</Badge>
+                  <span className="text-muted-foreground">
+                    Ação: {selectedArea.timeAction === "alert" ? "Alertar" : "Bloquear"}
+                  </span>
+                </div>
+              )}
+
+              {selectedArea.scoringType === "rubric" && selectedArea.rubricCriteria && (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Critérios de Avaliação</Label>
+                  {selectedArea.rubricCriteria.map((criterion, idx) => (
+                    <Card key={criterion.id} className="p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">{criterion.name}</span>
+                            <Badge variant="secondary">{criterion.maxScore} pts máx</Badge>
+                            <Badge variant="outline">Peso: {criterion.weight}x</Badge>
+                          </div>
+                          {criterion.description && (
+                            <p className="text-sm text-muted-foreground mb-2">{criterion.description}</p>
+                          )}
+                          {criterion.options && criterion.options.length > 0 && (
+                            <div className="flex gap-2 flex-wrap mt-2">
+                              {criterion.options.map((score, i) => (
+                                <Badge key={i} variant="outline">{score} pts</Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {selectedArea.scoringType === "performance" && selectedArea.performanceMissions && (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Missões</Label>
+                  {selectedArea.performanceMissions.map((mission) => (
+                    <Card key={mission.id} className="p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">{mission.name}</span>
+                            <Badge variant="secondary">{mission.points} pts</Badge>
+                            <Badge variant="outline">Qtd máx: {mission.quantity}</Badge>
+                          </div>
+                          {mission.description && (
+                            <p className="text-sm text-muted-foreground">{mission.description}</p>
+                          )}
+                          {mission.dependencies && mission.dependencies.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Depende de: {mission.dependencies.join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                  {selectedArea.penalties && selectedArea.penalties.length > 0 && (
+                    <div className="mt-3 pt-3 border-t">
+                      <Label className="text-sm font-medium text-destructive">Penalidades</Label>
+                      {selectedArea.penalties.map((penalty, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm mt-1">
+                          <Badge variant="destructive">{penalty.type}</Badge>
+                          <span>{penalty.points} pts</span>
+                          {penalty.description && <span className="text-muted-foreground">- {penalty.description}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedArea.scoringType === "mixed" && (
+                <div className="space-y-3">
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Área Mista combina Rubrica e Desempenho. Forma de agregação:{" "}
+                      {selectedArea.mixedAggregation === "sum" && "Soma Direta"}
+                      {selectedArea.mixedAggregation === "weighted_average" && "Média Ponderada"}
+                      {selectedArea.mixedAggregation === "percentage" && "Percentual Combinado"}
+                    </AlertDescription>
+                  </Alert>
+                  {selectedArea.rubricCriteria && selectedArea.rubricCriteria.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium">Rubrica ({selectedArea.rubricCriteria.length} critério(s))</Label>
+                    </div>
+                  )}
+                  {selectedArea.performanceMissions && selectedArea.performanceMissions.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium">Desempenho ({selectedArea.performanceMissions.length} missão(ões))</Label>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Ranking Preview */}
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-base">Configuração de Ranking</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div>
+              <strong>Método:</strong> {templateData.ranking.method === "percentage" ? "Percentual" : "Bruto"}
+            </div>
+            <div>
+              <strong>Agregação Multi-Juiz:</strong> {
+                templateData.ranking.multiJudgeAggregation === "average" && "Média"
+                || templateData.ranking.multiJudgeAggregation === "median" && "Mediana"
+                || templateData.ranking.multiJudgeAggregation === "best" && "Maior Nota"
+                || templateData.ranking.multiJudgeAggregation === "worst" && "Menor Nota"
+                || "Última Nota"
+              }
+            </div>
+            {templateData.ranking.tieBreak && templateData.ranking.tieBreak.length > 0 && (
+              <div>
+                <strong>Desempate:</strong> {templateData.ranking.tieBreak.join(" → ")}
+              </div>
+            )}
+            <div>
+              <strong>Reavaliação:</strong> {templateData.ranking.allowReevaluation ? "Permitida" : "Não permitida"}
+            </div>
+          </CardContent>
+        </Card>
       </CardContent>
     </Card>
   )
