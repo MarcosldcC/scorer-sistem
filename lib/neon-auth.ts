@@ -30,15 +30,31 @@ export async function validateGmailExists(email: string): Promise<boolean> {
 /**
  * Get Neon Auth configuration from environment variables
  * These are provided by Neon when Neon Auth is set up
+ * 
+ * Neon Auth usa Stack Auth, então as variáveis podem ser:
+ * - STACK_AUTH_URL ou NEXT_PUBLIC_STACK_AUTH_URL
+ * - STACK_AUTH_API_KEY ou STACK_SECRET_SERVER_KEY
+ * - NEXT_PUBLIC_STACK_PROJECT_ID (opcional)
  */
 export function getNeonAuthConfig() {
-  const stackAuthUrl = process.env.STACK_AUTH_URL
-  const stackAuthApiKey = process.env.STACK_AUTH_API_KEY
+  // Stack Auth URL - pode ser pública ou privada
+  const stackAuthUrl = process.env.STACK_AUTH_URL || 
+                       process.env.NEXT_PUBLIC_STACK_AUTH_URL ||
+                       process.env.NEXT_PUBLIC_STACK_URL
+  
+  // Stack Auth API Key - deve ser privada (server-side only)
+  const stackAuthApiKey = process.env.STACK_AUTH_API_KEY || 
+                          process.env.STACK_SECRET_SERVER_KEY ||
+                          process.env.STACK_SERVER_KEY
+  
+  // Project ID (opcional, usado em alguns fluxos)
+  const projectId = process.env.NEXT_PUBLIC_STACK_PROJECT_ID
   
   return {
     enabled: !!(stackAuthUrl && stackAuthApiKey),
     stackAuthUrl,
-    stackAuthApiKey
+    stackAuthApiKey,
+    projectId
   }
 }
 

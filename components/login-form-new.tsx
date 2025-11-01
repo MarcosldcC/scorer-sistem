@@ -161,8 +161,12 @@ export function LoginFormNew() {
       const data = await response.json()
 
       if (data.enabled && data.stackAuthUrl) {
+        // Build OAuth URL with redirect callback
+        const callbackUrl = `${window.location.origin}/api/auth/neon-auth/callback`
+        const oauthUrl = `${data.stackAuthUrl}/oauth/google?redirect_uri=${encodeURIComponent(callbackUrl)}`
+        
         // Redirect to Stack Auth Google OAuth
-        window.location.href = `${data.stackAuthUrl}/oauth/google`
+        window.location.href = oauthUrl
       } else {
         // Neon Auth not configured - show instructions
         setError(
