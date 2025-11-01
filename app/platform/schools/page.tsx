@@ -96,6 +96,13 @@ export default function SchoolsManagement() {
       if (response.ok) {
         setDialogOpen(false)
         setFormData({ name: "", code: "", email: "", password: "", location: "", status: "active" })
+        
+        // Show success message with admin user info
+        if (data.adminUser) {
+          const adminInfo = `Escola criada com sucesso!\n\n👤 Usuário Admin criado automaticamente:\n📧 Email: ${data.adminUser.email}\n🔑 Senha Temporária: ${data.adminUser.tempPassword}\n\n⚠️ IMPORTANTE: Anote estas credenciais! O usuário precisará fazer login e alterar a senha.`
+          alert(adminInfo)
+        }
+        
         fetchSchools()
       } else {
         setError(data.error || 'Erro ao criar escola')
