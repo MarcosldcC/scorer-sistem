@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Users, Plus, Search } from "lucide-react"
+import { Users, Plus, Search, Edit, Trash2, Eye } from "lucide-react"
 
 interface PlatformUser {
   id: string
@@ -121,11 +121,55 @@ export default function PlatformUsersManagement() {
         setDialogOpen(false)
         setFormData({ name: "", email: "", password: "", role: "platform_admin" })
         fetchUsers()
-        if (data.tempPassword) {
-          alert(`Usuário criado! Senha temporária: ${data.tempPassword}`)
-        }
       } else {
         setError(data.error || 'Erro ao criar usuário')
+      }
+    } catch (err) {
+      setError('Erro de conexão')
+    }
+  }
+
+  const handleViewUser = (user: PlatformUser) => {
+    const details = `
+Usuário: ${user.name}
+Email: ${user.email}
+Role: ${getRoleLabel(user.role)}
+Status: ${user.isActive ? 'Ativo' : 'Inativo'}
+Escola: ${user.school?.name || 'N/A'}
+Avaliações: ${user._count.evaluations}
+Criado em: ${new Date(user.createdAt).toLocaleString('pt-BR')}
+    `
+    alert(details)
+  }
+
+  const handleEditUser = (user: PlatformUser) => {
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: "",
+      role: user.role
+    })
+    // TODO: Implementar edição
+    alert('Funcionalidade de edição será implementada em breve')
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este usuário?')) return
+
+    try {
+      const token = localStorage.getItem('robotics-token')
+      const response = await fetch(`/api/users?id=${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        fetchUsers()
+      } else {
+        const data = await response.json()
+        setError(data.error || 'Erro ao excluir usuário')
       }
     } catch (err) {
       setError('Erro de conexão')
@@ -288,7 +332,7 @@ export default function PlatformUsersManagement() {
                 <CardDescription>{platformUser.email}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-2 mb-4">
                   {platformUser.school && (
                     <p className="text-sm text-muted-foreground">
                       <strong>Escola:</strong> {platformUser.school.name}
@@ -305,6 +349,32 @@ export default function PlatformUsersManagement() {
                   <p className="text-xs text-muted-foreground">
                     Criado em: {new Date(platformUser.createdAt).toLocaleDateString('pt-BR')}
                   </p>
+                </div>
+                <div className="flex gap-2 pt-2 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleViewUser(platformUser)}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    Detalhes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditUser(platformUser)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteUser(platformUser.id)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>

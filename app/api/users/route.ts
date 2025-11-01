@@ -124,6 +124,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate Gmail
+    if (!isValidGmail(email)) {
+      return NextResponse.json(
+        { error: 'Email deve ser um endereço Gmail válido (@gmail.com ou @googlemail.com)' },
+        { status: 400 }
+      )
+    }
+
+    // Normalize Gmail (remove dots, lowercase)
+    const normalizedEmail = normalizeGmail(email)
+
+    // Check if email already exists (after normalization)
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail }
+    })
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'Email já está cadastrado' },
+        { status: 400 }
+      )
+    }
+
     // Determine school
     const targetSchoolId = user.role === 'platform_admin' ? schoolId : user.schoolId
 
@@ -141,7 +164,7 @@ export async function POST(request: NextRequest) {
     const newUser = await prisma.user.create({
       data: {
         name,
-        email,
+        email: normalizedEmail, // Use normalized email
         password: hashedPassword,
         tempPassword: tempPassword,
         role,

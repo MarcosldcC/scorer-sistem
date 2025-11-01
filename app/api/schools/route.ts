@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
 import bcrypt from 'bcryptjs'
+import { isValidGmail, normalizeGmail } from '@/lib/email-validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -141,7 +142,29 @@ export async function POST(request: NextRequest) {
     })
 
     // Create automatic admin user for the school
-    const adminEmail = email || `admin@${code.toLowerCase()}.com`
+    let adminEmail = email || `admin.${code.toLowerCase()}@gmail.com`
+    
+    // Validate and normalize Gmail
+    if (!isValidGmail(adminEmail)) {
+      return NextResponse.json(
+        { error: 'Email deve ser um endereço Gmail válido (@gmail.com ou @googlemail.com)' },
+        { status: 400 }
+      )
+    }
+    adminEmail = normalizeGmail(adminEmail)
+
+    // Check if admin email already exists
+    const existingAdmin = await prisma.user.findUnique({
+      where: { email: adminEmail }
+    })
+
+    if (existingAdmin) {
+      return NextResponse.json(
+        { error: 'Email do admin já está cadastrado. Use um email Gmail diferente.' },
+        { status: 400 }
+      )
+    }
+
     const adminPassword = password || generateTempPassword()
     const hashedPassword = await bcrypt.hash(adminPassword, 10)
 
