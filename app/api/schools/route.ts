@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
 import bcrypt from 'bcryptjs'
 import { isValidGmail, normalizeGmail } from '@/lib/email-validation'
+import { sendWelcomeEmail } from '@/lib/email'
+import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
@@ -165,15 +167,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const adminPassword = password || generateTempPassword()
-    const hashedPassword = await bcrypt.hash(adminPassword, 10)
+    // Generate reset token for password setup
+    const resetToken = crypto.randomBytes(32).toString('hex')
+    const expiryTimestamp = Date.now() + (60 * 60 * 1000) // 1 hour
+    const resetTokenData = `RESET_TOKEN:${resetToken}:${expiryTimestamp}`
+
+    // Generate a temporary password (won't be used - user will set via email link)
+    const tempPassword = crypto.randomBytes(16).toString('hex')
+    const hashedPassword = await bcrypt.hash(tempPassword, 10)
 
     const adminUser = await prisma.user.create({
       data: {
         name: `Admin - ${name}`,
         email: adminEmail,
         password: hashedPassword,
-        tempPassword: adminPassword,
+        tempPassword: resetTokenData, // Store reset token instead of temp password
         role: 'school_admin',
         schoolId: school.id,
         isFirstLogin: true,
@@ -182,17 +190,22 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Send welcome email with password setup link
+    try {
+      await sendWelcomeEmail(adminEmail, `Admin - ${name}`, resetToken, 'school_admin')
+    } catch (emailError) {
+      console.error('Error sending welcome email:', emailError)
+      // Continue even if email fails - user can still request password reset
+    }
+
     // Remove sensitive data from response
     const { password: _, tempPassword: __, ...safeUser } = adminUser
 
     return NextResponse.json({
       success: true,
       school,
-      adminUser: {
-        ...safeUser,
-        tempPassword: adminPassword // Include temp password so admin can share it
-      },
-      message: `Escola criada! Usuário admin criado automaticamente com email: ${adminEmail} e senha temporária: ${adminPassword}`
+      adminUser: safeUser,
+      message: 'Escola criada com sucesso! Um email foi enviado para o admin configurar a senha.'
     })
 
   } catch (error) {

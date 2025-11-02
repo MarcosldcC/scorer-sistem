@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { config } from '@/lib/config'
 import { isValidGmail, normalizeGmail } from '@/lib/email-validation'
+import { sendWelcomeEmail } from '@/lib/email'
 import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
@@ -125,6 +126,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate role permissions
+    // Platform admin can create: school_admin, judge, viewer
+    // School admin can create: judge, viewer
+    const allowedRoles = user.role === 'platform_admin' 
+      ? ['school_admin', 'judge', 'viewer'] 
+      : ['judge', 'viewer']
+
+    if (!allowedRoles.includes(role)) {
+      return NextResponse.json(
+        { error: `Você não tem permissão para criar usuários com o role "${role}"` },
+        { status: 403 }
+      )
+    }
+
     // Validate Gmail
     if (!isValidGmail(email)) {
       return NextResponse.json(
@@ -158,8 +173,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate temporary password if not provided
-    const tempPassword = password || generateTempPassword()
+    // Generate reset token for password setup
+    const resetToken = crypto.randomBytes(32).toString('hex')
+    const expiryTimestamp = Date.now() + (60 * 60 * 1000) // 1 hour
+    const resetTokenData = `RESET_TOKEN:${resetToken}:${expiryTimestamp}`
+
+    // Generate a temporary password (won't be used - user will set via email link)
+    const tempPassword = crypto.randomBytes(16).toString('hex')
     const hashedPassword = await bcrypt.hash(tempPassword, 10)
 
     const newUser = await prisma.user.create({
@@ -167,7 +187,7 @@ export async function POST(request: NextRequest) {
         name,
         email: normalizedEmail, // Use normalized email
         password: hashedPassword,
-        tempPassword: tempPassword,
+        tempPassword: resetTokenData, // Store reset token instead of temp password
         role,
         schoolId: targetSchoolId,
         isFirstLogin: true,
@@ -186,13 +206,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Send welcome email with password setup link
+    try {
+      await sendWelcomeEmail(normalizedEmail, name, resetToken, role)
+    } catch (emailError) {
+      console.error('Error sending welcome email:', emailError)
+      // Continue even if email fails - user can still request password reset
+    }
+
     // Remove password from response
     const { password: _, tempPassword: __, ...userResponse } = newUser
 
     return NextResponse.json({
       success: true,
       user: userResponse,
-      tempPassword // Return temp password only on creation
+      message: 'Usuário criado com sucesso. Um email foi enviado para configurar a senha.'
     })
 
   } catch (error: any) {

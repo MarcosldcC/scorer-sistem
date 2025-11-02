@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx scripts/init-db.ts",
+    "db:reset": "tsx scripts/reset-db.ts",
     "db:studio": "prisma studio",
     "vercel-build": "prisma generate && next build"
   },

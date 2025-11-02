@@ -101,7 +101,7 @@ export function LoginFormNew() {
               </Alert>
             )}
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-end">
               <Button 
                 type="button" 
                 variant="link" 
@@ -109,14 +109,6 @@ export function LoginFormNew() {
                 onClick={() => router.push('/auth/forgot-password')}
               >
                 Esqueceu a senha?
-              </Button>
-              <Button 
-                type="button" 
-                variant="link" 
-                className="px-0 text-sm"
-                onClick={() => router.push('/auth/register')}
-              >
-                Criar conta
               </Button>
             </div>
 
