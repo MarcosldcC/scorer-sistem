@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
       })
       const assignedTemplateIds = assignedTemplates.map(a => a.templateId)
       
+      console.log(`[Templates API] School admin ${user.schoolId} - Assigned template IDs:`, assignedTemplateIds)
+      
       // Build OR conditions
       const orConditions: any[] = []
       
@@ -55,12 +57,16 @@ export async function GET(request: NextRequest) {
       if (assignedTemplateIds.length > 0) {
         orConditions.push({
           id: { in: assignedTemplateIds },
-          isOfficial: true
+          isOfficial: true,
+          isActive: true // Only show active templates
         })
       }
       
       // Always add school's custom templates
-      orConditions.push({ schoolId: user.schoolId })
+      orConditions.push({ 
+        schoolId: user.schoolId,
+        isActive: true // Only show active templates
+      })
       
       where.OR = orConditions
     } else if (isOfficial === 'true') {

@@ -75,6 +75,7 @@ export default function NewTournamentPage() {
         // Show all returned templates (API already filters for school_admin)
         setTemplates(data.templates || [])
         console.log('Templates loaded:', data.templates.length)
+        console.log('Templates:', data.templates.map((t: Template) => ({ id: t.id, name: t.name, isOfficial: t.isOfficial })))
       } else {
         console.error('Error loading templates:', data)
         if (data.error) {
@@ -155,7 +156,7 @@ export default function NewTournamentPage() {
           name: formData.name.trim(),
           code: finalCode,
           description: formData.description?.trim() || null,
-          templateId: formData.templateId || null,
+          templateId: formData.templateId && formData.templateId !== 'none' ? formData.templateId : null,
           startDate: formData.startDate || null,
           endDate: formData.endDate || null,
           rankingMethod: formData.rankingMethod,
@@ -311,7 +312,7 @@ export default function NewTournamentPage() {
                           <SelectValue placeholder="Selecione um template (opcional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Nenhum (template personalizado)</SelectItem>
+                          <SelectItem value="none">Nenhum (template personalizado)</SelectItem>
                           {templates.map((template) => (
                             <SelectItem key={template.id} value={template.id}>
                               {template.name} {template.isOfficial && '(Oficial)'} - v{template.version}
