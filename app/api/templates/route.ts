@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
     // 1. Official templates assigned to their school
     // 2. Their school's custom templates
     if (user.role === 'school_admin' && user.schoolId) {
+      console.log(`[Templates API] School admin request - User ID: ${user.id || user.userId}, School ID: ${user.schoolId}, Role: ${user.role}`)
+      
       // Get IDs of official templates assigned to this school
       const assignedTemplates = await prisma.templateSchoolAssignment.findMany({
         where: { schoolId: user.schoolId },
@@ -48,7 +50,8 @@ export async function GET(request: NextRequest) {
       })
       const assignedTemplateIds = assignedTemplates.map(a => a.templateId)
       
-      console.log(`[Templates API] School admin ${user.schoolId} - Assigned template IDs:`, assignedTemplateIds)
+      console.log(`[Templates API] Found ${assignedTemplates.length} assignments for school ${user.schoolId}`)
+      console.log(`[Templates API] Assigned template IDs:`, assignedTemplateIds)
       
       // Build OR conditions
       const orConditions: any[] = []
@@ -69,6 +72,8 @@ export async function GET(request: NextRequest) {
       })
       
       where.OR = orConditions
+    } else if (user.role === 'school_admin') {
+      console.log(`[Templates API] School admin without schoolId - User ID: ${user.id || user.userId}, Role: ${user.role}`)
     } else if (isOfficial === 'true') {
       where.isOfficial = true
     } else if (isOfficial === 'false') {
@@ -99,6 +104,11 @@ export async function GET(request: NextRequest) {
         { name: 'asc' }
       ]
     })
+
+    console.log(`[Templates API] Returning ${templates.length} templates for ${user.role}`)
+    if (user.role === 'school_admin') {
+      console.log(`[Templates API] Template IDs:`, templates.map(t => ({ id: t.id, name: t.name, isOfficial: t.isOfficial })))
+    }
 
     return NextResponse.json({ templates })
 

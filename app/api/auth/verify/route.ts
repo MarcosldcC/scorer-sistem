@@ -22,12 +22,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       user: {
-        id: decoded.userId,
+        id: decoded.userId || decoded.id,
         name: decoded.name,
         email: decoded.email,
         role: decoded.role,
         isAdmin: decoded.isAdmin,
-        areas: decoded.areas
+        areas: decoded.areas,
+        schoolId: decoded.schoolId || null
       }
     })
 
