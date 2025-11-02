@@ -432,14 +432,15 @@ export default function TournamentDetailPage() {
       if (!token) return
 
       // Get current assignments
-      const currentResponse = await fetch(`/api/user-areas?tournamentId=${tournamentId}&areaId=${judgeAssignDialog.areaId}`, {
+      const currentResponse = await fetch(`/api/user-areas?tournamentId=${tournamentId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const currentData = await currentResponse.json()
-      const currentAssignments = currentData.assignments || []
+      const allAssignments = currentData.assignments || []
+      const currentAssignments = allAssignments.filter((a: any) => a.areaId === judgeAssignDialog.areaId || a.area?.id === judgeAssignDialog.areaId)
 
       // Remove assignments that are not in selectedJudgeIds
-      const toRemove = currentAssignments.filter((a: any) => !selectedJudgeIds.includes(a.userId))
+      const toRemove = currentAssignments.filter((a: any) => !selectedJudgeIds.includes(a.userId || a.user?.id))
       for (const assignment of toRemove) {
         await fetch(`/api/user-areas?id=${assignment.id}`, {
           method: 'DELETE',
@@ -448,7 +449,7 @@ export default function TournamentDetailPage() {
       }
 
       // Add new assignments
-      const toAdd = selectedJudgeIds.filter(id => !currentAssignments.some((a: any) => a.userId === id))
+      const toAdd = selectedJudgeIds.filter(id => !currentAssignments.some((a: any) => (a.userId || a.user?.id) === id))
       for (const judgeId of toAdd) {
         await fetch('/api/user-areas', {
           method: 'POST',
@@ -476,6 +477,296 @@ export default function TournamentDetailPage() {
       toast({
         title: "Erro ao atribuir juízes",
         description: "Não foi possível atualizar as atribuições.",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleImportTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string)
+        
+        // Validate structure
+        if (!data.areas || !Array.isArray(data.areas)) {
+          toast({
+            title: "Erro ao importar template",
+            description: "O arquivo JSON não possui a estrutura válida de um template.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Delete existing areas
+        const token = localStorage.getItem('robotics-token')
+        if (!token) return
+
+        for (const area of areas) {
+          try {
+            await fetch(`/api/tournament-areas?id=${area.id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+          } catch (err) {
+            console.error('Error deleting area:', err)
+          }
+        }
+
+        // Create new areas from template
+        const createdAreas = []
+        for (const areaData of data.areas) {
+          try {
+            const response = await fetch('/api/tournament-areas', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                tournamentId,
+                name: areaData.name,
+                code: areaData.code,
+                description: areaData.description || "",
+                scoringType: areaData.scoringType || "rubric",
+                rubricConfig: areaData.rubricCriteria || areaData.rubricConfig || null,
+                performanceConfig: areaData.performanceMissions || areaData.performanceConfig || null,
+                weight: areaData.weight || 1.0,
+                timeLimit: areaData.timeLimit ? (typeof areaData.timeLimit === 'number' ? areaData.timeLimit : areaData.timeLimit * 60) : null,
+                timeAction: areaData.timeAction || "alert",
+                aggregationMethod: "average",
+                order: areaData.order || 0
+              })
+            })
+            
+            const result = await response.json()
+            if (response.ok && result.area) {
+              createdAreas.push(result.area)
+            }
+          } catch (err) {
+            console.error('Error creating area:', err)
+          }
+        }
+
+        toast({
+          title: "Template importado!",
+          description: `${createdAreas.length} área(s) foram criadas a partir do template.`,
+          variant: "default",
+        })
+        
+        fetchAreas()
+        
+        // Reset file input
+        e.target.value = ''
+      } catch (err) {
+        console.error('Import template error:', err)
+        toast({
+          title: "Erro ao importar template",
+          description: "Verifique o formato do arquivo JSON.",
+          variant: "destructive",
+        })
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  const handleExportTemplate = () => {
+    if (!tournament) return
+
+    const exportData = {
+      name: tournament.name,
+      description: tournament.description || "",
+      language: "pt-BR",
+      isOfficial: false,
+      visibility: "private",
+      tags: [],
+      areas: areas.map(area => ({
+        id: area.id,
+        name: area.name,
+        code: area.code,
+        description: area.description || "",
+        scoringType: area.scoringType,
+        weight: area.weight,
+        order: area.order,
+        rubricCriteria: area.rubricConfig || null,
+        performanceMissions: area.performanceConfig || null,
+        timeLimit: area.timeLimit || null,
+        timeAction: area.timeAction || "alert"
+      })),
+      ranking: {
+        method: editForm.rankingMethod,
+        weights: {},
+        tieBreak: [],
+        multiJudgeAggregation: "average",
+        allowReevaluation: editForm.allowReevaluation
+      },
+      teams: {
+        metadata: [],
+        uniqueName: true,
+        allowMixed: false
+      },
+      offline: {
+        enabled: false,
+        preloadData: [],
+        conflictPolicy: "last_write_wins"
+      },
+      status: tournament.status
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `template-${tournament.code}-${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+
+    toast({
+      title: "Template exportado!",
+      description: "O template foi baixado com sucesso.",
+      variant: "default",
+    })
+  }
+
+  const handleEditArea = (area: TournamentArea) => {
+    setEditingArea(area)
+    setAreaForm({
+      name: area.name,
+      code: area.code,
+      description: area.description || "",
+      scoringType: area.scoringType as "rubric" | "performance" | "mixed",
+      weight: area.weight,
+      timeLimit: area.timeLimit ? Math.floor(area.timeLimit / 60).toString() : "",
+      timeAction: (area.timeAction || "alert") as "alert" | "block"
+    })
+    setShowAddAreaDialog(true)
+  }
+
+  const handleDeleteAreaConfirm = async (areaId: string, areaName: string) => {
+    if (!confirm(`Tem certeza que deseja remover a área "${areaName}"?`)) return
+
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch(`/api/tournament-areas?id=${areaId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Área removida!",
+          description: `A área "${areaName}" foi removida.`,
+          variant: "default",
+        })
+        fetchAreas()
+      } else {
+        toast({
+          title: "Erro ao remover área",
+          description: data.error || "Não foi possível remover a área.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSaveArea = async () => {
+    if (!areaForm.name.trim() || !areaForm.code.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Nome e código da área são obrigatórios.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const areaData: any = {
+        tournamentId,
+        name: areaForm.name.trim(),
+        code: areaForm.code.trim(),
+        description: areaForm.description.trim() || "",
+        scoringType: areaForm.scoringType,
+        weight: areaForm.weight,
+        timeLimit: areaForm.timeLimit ? parseInt(areaForm.timeLimit) * 60 : null,
+        timeAction: areaForm.timeAction,
+        aggregationMethod: "average"
+      }
+
+      // Add default configs based on scoring type
+      if (areaForm.scoringType === "rubric" || areaForm.scoringType === "mixed") {
+        areaData.rubricConfig = { criteria: [] }
+      }
+      if (areaForm.scoringType === "performance" || areaForm.scoringType === "mixed") {
+        areaData.performanceConfig = { missions: [] }
+      }
+
+      const url = '/api/tournament-areas'
+      const method = editingArea ? 'PUT' : 'POST'
+
+      const body = editingArea ? {
+        id: editingArea.id,
+        ...areaData
+      } : areaData
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast({
+          title: editingArea ? "Área atualizada!" : "Área criada!",
+          description: `A área "${areaForm.name}" foi ${editingArea ? 'atualizada' : 'criada'} com sucesso.`,
+          variant: "default",
+        })
+        setShowAddAreaDialog(false)
+        setEditingArea(null)
+        setAreaForm({
+          name: "",
+          code: "",
+          description: "",
+          scoringType: "rubric",
+          weight: 1.0,
+          timeLimit: "",
+          timeAction: "alert"
+        })
+        fetchAreas()
+      } else {
+        toast({
+          title: `Erro ao ${editingArea ? 'atualizar' : 'criar'} área`,
+          description: data.error || `Não foi possível ${editingArea ? 'atualizar' : 'criar'} a área.`,
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
         variant: "destructive",
       })
     } finally {
