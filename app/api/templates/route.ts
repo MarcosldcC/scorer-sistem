@@ -13,7 +13,18 @@ async function verifyToken(request: NextRequest) {
 
   const token = authHeader.substring(7)
   try {
-    return jwt.verify(token, config.jwt.secret) as any
+    const decoded = jwt.verify(token, config.jwt.secret) as any
+    // Normalize user object to ensure consistent structure
+    return {
+      id: decoded.userId || decoded.id,
+      userId: decoded.userId || decoded.id,
+      name: decoded.name,
+      email: decoded.email,
+      role: decoded.role,
+      isAdmin: decoded.isAdmin,
+      areas: decoded.areas || [],
+      schoolId: decoded.schoolId || null
+    }
   } catch {
     return null
   }
