@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ArrowLeft, Trophy, CheckCircle2, AlertCircle } from "lucide-react"
+import { ArrowLeft, Trophy, CheckCircle2, AlertCircle, Upload, FileJson } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface Template {
@@ -46,6 +46,9 @@ export default function NewTournamentPage() {
     rankingMethod: "percentage" as "percentage" | "raw",
     allowReevaluation: true
   })
+  
+  // Template importado do JSON
+  const [importedTemplate, setImportedTemplate] = useState<any>(null)
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || user?.role !== 'school_admin')) {
@@ -121,6 +124,60 @@ export default function NewTournamentPage() {
       .substring(0, 20) // Limit length
   }
 
+  const handleImportTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string)
+        
+        // Validar estrutura do template
+        if (!data.name || !data.areas || !Array.isArray(data.areas)) {
+          toast({
+            title: "Erro ao importar template",
+            description: "O arquivo JSON não possui a estrutura válida de um template.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Salvar template importado
+        setImportedTemplate(data)
+        
+        // Preencher formulário com dados do template
+        setFormData(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          description: data.description || prev.description,
+          rankingMethod: data.ranking?.method || prev.rankingMethod,
+          allowReevaluation: data.ranking?.allowReevaluation !== undefined 
+            ? data.ranking.allowReevaluation 
+            : prev.allowReevaluation,
+          templateId: "none" // Marcar como nenhum para usar o importado
+        }))
+
+        toast({
+          title: "Template importado com sucesso!",
+          description: `Template "${data.name}" foi importado. Agora você pode criar o torneio baseado nele.`,
+          variant: "default",
+        })
+      } catch (err) {
+        console.error('Import template error:', err)
+        toast({
+          title: "Erro ao importar template",
+          description: "Verifique o formato do arquivo JSON.",
+          variant: "destructive",
+        })
+      }
+    }
+    reader.readAsText(file)
+    
+    // Resetar input para permitir importar o mesmo arquivo novamente
+    e.target.value = ''
+  }
+
   const handleCreateTournament = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -146,6 +203,63 @@ export default function NewTournamentPage() {
       const timestamp = Date.now().toString().slice(-6)
       const finalCode = code.length > 0 ? code : `TORNEO_${timestamp}`
 
+      // Se houver template importado, criar template customizado primeiro
+      let customTemplateId = null
+      if (importedTemplate && formData.templateId === "none") {
+        try {
+          // Criar template customizado a partir do JSON importado
+          const config = {
+            language: importedTemplate.language || 'pt-BR',
+            visibility: 'private',
+            tags: importedTemplate.tags || [],
+            areas: importedTemplate.areas || [],
+            ranking: importedTemplate.ranking || {
+              method: formData.rankingMethod,
+              weights: {},
+              tieBreak: [],
+              multiJudgeAggregation: 'average',
+              allowReevaluation: formData.allowReevaluation
+            },
+            teams: importedTemplate.teams || {
+              metadata: [],
+              uniqueName: true,
+              allowMixed: false
+            },
+            offline: importedTemplate.offline || {
+              enabled: false,
+              preloadData: [],
+              conflictPolicy: 'last_write_wins'
+            },
+            translations: importedTemplate.translations || {}
+          }
+
+          const templateResponse = await fetch('/api/templates', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              name: `${formData.name.trim()} - Template`,
+              description: importedTemplate.description || `Template criado a partir de importação`,
+              isOfficial: false,
+              config
+            })
+          })
+
+          const templateData = await templateResponse.json()
+          if (templateResponse.ok && templateData.template) {
+            customTemplateId = templateData.template.id
+            console.log('Template customizado criado:', customTemplateId)
+          } else {
+            console.error('Erro ao criar template customizado:', templateData)
+          }
+        } catch (templateErr) {
+          console.error('Erro ao criar template customizado:', templateErr)
+          // Continua criando o torneio sem template
+        }
+      }
+
       const response = await fetch('/api/tournaments', {
         method: 'POST',
         headers: {
@@ -156,7 +270,7 @@ export default function NewTournamentPage() {
           name: formData.name.trim(),
           code: finalCode,
           description: formData.description?.trim() || null,
-          templateId: formData.templateId && formData.templateId !== 'none' ? formData.templateId : null,
+          templateId: customTemplateId || (formData.templateId && formData.templateId !== 'none' ? formData.templateId : null),
           startDate: formData.startDate || null,
           endDate: formData.endDate || null,
           rankingMethod: formData.rankingMethod,
@@ -215,16 +329,36 @@ export default function NewTournamentPage() {
       <header className="bg-card border-b border-border sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar
               </Button>
-              <div>
+              <div className="flex-1">
                 <h1 className="text-2xl font-bold text-primary">Criar Novo Torneio</h1>
                 <p className="text-sm text-muted-foreground">
                   Passo {currentStep} de 2
                 </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportTemplate}
+                  className="hidden"
+                  id="import-template-file"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  type="button"
+                >
+                  <label htmlFor="import-template-file" className="cursor-pointer flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Importar Template JSON
+                  </label>
+                </Button>
               </div>
             </div>
           </div>
@@ -299,6 +433,33 @@ export default function NewTournamentPage() {
                     />
                   </div>
 
+                  {importedTemplate && (
+                    <Alert className="bg-primary/5 border-primary/20">
+                      <FileJson className="h-4 w-4 text-primary" />
+                      <AlertDescription>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <strong>Template importado:</strong> {importedTemplate.name}
+                            {importedTemplate.areas && (
+                              <span className="text-xs text-muted-foreground ml-2">
+                                ({importedTemplate.areas.length} área{importedTemplate.areas.length !== 1 ? 's' : ''})
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setImportedTemplate(null)
+                              setFormData(prev => ({ ...prev, templateId: "none" }))
+                            }}
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="templateId">Template</Label>
                     {loadingTemplates ? (
@@ -306,10 +467,16 @@ export default function NewTournamentPage() {
                     ) : (
                       <Select
                         value={formData.templateId}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, templateId: value }))}
+                        onValueChange={(value) => {
+                          if (value !== "none") {
+                            setImportedTemplate(null) // Limpar template importado se selecionar outro
+                          }
+                          setFormData(prev => ({ ...prev, templateId: value }))
+                        }}
+                        disabled={!!importedTemplate}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione um template (opcional)" />
+                          <SelectValue placeholder={importedTemplate ? "Template importado será usado" : "Selecione um template (opcional)"} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Nenhum (template personalizado)</SelectItem>
@@ -322,7 +489,10 @@ export default function NewTournamentPage() {
                       </Select>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      Selecione um template para usar suas configurações ou deixe em branco para criar um template personalizado
+                      {importedTemplate 
+                        ? "Um template foi importado e será usado para criar este torneio."
+                        : "Selecione um template para usar suas configurações, importe um JSON ou deixe em branco para criar um template personalizado"
+                      }
                     </p>
                   </div>
                 </>
