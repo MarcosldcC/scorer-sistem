@@ -94,6 +94,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check permissions
+    if (user.role !== 'platform_admin' && user.role !== 'school_admin') {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
+    const body = await request.json()
     const {
       name,
       code,
@@ -103,8 +112,9 @@ export async function POST(request: NextRequest) {
       endDate,
       rankingMethod,
       allowReevaluation,
-      features
-    } = await request.json()
+      features,
+      schoolId: requestSchoolId
+    } = body
 
     if (!name || !code) {
       return NextResponse.json(
@@ -113,15 +123,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check permissions
-    if (user.role !== 'platform_admin' && user.role !== 'school_admin') {
-      return NextResponse.json(
-        { error: 'Acesso negado' },
-        { status: 403 }
-      )
-    }
-
-    const schoolId = user.role === 'platform_admin' ? (await request.json()).schoolId : user.schoolId
+    // Get schoolId: platform admin must provide it, school admin uses their own
+    const schoolId = user.role === 'platform_admin' ? requestSchoolId : user.schoolId
 
     if (!schoolId) {
       return NextResponse.json(
