@@ -14,7 +14,8 @@ import { Trophy, Users, Settings, Plus, FileText, Award, BarChart3 } from "lucid
 
 export default function DashboardPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
-  const { teams, loading: teamsLoading } = useTeams()
+  // Only use teams hook if we have a tournament selected
+  const { teams, loading: teamsLoading } = useTeams(undefined) // Will fetch empty array if no tournament
   const router = useRouter()
   const [tournaments, setTournaments] = useState<any[]>([])
   const [stats, setStats] = useState({

@@ -28,6 +28,15 @@ export function useTeams(filters?: TeamFilters) {
       const searchParams = new URLSearchParams()
       if (filters?.shift) searchParams.set('shift', filters.shift)
       if (filters?.grade) searchParams.set('grade', filters.grade)
+      
+      // Only fetch if tournamentId is provided in filters
+      if (!filters?.tournamentId) {
+        setTeams([])
+        setLoading(false)
+        return
+      }
+      
+      searchParams.set('tournamentId', filters.tournamentId)
 
       const response = await fetch(`/api/teams?${searchParams.toString()}`, {
         headers: getAuthHeaders()
@@ -36,13 +45,15 @@ export function useTeams(filters?: TeamFilters) {
       const data = await response.json()
 
       if (response.ok) {
-        setTeams(data.teams)
+        setTeams(data.teams || [])
       } else {
         setError(data.error || 'Erro ao carregar equipes')
+        setTeams([])
       }
     } catch (err) {
       setError('Erro de conexão')
       console.error('Fetch teams error:', err)
+      setTeams([])
     } finally {
       setLoading(false)
     }
