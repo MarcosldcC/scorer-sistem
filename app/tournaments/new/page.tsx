@@ -72,8 +72,18 @@ export default function NewTournamentPage() {
       const data = await response.json()
 
       if (response.ok && data.templates) {
-        // Only show active templates
-        setTemplates(data.templates.filter((t: Template) => t.isOfficial || !t.isOfficial))
+        // Show all returned templates (API already filters for school_admin)
+        setTemplates(data.templates || [])
+        console.log('Templates loaded:', data.templates.length)
+      } else {
+        console.error('Error loading templates:', data)
+        if (data.error) {
+          toast({
+            title: "Erro ao carregar templates",
+            description: data.error,
+            variant: "destructive",
+          })
+        }
       }
     } catch (err) {
       console.error('Error fetching templates:', err)
