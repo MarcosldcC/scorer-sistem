@@ -3,6 +3,8 @@
  * Configure with your email provider (Resend, SendGrid, Gmail API, etc.)
  */
 
+import { Resend } from 'resend'
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://scorer-sistem.vercel.app'
 
 interface SendEmailOptions {
@@ -32,7 +34,6 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
       return false
     }
 
-    const { Resend } = await import('resend')
     const resend = new Resend(resendApiKey)
 
     // Get from email from env or use default

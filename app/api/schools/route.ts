@@ -142,12 +142,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique code from school name
-    const baseCode = name
+    let baseCode = name
       .toUpperCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '') // Remove accents
       .replace(/[^A-Z0-9]/g, '_') // Replace non-alphanumeric with underscore
+      .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+      .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
       .substring(0, 20) // Limit length
+    
+    // Ensure baseCode is not empty
+    if (!baseCode || baseCode.length === 0) {
+      baseCode = 'SCHOOL_' + Date.now().toString().slice(-6)
+    }
     
     let code = baseCode
     let codeExists = true
@@ -169,10 +176,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (codeExists) {
-      return NextResponse.json(
-        { error: 'Não foi possível gerar um código único. Tente novamente.' },
-        { status: 500 }
-      )
+      // Fallback: use timestamp if all attempts failed
+      code = `SCHOOL_${Date.now()}`
+      const finalCheck = await prisma.school.findUnique({
+        where: { code }
+      })
+      if (finalCheck) {
+        return NextResponse.json(
+          { error: 'Não foi possível gerar um código único. Tente novamente.' },
+          { status: 500 }
+        )
+      }
     }
 
     const school = await prisma.school.create({
@@ -218,8 +232,12 @@ export async function POST(request: NextRequest) {
     })
 
     // Send welcome email with password setup link
+    let emailSent = false
     try {
-      await sendWelcomeEmail(normalizedAdminEmail, `Admin - ${name}`, resetToken, 'school_admin')
+      emailSent = await sendWelcomeEmail(normalizedAdminEmail, `Admin - ${name}`, resetToken, 'school_admin')
+      if (!emailSent) {
+        console.warn('Email não foi enviado, mas o usuário foi criado com sucesso')
+      }
     } catch (emailError) {
       console.error('Error sending welcome email:', emailError)
       // Continue even if email fails - user can still request password reset
@@ -232,13 +250,39 @@ export async function POST(request: NextRequest) {
       success: true,
       school,
       adminUser: safeUser,
-      message: 'Escola criada com sucesso! Um email foi enviado para o admin configurar a senha.'
+      message: emailSent 
+        ? 'Escola criada com sucesso! Um email foi enviado para o admin configurar a senha.'
+        : 'Escola criada com sucesso! O admin pode solicitar redefinição de senha na tela de login.'
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create school error:', error)
+    console.error('Error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name
+    })
+    
+    // Return more specific error messages
+    const errorMessage = error?.message || 'Erro interno do servidor'
+    
+    // Check for specific Prisma errors
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Já existe uma escola ou usuário com esses dados. Verifique o código da escola ou email do admin.' },
+        { status: 400 }
+      )
+    }
+    
+    if (error?.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Erro de referência: dados relacionados não encontrados.' },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { error: `Erro interno do servidor: ${errorMessage}` },
       { status: 500 }
     )
   }
