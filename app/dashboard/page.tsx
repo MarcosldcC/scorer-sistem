@@ -261,10 +261,7 @@ export default function DashboardPage() {
                         <p className="text-sm"><span className="font-medium">Status:</span> {tournament.status}</p>
                         <div className="flex gap-2 mt-4">
                           <Button size="sm" variant="outline" onClick={() => router.push(`/tournaments/${tournament.id}`)}>
-                            Editar
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => router.push(`/tournaments/${tournament.id}/teams`)}>
-                            Equipes
+                            Gerenciar
                           </Button>
                         </div>
                       </div>

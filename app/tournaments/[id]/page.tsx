@@ -116,19 +116,19 @@ export default function TournamentDetailPage() {
   const [selectedJudgeIds, setSelectedJudgeIds] = useState<string[]>([])
 
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || (user?.role !== 'school_admin' && user?.role !== 'platform_admin'))) {
+    if (!authLoading && (!isAuthenticated || user?.role !== 'school_admin')) {
       router.push("/")
     }
   }, [isAuthenticated, authLoading, user, router])
 
   useEffect(() => {
-    if (isAuthenticated && tournamentId) {
+    if (isAuthenticated && user?.role === 'school_admin' && tournamentId) {
       fetchTournament()
       fetchAreas()
       fetchTeams()
       fetchJudges()
     }
-  }, [isAuthenticated, tournamentId])
+  }, [isAuthenticated, user, tournamentId])
 
   const fetchTournament = async () => {
     try {
