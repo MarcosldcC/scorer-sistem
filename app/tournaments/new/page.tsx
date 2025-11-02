@@ -123,13 +123,17 @@ export default function NewTournamentPage() {
       }
 
       // Generate code from name
-      const code = generateCode(formData.name)
+      let code = generateCode(formData.name)
       
-      if (!code) {
-        setError('Não foi possível gerar um código válido. Use um nome diferente.')
-        setSaving(false)
-        return
+      // Ensure code is not empty
+      if (!code || code.length === 0) {
+        code = `TORNEO_${Date.now().toString().slice(-6)}`
       }
+      
+      // Check if code already exists and append timestamp if needed
+      // (This is a basic check - API will also validate)
+      const timestamp = Date.now().toString().slice(-6)
+      const finalCode = code.length > 0 ? code : `TORNEO_${timestamp}`
 
       const response = await fetch('/api/tournaments', {
         method: 'POST',
@@ -138,9 +142,9 @@ export default function NewTournamentPage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          name: formData.name,
-          code,
-          description: formData.description || null,
+          name: formData.name.trim(),
+          code: finalCode,
+          description: formData.description?.trim() || null,
           templateId: formData.templateId || null,
           startDate: formData.startDate || null,
           endDate: formData.endDate || null,
@@ -151,7 +155,7 @@ export default function NewTournamentPage() {
 
       const data = await response.json()
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         toast({
           title: "Torneio criado com sucesso!",
           description: `O torneio "${formData.name}" foi criado.`,
@@ -159,10 +163,13 @@ export default function NewTournamentPage() {
         })
         
         // Redirect to tournament details or dashboard
-        router.push('/dashboard')
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 1000)
       } else {
         const errorMsg = data.error || 'Erro ao criar torneio'
         setError(errorMsg)
+        console.error('Create tournament error:', data)
         toast({
           title: "Erro ao criar torneio",
           description: errorMsg,

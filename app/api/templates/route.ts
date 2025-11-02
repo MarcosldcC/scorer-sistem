@@ -48,15 +48,21 @@ export async function GET(request: NextRequest) {
       })
       const assignedTemplateIds = assignedTemplates.map(a => a.templateId)
       
-      where.OR = [
-        // Official templates assigned to this school
-        { 
+      // Build OR conditions
+      const orConditions: any[] = []
+      
+      // Add assigned official templates if any
+      if (assignedTemplateIds.length > 0) {
+        orConditions.push({
           id: { in: assignedTemplateIds },
-          isOfficial: true 
-        },
-        // School's custom templates
-        { schoolId: user.schoolId }
-      ]
+          isOfficial: true
+        })
+      }
+      
+      // Always add school's custom templates
+      orConditions.push({ schoolId: user.schoolId })
+      
+      where.OR = orConditions
     } else if (isOfficial === 'true') {
       where.isOfficial = true
     } else if (isOfficial === 'false') {
