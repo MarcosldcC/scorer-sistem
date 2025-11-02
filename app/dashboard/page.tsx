@@ -120,7 +120,7 @@ export default function DashboardPage() {
         title: "Gerenciar Equipes",
         description: "Criar e gerenciar equipes dos torneios",
         icon: Users,
-        href: "#teams",
+        href: "#tournaments",
         color: "text-green-600"
       },
       {
@@ -276,16 +276,20 @@ export default function DashboardPage() {
           <div id="teams" className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-primary">Equipes</h2>
-              <Button onClick={() => router.push('/teams/new')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Equipe
-              </Button>
             </div>
             <Card>
               <CardContent className="py-8">
-                <p className="text-muted-foreground text-center">
-                  Selecione um torneio para ver e gerenciar equipes
-                </p>
+                <div className="text-center space-y-4">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto" />
+                  <div>
+                    <p className="text-muted-foreground mb-2">
+                      Para criar e gerenciar equipes, selecione um torneio acima
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Clique em "Gerenciar" em um torneio para acessar as equipes
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
