@@ -243,13 +243,28 @@ export async function POST(request: NextRequest) {
       // Continue even if email fails - user can still request password reset
     }
 
-    // Remove sensitive data from response
+    // Remove sensitive data from response and ensure serialization
     const { password: _, tempPassword: __, ...safeUser } = adminUser
+
+    // Ensure DateTime fields are serializable
+    const schoolResponse = {
+      ...school,
+      createdAt: school.createdAt.toISOString(),
+      updatedAt: school.updatedAt.toISOString(),
+    }
+
+    const userResponse = {
+      ...safeUser,
+      createdAt: safeUser.createdAt.toISOString(),
+      updatedAt: safeUser.updatedAt.toISOString(),
+      lastLoginAt: safeUser.lastLoginAt?.toISOString() || null,
+      sessionExpiresAt: safeUser.sessionExpiresAt?.toISOString() || null,
+    }
 
     return NextResponse.json({
       success: true,
-      school,
-      adminUser: safeUser,
+      school: schoolResponse,
+      adminUser: userResponse,
       message: emailSent 
         ? 'Escola criada com sucesso! Um email foi enviado para o admin configurar a senha.'
         : 'Escola criada com sucesso! O admin pode solicitar redefinição de senha na tela de login.'
