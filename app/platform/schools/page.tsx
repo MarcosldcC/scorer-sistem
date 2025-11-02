@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building2, Plus, Search, Edit, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { Building2, Plus, Search, Edit, Trash2, AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
@@ -41,13 +41,16 @@ export default function SchoolsManagement() {
   const [schoolToDelete, setSchoolToDelete] = useState<School | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [formData, setFormData] = useState({
+    // Etapa 1: Dados do colégio
     name: "",
-    code: "",
-    email: "",
-    password: "",
     location: "",
-    status: "active"
+    contact: "", // Email de contato da escola
+    
+    // Etapa 2: Dados de acesso
+    adminEmail: "", // Gmail do admin de torneio
+    tempPassword: "", // Senha temporária
   })
+  const [currentStep, setCurrentStep] = useState(1)
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || user?.role !== 'platform_admin')) {
@@ -82,9 +85,37 @@ export default function SchoolsManagement() {
     }
   }
 
+  const handleNextStep = () => {
+    // Validate step 1 fields
+    if (currentStep === 1) {
+      if (!formData.name) {
+        setError('Nome da escola é obrigatório')
+        return
+      }
+      setError("")
+      setCurrentStep(2)
+    }
+  }
+
+  const handlePrevStep = () => {
+    setError("")
+    setCurrentStep(1)
+  }
+
   const handleCreateSchool = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    // Validate step 2 fields
+    if (!formData.adminEmail) {
+      setError('Gmail do admin é obrigatório')
+      return
+    }
+
+    if (!formData.tempPassword) {
+      setError('Senha temporária é obrigatória')
+      return
+    }
 
     try {
       const token = localStorage.getItem('robotics-token')
@@ -94,14 +125,27 @@ export default function SchoolsManagement() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          name: formData.name,
+          location: formData.location,
+          email: formData.contact, // Email de contato da escola (opcional)
+          adminEmail: formData.adminEmail, // Gmail do admin
+          tempPassword: formData.tempPassword // Senha temporária
+        })
       })
 
       const data = await response.json()
 
       if (response.ok) {
         setDialogOpen(false)
-        setFormData({ name: "", code: "", email: "", password: "", location: "", status: "active" })
+        setCurrentStep(1)
+        setFormData({ 
+          name: "", 
+          location: "", 
+          contact: "",
+          adminEmail: "",
+          tempPassword: ""
+        })
         
         toast({
           title: "Escola criada com sucesso!",
@@ -128,11 +172,10 @@ export default function SchoolsManagement() {
     setEditingSchool(school)
     setFormData({
       name: school.name,
-      code: school.code,
-      email: school.email || "",
-      password: "",
       location: school.location || "",
-      status: school.status
+      contact: school.email || "",
+      adminEmail: "",
+      tempPassword: ""
     })
     setEditDialogOpen(true)
   }
@@ -148,14 +191,9 @@ export default function SchoolsManagement() {
       const updateData: any = {
         id: editingSchool.id,
         name: formData.name,
-        email: formData.email,
+        email: formData.contact,
         location: formData.location,
-        status: formData.status
-      }
-
-      // Only update password if provided
-      if (formData.password) {
-        updateData.password = formData.password
+        status: "active" // Keep status active when editing
       }
 
       const response = await fetch('/api/schools', {
@@ -172,7 +210,7 @@ export default function SchoolsManagement() {
       if (response.ok) {
         setEditDialogOpen(false)
         setEditingSchool(null)
-        setFormData({ name: "", code: "", email: "", password: "", location: "", status: "active" })
+        setFormData({ name: "", location: "", contact: "", adminEmail: "", tempPassword: "" })
         
         toast({
           title: "Escola atualizada!",
@@ -281,90 +319,146 @@ export default function SchoolsManagement() {
               <Button variant="outline" onClick={() => router.push('/dashboard/platform')}>
                 Voltar
               </Button>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <Dialog open={dialogOpen} onOpenChange={(open) => {
+                setDialogOpen(open)
+                if (!open) {
+                  // Reset form when dialog closes
+                  setCurrentStep(1)
+                  setFormData({
+                    name: "",
+                    location: "",
+                    contact: "",
+                    adminEmail: "",
+                    tempPassword: ""
+                  })
+                  setError("")
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button className="bg-accent hover:bg-accent/90">
                     <Plus className="mr-2 h-4 w-4" />
                     Nova Escola
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Criar Nova Escola</DialogTitle>
                     <DialogDescription>
-                      Adicione uma nova escola à plataforma
+                      Adicione uma nova escola à plataforma em duas etapas
                     </DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={handleCreateSchool} className="space-y-4">
-                    {error && (
-                      <Alert variant="destructive">
-                        <AlertDescription>{error}</AlertDescription>
-                      </Alert>
-                    )}
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Nome da Escola *</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Nome da escola"
-                        required
-                      />
+
+                  {/* Stepper */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2 flex-1">
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                        <span className="text-sm font-semibold">1</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className={`text-sm font-medium ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+                          Dados do Colégio
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="code">Código Único *</Label>
-                      <Input
-                        id="code"
-                        value={formData.code}
-                        onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                        placeholder="CODIGO_ESCOLA"
-                        required
-                      />
+                    <div className="w-8 h-0.5 bg-muted mx-2"></div>
+                    <div className="flex items-center gap-2 flex-1">
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                        <span className="text-sm font-semibold">2</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className={`text-sm font-medium ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+                          Dados de Acesso
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email (opcional)</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="escola@example.com"
-                      />
+                  </div>
+
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {currentStep === 1 && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Nome *</Label>
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          placeholder="Nome da escola"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="location">Localização *</Label>
+                        <Input
+                          id="location"
+                          value={formData.location}
+                          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                          placeholder="Endereço completo da escola"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="contact">Contato (Email) *</Label>
+                        <Input
+                          id="contact"
+                          type="email"
+                          value={formData.contact}
+                          onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                          placeholder="contato@escola.com"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">Email de contato da escola</p>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button type="button" onClick={handleNextStep} className="bg-accent hover:bg-accent/90">
+                          Próximo
+                          <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Senha (opcional)</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="Senha para acesso da escola"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="location">Localização (opcional)</Label>
-                      <Input
-                        id="location"
-                        value={formData.location}
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                        placeholder="Endereço completo da escola"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Status</Label>
-                      <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="draft">Rascunho</SelectItem>
-                          <SelectItem value="active">Ativo</SelectItem>
-                          <SelectItem value="suspended">Suspenso</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button type="submit" className="w-full">Criar Escola</Button>
-                  </form>
+                  )}
+
+                  {currentStep === 2 && (
+                    <form onSubmit={handleCreateSchool} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="adminEmail">Gmail do Admin de Torneio *</Label>
+                        <Input
+                          id="adminEmail"
+                          type="email"
+                          value={formData.adminEmail}
+                          onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
+                          placeholder="admin@gmail.com"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">O email deve ser um Gmail válido</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="tempPassword">Senha Temporária *</Label>
+                        <Input
+                          id="tempPassword"
+                          type="password"
+                          value={formData.tempPassword}
+                          onChange={(e) => setFormData({ ...formData, tempPassword: e.target.value })}
+                          placeholder="Senha temporária para acesso inicial"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">O admin receberá um email para redefinir a senha</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" onClick={handlePrevStep} className="flex-1">
+                          <ChevronLeft className="mr-2 h-4 w-4" />
+                          Voltar
+                        </Button>
+                        <Button type="submit" className="flex-1 bg-accent hover:bg-accent/90">
+                          Criar Escola
+                        </Button>
+                      </div>
+                    </form>
+                  )}
                 </DialogContent>
               </Dialog>
             </div>
@@ -398,64 +492,31 @@ export default function SchoolsManagement() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-code">Código Único *</Label>
-              <Input
-                id="edit-code"
-                value={formData.code}
-                disabled
-                className="bg-muted"
-                placeholder="CODIGO_ESCOLA"
-              />
-              <p className="text-xs text-muted-foreground">O código não pode ser alterado</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-email">Email (opcional)</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="escola@example.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-password">Senha (deixe em branco para não alterar)</Label>
-              <Input
-                id="edit-password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Nova senha (opcional)"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-location">Localização (opcional)</Label>
+              <Label htmlFor="edit-location">Localização *</Label>
               <Input
                 id="edit-location"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 placeholder="Endereço completo da escola"
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Rascunho</SelectItem>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="suspended">Suspenso</SelectItem>
-                  <SelectItem value="archived">Arquivado</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="edit-contact">Contato (Email) *</Label>
+              <Input
+                id="edit-contact"
+                type="email"
+                value={formData.contact}
+                onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                placeholder="contato@escola.com"
+                required
+              />
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => {
                 setEditDialogOpen(false)
                 setEditingSchool(null)
-                setFormData({ name: "", code: "", email: "", password: "", location: "", status: "active" })
+                setFormData({ name: "", location: "", contact: "", adminEmail: "", tempPassword: "" })
               }}>
                 Cancelar
               </Button>

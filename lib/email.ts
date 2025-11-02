@@ -3,7 +3,7 @@
  * Configure with your email provider (Resend, SendGrid, Gmail API, etc.)
  */
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://scorer-sistem.vercel.app'
 
 interface SendEmailOptions {
   to: string
@@ -13,54 +13,54 @@ interface SendEmailOptions {
 }
 
 /**
- * Send email using configured provider
- * For now, this is a placeholder - configure with your email provider
+ * Send email using Resend
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailOptions): Promise<boolean> {
   try {
-    // TODO: Configure your email provider here
-    // Options:
-    // 1. Resend (https://resend.com)
-    // 2. SendGrid (https://sendgrid.com)
-    // 3. Gmail API (https://developers.google.com/gmail/api)
-    // 4. Nodemailer with SMTP
+    const resendApiKey = process.env.RESEND_API_KEY
 
-    // For development, log the email content
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📧 Email would be sent:')
-      console.log('To:', to)
-      console.log('Subject:', subject)
-      console.log('HTML:', html)
-      if (text) console.log('Text:', text)
-      return true
+    if (!resendApiKey) {
+      console.error('RESEND_API_KEY não configurada')
+      // In development, log the email content
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📧 Email would be sent (RESEND_API_KEY not configured):')
+        console.log('To:', to)
+        console.log('Subject:', subject)
+        console.log('HTML:', html)
+        if (text) console.log('Text:', text)
+      }
+      return false
     }
 
-    // In production, uncomment and configure your email provider:
-    
-    // Example with Resend:
-    // const { Resend } = require('resend')
-    // const resend = new Resend(process.env.RESEND_API_KEY)
-    // await resend.emails.send({
-    //   from: 'noreply@yourdomain.com',
-    //   to,
-    //   subject,
-    //   html,
-    // })
+    const { Resend } = await import('resend')
+    const resend = new Resend(resendApiKey)
 
-    // Example with SendGrid:
-    // const sgMail = require('@sendgrid/mail')
-    // sgMail.setApiKey(process.env.SENDGRID_API_KEY)
-    // await sgMail.send({
-    //   to,
-    //   from: 'noreply@yourdomain.com',
-    //   subject,
-    //   html,
-    //   text,
-    // })
+    // Get from email from env or use default
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
 
+    const result = await resend.emails.send({
+      from: fromEmail,
+      to,
+      subject,
+      html,
+      text: text || undefined,
+    })
+
+    if (result.error) {
+      console.error('Error sending email via Resend:', result.error)
+      return false
+    }
+
+    console.log('✅ Email sent successfully to:', to)
     return true
   } catch (error) {
     console.error('Error sending email:', error)
+    // In development, log the email content even if there's an error
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📧 Email content (error occurred):')
+      console.log('To:', to)
+      console.log('Subject:', subject)
+    }
     return false
   }
 }

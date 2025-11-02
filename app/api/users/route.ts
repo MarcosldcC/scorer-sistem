@@ -164,13 +164,36 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine school
-    const targetSchoolId = user.role === 'platform_admin' ? schoolId : user.schoolId
+    // Platform admin must provide schoolId for school_admin, judge, and viewer roles
+    // School admin uses their own schoolId
+    let targetSchoolId: string | null = null
+    
+    if (user.role === 'platform_admin') {
+      // Platform admin creating user - must provide schoolId for non-platform_admin roles
+      if (role !== 'platform_admin' && !schoolId) {
+        return NextResponse.json(
+          { error: 'Escola é obrigatória para criar usuários com este role' },
+          { status: 400 }
+        )
+      }
+      targetSchoolId = schoolId || null
+    } else {
+      // School admin creating user - uses their own schoolId
+      targetSchoolId = user.schoolId
+    }
 
-    if (!targetSchoolId) {
-      return NextResponse.json(
-        { error: 'Escola não identificada' },
-        { status: 400 }
-      )
+    // Validate school exists if provided
+    if (targetSchoolId) {
+      const schoolExists = await prisma.school.findUnique({
+        where: { id: targetSchoolId }
+      })
+      
+      if (!schoolExists) {
+        return NextResponse.json(
+          { error: 'Escola não encontrada' },
+          { status: 400 }
+        )
+      }
     }
 
     // Generate reset token for password setup

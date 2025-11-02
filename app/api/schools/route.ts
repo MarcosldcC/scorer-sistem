@@ -102,35 +102,87 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, email, code, password, location, status } = await request.json()
+    const { name, email, location, adminEmail, tempPassword } = await request.json()
 
-    if (!name || !code) {
+    if (!name || !location) {
       return NextResponse.json(
-        { error: 'Nome e código são obrigatórios' },
+        { error: 'Nome e localização são obrigatórios' },
         { status: 400 }
       )
     }
 
-    // Check if code already exists
-    const existingSchool = await prisma.school.findUnique({
-      where: { code }
+    if (!adminEmail || !tempPassword) {
+      return NextResponse.json(
+        { error: 'Gmail do admin e senha temporária são obrigatórios' },
+        { status: 400 }
+      )
+    }
+
+    // Validate admin email is Gmail
+    if (!isValidGmail(adminEmail)) {
+      return NextResponse.json(
+        { error: 'Email do admin deve ser um endereço Gmail válido (@gmail.com ou @googlemail.com)' },
+        { status: 400 }
+      )
+    }
+
+    // Normalize admin Gmail
+    const normalizedAdminEmail = normalizeGmail(adminEmail)
+
+    // Check if admin email already exists
+    const existingAdmin = await prisma.user.findUnique({
+      where: { email: normalizedAdminEmail }
     })
 
-    if (existingSchool) {
+    if (existingAdmin) {
       return NextResponse.json(
-        { error: 'Código já existe' },
+        { error: 'Email do admin já está cadastrado. Use um email Gmail diferente.' },
         { status: 400 }
+      )
+    }
+
+    // Generate unique code from school name
+    const baseCode = name
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^A-Z0-9]/g, '_') // Replace non-alphanumeric with underscore
+      .substring(0, 20) // Limit length
+    
+    let code = baseCode
+    let codeExists = true
+    let attempts = 0
+    
+    // Generate unique code (try up to 10 times)
+    while (codeExists && attempts < 10) {
+      const existingSchool = await prisma.school.findUnique({
+        where: { code }
+      })
+      
+      if (!existingSchool) {
+        codeExists = false
+      } else {
+        // Add number suffix
+        code = `${baseCode}_${attempts + 1}`
+        attempts++
+      }
+    }
+
+    if (codeExists) {
+      return NextResponse.json(
+        { error: 'Não foi possível gerar um código único. Tente novamente.' },
+        { status: 500 }
       )
     }
 
     const school = await prisma.school.create({
       data: {
         name,
-        email,
+        email: email || null, // Contact email (optional)
         code,
-        password,
+        password: null, // No longer needed
         location,
-        status: status || 'draft'
+        status: 'active' // Always active when created
       }
     })
 
@@ -143,43 +195,18 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Create automatic admin user for the school
-    let adminEmail = email || `admin.${code.toLowerCase()}@gmail.com`
-    
-    // Validate and normalize Gmail
-    if (!isValidGmail(adminEmail)) {
-      return NextResponse.json(
-        { error: 'Email deve ser um endereço Gmail válido (@gmail.com ou @googlemail.com)' },
-        { status: 400 }
-      )
-    }
-    adminEmail = normalizeGmail(adminEmail)
-
-    // Check if admin email already exists
-    const existingAdmin = await prisma.user.findUnique({
-      where: { email: adminEmail }
-    })
-
-    if (existingAdmin) {
-      return NextResponse.json(
-        { error: 'Email do admin já está cadastrado. Use um email Gmail diferente.' },
-        { status: 400 }
-      )
-    }
-
     // Generate reset token for password setup
     const resetToken = crypto.randomBytes(32).toString('hex')
     const expiryTimestamp = Date.now() + (60 * 60 * 1000) // 1 hour
     const resetTokenData = `RESET_TOKEN:${resetToken}:${expiryTimestamp}`
 
-    // Generate a temporary password (won't be used - user will set via email link)
-    const tempPassword = crypto.randomBytes(16).toString('hex')
+    // Hash temporary password (won't be used - user will set via email link)
     const hashedPassword = await bcrypt.hash(tempPassword, 10)
 
     const adminUser = await prisma.user.create({
       data: {
         name: `Admin - ${name}`,
-        email: adminEmail,
+        email: normalizedAdminEmail,
         password: hashedPassword,
         tempPassword: resetTokenData, // Store reset token instead of temp password
         role: 'school_admin',
@@ -192,7 +219,7 @@ export async function POST(request: NextRequest) {
 
     // Send welcome email with password setup link
     try {
-      await sendWelcomeEmail(adminEmail, `Admin - ${name}`, resetToken, 'school_admin')
+      await sendWelcomeEmail(normalizedAdminEmail, `Admin - ${name}`, resetToken, 'school_admin')
     } catch (emailError) {
       console.error('Error sending welcome email:', emailError)
       // Continue even if email fails - user can still request password reset

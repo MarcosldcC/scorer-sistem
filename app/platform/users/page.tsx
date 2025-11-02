@@ -8,10 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Users, Plus, Search, Edit, Trash2, Eye, AlertTriangle, Info } from "lucide-react"
+import { Users, Search, Edit, Trash2, Eye, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
@@ -40,18 +39,11 @@ export default function PlatformUsersManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
-  const [dialogOpen, setDialogOpen] = useState(false)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [userToView, setUserToView] = useState<PlatformUser | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<PlatformUser | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "platform_admin"
-  })
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || user?.role !== 'platform_admin')) {
@@ -100,55 +92,6 @@ export default function PlatformUsersManagement() {
     }
   }
 
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    if (!formData.password) {
-      setError('Senha é obrigatória')
-      return
-    }
-
-    try {
-      const token = localStorage.getItem('robotics-token')
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...formData,
-          schoolId: null // Platform admins have no school
-        })
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setDialogOpen(false)
-        setFormData({ name: "", email: "", password: "", role: "platform_admin" })
-        
-        toast({
-          title: "Usuário criado com sucesso!",
-          description: `O usuário "${formData.name}" foi criado com sucesso.`,
-          variant: "default",
-        })
-        
-        fetchUsers()
-      } else {
-        const errorMsg = data.error || 'Erro ao criar usuário'
-        setError(errorMsg)
-        toast({
-          title: "Erro ao criar usuário",
-          description: errorMsg,
-          variant: "destructive",
-        })
-      }
-    } catch (err) {
-      setError('Erro de conexão')
-    }
-  }
 
   const handleViewUser = (user: PlatformUser) => {
     setUserToView(user)
@@ -265,73 +208,6 @@ export default function PlatformUsersManagement() {
               <Button variant="outline" onClick={() => router.push('/dashboard/platform')}>
                 Voltar
               </Button>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-accent hover:bg-accent/90">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Novo Usuário
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Criar Novo Usuário</DialogTitle>
-                    <DialogDescription>
-                      Adicione um novo usuário administrativo da plataforma
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateUser} className="space-y-4">
-                    {error && (
-                      <Alert variant="destructive">
-                        <AlertDescription>{error}</AlertDescription>
-                      </Alert>
-                    )}
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Nome *</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Nome completo"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="usuario@example.com"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Senha *</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="Senha do usuário"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="role">Tipo de Usuário *</Label>
-                      <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="platform_admin">Admin da Plataforma</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button type="submit" className="w-full">Criar Usuário</Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
             </div>
           </div>
         </div>
