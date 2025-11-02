@@ -37,10 +37,24 @@ export async function GET(request: NextRequest) {
     const where: any = {}
     
     // Platform admins see all templates
-    // School admins see official + their school's templates
+    // School admins see:
+    // 1. Official templates assigned to their school
+    // 2. Their school's custom templates
     if (user.role === 'school_admin' && user.schoolId) {
+      // Get IDs of official templates assigned to this school
+      const assignedTemplates = await prisma.templateSchoolAssignment.findMany({
+        where: { schoolId: user.schoolId },
+        select: { templateId: true }
+      })
+      const assignedTemplateIds = assignedTemplates.map(a => a.templateId)
+      
       where.OR = [
-        { isOfficial: true },
+        // Official templates assigned to this school
+        { 
+          id: { in: assignedTemplateIds },
+          isOfficial: true 
+        },
+        // School's custom templates
         { schoolId: user.schoolId }
       ]
     } else if (isOfficial === 'true') {
