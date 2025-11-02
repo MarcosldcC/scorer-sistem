@@ -647,6 +647,127 @@ export default function TournamentDetailPage() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="template">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Gerenciar Template do Torneio</CardTitle>
+                    <CardDescription>Edite áreas de avaliação, importe e exporte configurações</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleImportTemplate}
+                      className="hidden"
+                      id="import-template-file"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                    >
+                      <label htmlFor="import-template-file" className="cursor-pointer flex items-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        Importar JSON
+                      </label>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportTemplate}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Exportar JSON
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Areas List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">Áreas de Avaliação ({areas.length})</h3>
+                    <Button onClick={() => setShowAddAreaDialog(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nova Área
+                    </Button>
+                  </div>
+
+                  {areas.length === 0 ? (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Nenhuma área de avaliação configurada. Crie uma nova área ou importe um template.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-3">
+                      {areas.map((area, index) => (
+                        <Card key={area.id}>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <CardTitle className="text-lg">{area.name}</CardTitle>
+                                  <Badge variant="secondary">{area.code}</Badge>
+                                  <Badge variant="outline">{area.scoringType}</Badge>
+                                  <Badge variant="outline">Peso: {area.weight}x</Badge>
+                                </div>
+                                {area.description && (
+                                  <CardDescription>{area.description}</CardDescription>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditArea(area)}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDeleteAreaConfirm(area.id, area.name)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Remover
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="font-medium">Tipo:</span> {area.scoringType}
+                              </div>
+                              <div>
+                                <span className="font-medium">Peso:</span> {area.weight}x
+                              </div>
+                              {area.timeLimit && (
+                                <div>
+                                  <span className="font-medium">Tempo limite:</span> {Math.floor(area.timeLimit / 60)} min
+                                </div>
+                              )}
+                              {area.assignedJudges && area.assignedJudges.length > 0 && (
+                                <div>
+                                  <span className="font-medium">Juízes:</span> {area.assignedJudges.length}
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="teams">
             <Card>
               <CardHeader>
