@@ -11,6 +11,7 @@ export interface Team {
 }
 
 export interface TeamFilters {
+  tournamentId?: string
   shift?: string
   grade?: string
 }
