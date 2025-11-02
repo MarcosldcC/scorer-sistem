@@ -27,10 +27,13 @@ import {
   Download,
   AlertCircle,
   Languages,
-  AlertTriangle
+  AlertTriangle,
+  Building2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface Area {
   id: string
@@ -129,6 +132,10 @@ export default function TemplateEditPage() {
   const [activeTab, setActiveTab] = useState("general")
   const [deleteAreaDialogOpen, setDeleteAreaDialogOpen] = useState(false)
   const [areaToDelete, setAreaToDelete] = useState<string | null>(null)
+  const [assignSchoolsDialogOpen, setAssignSchoolsDialogOpen] = useState(false)
+  const [schools, setSchools] = useState<Array<{ id: string; name: string; code: string; location?: string }>>([])
+  const [selectedSchoolIds, setSelectedSchoolIds] = useState<string[]>([])
+  const [loadingSchools, setLoadingSchools] = useState(false)
 
   const [templateData, setTemplateData] = useState<TemplateData>({
     name: "",
@@ -270,6 +277,90 @@ export default function TemplateEditPage() {
       console.error('Fetch template error:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSchoolsAndAssignments = async () => {
+    try {
+      if (typeof window === 'undefined') return
+      
+      setLoadingSchools(true)
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      // Fetch all schools
+      const schoolsResponse = await fetch('/api/schools', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const schoolsData = await schoolsResponse.json()
+
+      if (schoolsResponse.ok && schoolsData.schools) {
+        setSchools(schoolsData.schools)
+      }
+
+      // Fetch assigned schools for this template
+      const assignedResponse = await fetch(`/api/templates/${templateId}/assign-schools`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const assignedData = await assignedResponse.json()
+
+      if (assignedResponse.ok && assignedData.schools) {
+        const ids = assignedData.schools.map((s: any) => s.id)
+        setSelectedSchoolIds(ids)
+      }
+    } catch (err) {
+      console.error('Fetch schools error:', err)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as escolas.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingSchools(false)
+    }
+  }
+
+  const handleAssignSchools = async () => {
+    try {
+      if (typeof window === 'undefined') return
+      
+      setLoadingSchools(true)
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch(`/api/templates/${templateId}/assign-schools`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ schoolIds: selectedSchoolIds })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Sucesso!",
+          description: data.message || "Template direcionado para as escolas selecionadas.",
+        })
+        setAssignSchoolsDialogOpen(false)
+      } else {
+        toast({
+          title: "Erro",
+          description: data.error || "Não foi possível direcionar o template.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error('Assign schools error:', err)
+      toast({
+        title: "Erro",
+        description: "Erro de conexão.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingSchools(false)
     }
   }
 
@@ -425,6 +516,18 @@ export default function TemplateEditPage() {
               </div>
             </div>
             <div className="flex gap-2">
+              {!isNew && templateData.isOfficial && templateData.status === 'published' && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setAssignSchoolsDialogOpen(true)
+                    fetchSchoolsAndAssignments()
+                  }}
+                >
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Direcionar para Escolas
+                </Button>
+              )}
               <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? 'Salvando...' : 'Salvar Rascunho'}
@@ -710,6 +813,74 @@ export default function TemplateEditPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog for assigning schools */}
+      <Dialog open={assignSchoolsDialogOpen} onOpenChange={setAssignSchoolsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Direcionar Template para Escolas</DialogTitle>
+            <DialogDescription>
+              Selecione as escolas que terão acesso a este template oficial. Você pode selecionar múltiplas escolas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {loadingSchools ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">Carregando escolas...</p>
+              </div>
+            ) : schools.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Nenhuma escola cadastrada.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {schools.map((school) => (
+                  <div
+                    key={school.id}
+                    className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <Checkbox
+                      id={`school-${school.id}`}
+                      checked={selectedSchoolIds.includes(school.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedSchoolIds([...selectedSchoolIds, school.id])
+                        } else {
+                          setSelectedSchoolIds(selectedSchoolIds.filter(id => id !== school.id))
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`school-${school.id}`}
+                      className="flex-1 cursor-pointer"
+                    >
+                      <div className="font-medium">{school.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {school.code} {school.location && `• ${school.location}`}
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAssignSchoolsDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAssignSchools}
+              disabled={loadingSchools}
+            >
+              {loadingSchools ? 'Salvando...' : `Salvar (${selectedSchoolIds.length} selecionada${selectedSchoolIds.length !== 1 ? 's' : ''})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
