@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Trophy, Users, Eye, Settings, Plus, Edit, Trash2, Save, X, AlertCircle, CheckCircle2, FileText, Gavel } from "lucide-react"
+import { ArrowLeft, Trophy, Users, Eye, Settings, Plus, Edit, Trash2, Save, X, AlertCircle, CheckCircle2, FileText, Gavel, Upload, Download, FileJson } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Switch } from "@/components/ui/switch"
@@ -44,8 +44,14 @@ interface TournamentArea {
   id: string
   name: string
   code: string
+  description?: string
   scoringType: string
   weight: number
+  order: number
+  rubricConfig?: any
+  performanceConfig?: any
+  timeLimit?: number
+  timeAction?: string
   assignedJudges?: Array<{
     id: string
     user: {
@@ -114,6 +120,19 @@ export default function TournamentDetailPage() {
     areaName: ""
   })
   const [selectedJudgeIds, setSelectedJudgeIds] = useState<string[]>([])
+  
+  // Template management
+  const [showAddAreaDialog, setShowAddAreaDialog] = useState(false)
+  const [editingArea, setEditingArea] = useState<TournamentArea | null>(null)
+  const [areaForm, setAreaForm] = useState({
+    name: "",
+    code: "",
+    description: "",
+    scoringType: "rubric" as "rubric" | "performance" | "mixed",
+    weight: 1.0,
+    timeLimit: "",
+    timeAction: "alert" as "alert" | "block"
+  })
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || user?.role !== 'school_admin')) {
@@ -517,6 +536,10 @@ export default function TournamentDetailPage() {
             <TabsTrigger value="info">
               <Settings className="h-4 w-4 mr-2" />
               Informações
+            </TabsTrigger>
+            <TabsTrigger value="template">
+              <FileText className="h-4 w-4 mr-2" />
+              Template ({areas.length})
             </TabsTrigger>
             <TabsTrigger value="teams">
               <Users className="h-4 w-4 mr-2" />
@@ -951,6 +974,152 @@ export default function TournamentDetailPage() {
               disabled={saving}
             >
               {saving ? 'Salvando...' : `Salvar (${selectedJudgeIds.length} juiz${selectedJudgeIds.length !== 1 ? 'es' : ''} selecionado${selectedJudgeIds.length !== 1 ? 's' : ''})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Area Dialog */}
+      <Dialog open={showAddAreaDialog} onOpenChange={(open) => {
+        setShowAddAreaDialog(open)
+        if (!open) {
+          setEditingArea(null)
+          setAreaForm({
+            name: "",
+            code: "",
+            description: "",
+            scoringType: "rubric",
+            weight: 1.0,
+            timeLimit: "",
+            timeAction: "alert"
+          })
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingArea ? 'Editar Área' : 'Nova Área de Avaliação'}</DialogTitle>
+            <DialogDescription>
+              Configure os detalhes da área de avaliação
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="areaName">Nome da Área *</Label>
+                <Input
+                  id="areaName"
+                  value={areaForm.name}
+                  onChange={(e) => setAreaForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ex: Design, Performance, Inovação"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="areaCode">Código *</Label>
+                <Input
+                  id="areaCode"
+                  value={areaForm.code}
+                  onChange={(e) => setAreaForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                  placeholder="Ex: DESIGN, PERF"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="areaDescription">Descrição</Label>
+              <Textarea
+                id="areaDescription"
+                value={areaForm.description}
+                onChange={(e) => setAreaForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Descrição da área de avaliação"
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="areaScoringType">Tipo de Pontuação *</Label>
+                <Select
+                  value={areaForm.scoringType}
+                  onValueChange={(value: "rubric" | "performance" | "mixed") => 
+                    setAreaForm(prev => ({ ...prev, scoringType: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rubric">Rubrica</SelectItem>
+                    <SelectItem value="performance">Performance</SelectItem>
+                    <SelectItem value="mixed">Misto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="areaWeight">Peso</Label>
+                <Input
+                  id="areaWeight"
+                  type="number"
+                  min="0.1"
+                  step="0.1"
+                  value={areaForm.weight}
+                  onChange={(e) => setAreaForm(prev => ({ ...prev, weight: parseFloat(e.target.value) || 1.0 }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="areaTimeLimit">Tempo Limite (minutos)</Label>
+                <Input
+                  id="areaTimeLimit"
+                  type="number"
+                  min="0"
+                  value={areaForm.timeLimit}
+                  onChange={(e) => setAreaForm(prev => ({ ...prev, timeLimit: e.target.value }))}
+                  placeholder="Deixe em branco para sem limite"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="areaTimeAction">Ação ao Expirar</Label>
+                <Select
+                  value={areaForm.timeAction}
+                  onValueChange={(value: "alert" | "block") => 
+                    setAreaForm(prev => ({ ...prev, timeAction: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="alert">Alertar</SelectItem>
+                    <SelectItem value="block">Bloquear</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddAreaDialog(false)
+                setEditingArea(null)
+                setAreaForm({
+                  name: "",
+                  code: "",
+                  description: "",
+                  scoringType: "rubric",
+                  weight: 1.0,
+                  timeLimit: "",
+                  timeAction: "alert"
+                })
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveArea} disabled={saving}>
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? 'Salvando...' : (editingArea ? 'Salvar Alterações' : 'Criar Área')}
             </Button>
           </DialogFooter>
         </DialogContent>
