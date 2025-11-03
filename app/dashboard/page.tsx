@@ -24,6 +24,8 @@ export default function DashboardPage() {
     users: 0,
     evaluations: 0
   })
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [tournamentsLoading, setTournamentsLoading] = useState(true)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -40,7 +42,12 @@ export default function DashboardPage() {
 
   const fetchTournaments = async () => {
     try {
+      setTournamentsLoading(true)
       const token = localStorage.getItem('robotics-token')
+      if (!token) {
+        setTournamentsLoading(false)
+        return
+      }
       const response = await fetch('/api/tournaments', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -52,17 +59,23 @@ export default function DashboardPage() {
       }
     } catch (err) {
       console.error('Error fetching tournaments:', err)
+    } finally {
+      setTournamentsLoading(false)
     }
   }
 
   const fetchStats = async () => {
     try {
+      setStatsLoading(true)
       const token = localStorage.getItem('robotics-token')
-      const [tournamentsRes, teamsRes, usersRes] = await Promise.all([
+      if (!token) {
+        setStatsLoading(false)
+        return
+      }
+
+      // Fetch tournaments and users in parallel
+      const [tournamentsRes, usersRes] = await Promise.all([
         fetch('/api/tournaments', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('/api/teams', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch('/api/users', {
@@ -71,17 +84,27 @@ export default function DashboardPage() {
       ])
 
       const tournamentsData = await tournamentsRes.json()
-      const teamsData = await teamsRes.json()
       const usersData = await usersRes.json()
+
+      // Count teams from tournaments (more efficient than calling /api/teams without tournamentId)
+      // The API already includes _count.teams in the response
+      let totalTeams = 0
+      if (tournamentsData.tournaments && Array.isArray(tournamentsData.tournaments)) {
+        totalTeams = tournamentsData.tournaments.reduce((sum: number, tournament: any) => {
+          return sum + (tournament._count?.teams || 0)
+        }, 0)
+      }
 
       setStats({
         tournaments: tournamentsData.tournaments?.length || 0,
-        teams: teamsData.teams?.length || 0,
+        teams: totalTeams,
         users: usersData.users?.length || 0,
         evaluations: 0 // TODO: Fetch evaluations count
       })
     } catch (err) {
       console.error('Error fetching stats:', err)
+    } finally {
+      setStatsLoading(false)
     }
   }
 
@@ -164,8 +187,17 @@ export default function DashboardPage() {
                 <Trophy className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.tournaments}</div>
-                <p className="text-xs text-muted-foreground">Torneios ativos</p>
+                {statsLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{stats.tournaments}</div>
+                    <p className="text-xs text-muted-foreground">Torneios ativos</p>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -174,8 +206,17 @@ export default function DashboardPage() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.teams}</div>
-                <p className="text-xs text-muted-foreground">Equipes cadastradas</p>
+                {statsLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{stats.teams}</div>
+                    <p className="text-xs text-muted-foreground">Equipes cadastradas</p>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -184,8 +225,17 @@ export default function DashboardPage() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.users}</div>
-                <p className="text-xs text-muted-foreground">Juízes e visualizadores</p>
+                {statsLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{stats.users}</div>
+                    <p className="text-xs text-muted-foreground">Juízes e visualizadores</p>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -194,8 +244,17 @@ export default function DashboardPage() {
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.evaluations}</div>
-                <p className="text-xs text-muted-foreground">Avaliações realizadas</p>
+                {statsLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{stats.evaluations}</div>
+                    <p className="text-xs text-muted-foreground">Avaliações realizadas</p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -238,7 +297,14 @@ export default function DashboardPage() {
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {tournaments.length === 0 ? (
+              {tournamentsLoading ? (
+                <Card className="col-span-full">
+                  <CardContent className="flex flex-col items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                    <p className="text-muted-foreground">Carregando torneios...</p>
+                  </CardContent>
+                </Card>
+              ) : tournaments.length === 0 ? (
                 <Card className="col-span-full">
                   <CardContent className="flex flex-col items-center justify-center py-8">
                     <Trophy className="h-12 w-12 text-muted-foreground mb-4" />

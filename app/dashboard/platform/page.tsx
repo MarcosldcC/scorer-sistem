@@ -18,6 +18,7 @@ export default function PlatformAdminDashboard() {
     { label: "Templates Oficiais", value: "0", icon: FileText },
     { label: "Total de Usuários", value: "0", icon: Users }
   ])
+  const [statsLoading, setStatsLoading] = useState(true)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -29,8 +30,12 @@ export default function PlatformAdminDashboard() {
     try {
       if (typeof window === 'undefined') return
       
+      setStatsLoading(true)
       const token = localStorage.getItem('robotics-token')
-      if (!token) return
+      if (!token) {
+        setStatsLoading(false)
+        return
+      }
       
       // Fetch all data in parallel
       const [schoolsRes, tournamentsRes, templatesRes, usersRes] = await Promise.all([
@@ -63,6 +68,8 @@ export default function PlatformAdminDashboard() {
       ])
     } catch (err) {
       console.error('Error fetching stats:', err)
+    } finally {
+      setStatsLoading(false)
     }
   }, [])
 
@@ -167,7 +174,14 @@ export default function PlatformAdminDashboard() {
                 <stat.icon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-primary">{stat.value}</div>
+                {statsLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : (
+                  <div className="text-2xl font-bold text-primary">{stat.value}</div>
+                )}
               </CardContent>
             </Card>
           ))}
