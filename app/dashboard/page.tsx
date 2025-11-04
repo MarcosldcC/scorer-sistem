@@ -27,6 +27,8 @@ export default function DashboardPage() {
   })
   const [statsLoading, setStatsLoading] = useState(true)
   const [tournamentsLoading, setTournamentsLoading] = useState(true)
+  const [schoolTeams, setSchoolTeams] = useState<any[]>([])
+  const [teamsLoading, setTeamsLoading] = useState(true)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -38,8 +40,33 @@ export default function DashboardPage() {
     if (isAuthenticated && user && user.role === 'school_admin') {
       fetchTournaments()
       fetchStats()
+      fetchSchoolTeams()
     }
   }, [isAuthenticated, user])
+
+  const fetchSchoolTeams = async () => {
+    try {
+      setTeamsLoading(true)
+      const token = localStorage.getItem('robotics-token')
+      if (!token) {
+        setTeamsLoading(false)
+        return
+      }
+
+      const response = await fetch('/api/teams', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        setSchoolTeams(data.teams || [])
+      }
+    } catch (err) {
+      console.error('Error fetching school teams:', err)
+    } finally {
+      setTeamsLoading(false)
+    }
+  }
 
   const fetchTournaments = async () => {
     try {
@@ -358,22 +385,74 @@ export default function DashboardPage() {
           <div id="teams" className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-primary">Equipes</h2>
+              <Button 
+                onClick={() => router.push('/platform/teams')}
+                className="rounded-full bg-[#009DE0] hover:bg-[#0088C7]"
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Gerenciar Equipes
+              </Button>
             </div>
-            <Card>
-              <CardContent className="py-8">
-                <div className="text-center space-y-4">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto" />
-                  <div>
-                    <p className="text-muted-foreground mb-2">
-                      Para criar e gerenciar equipes, selecione um torneio acima
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Clique em "Gerenciar" em um torneio para acessar as equipes
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {teamsLoading ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                  <p className="text-muted-foreground">Carregando equipes...</p>
+                </CardContent>
+              </Card>
+            ) : schoolTeams.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-4">Nenhuma equipe cadastrada ainda</p>
+                  <Button 
+                    onClick={() => router.push('/platform/teams')}
+                    className="rounded-full bg-[#009DE0] hover:bg-[#0088C7]"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Primeira Equipe
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {schoolTeams.slice(0, 6).map((team) => (
+                  <Card key={team.id} className="hover:shadow-lg transition-all duration-200">
+                    <CardHeader>
+                      <CardTitle className="text-lg font-bold text-[#0C2340]">{team.name}</CardTitle>
+                      {team.code && (
+                        <CardDescription className="text-[#5A5A5A]">Código: {team.code}</CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {team.grade && (
+                          <p className="text-sm text-[#5A5A5A]">
+                            <span className="font-medium">Série/Turma:</span> {team.grade}
+                          </p>
+                        )}
+                        {team.shift && (
+                          <p className="text-sm text-[#5A5A5A]">
+                            <span className="font-medium">Turno:</span> {team.shift}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {schoolTeams.length > 6 && (
+                  <Card className="cursor-pointer hover:shadow-lg transition-all duration-200" onClick={() => router.push('/platform/teams')}>
+                    <CardContent className="flex flex-col items-center justify-center py-8">
+                      <Users className="h-8 w-8 text-[#009DE0] mb-2" />
+                      <p className="text-sm text-[#5A5A5A] font-medium">
+                        Ver todas as {schoolTeams.length} equipes
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>
