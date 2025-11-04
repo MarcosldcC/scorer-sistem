@@ -620,10 +620,29 @@ export default function TournamentDetailPage() {
       return
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@(gmail\.com|googlemail\.com)$/i
+    if (!emailRegex.test(judgeForm.email.trim())) {
+      toast({
+        title: "Email inválido",
+        description: "O email deve ser um endereço Gmail válido (@gmail.com ou @googlemail.com).",
+        variant: "destructive",
+      })
+      return
+    }
+
     setSaving(true)
     try {
       const token = localStorage.getItem('robotics-token')
-      if (!token) return
+      if (!token) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Token não encontrado. Por favor, faça login novamente.",
+          variant: "destructive",
+        })
+        setSaving(false)
+        return
+      }
 
       const response = await fetch('/api/users', {
         method: 'POST',
@@ -650,6 +669,7 @@ export default function TournamentDetailPage() {
         setShowCreateJudgeDialog(false)
         fetchJudges()
       } else {
+        console.error('Error creating judge:', data)
         toast({
           title: "Erro ao criar juiz",
           description: data.error || "Não foi possível criar o juiz.",
@@ -657,6 +677,7 @@ export default function TournamentDetailPage() {
         })
       }
     } catch (err) {
+      console.error('Error creating judge:', err)
       toast({
         title: "Erro de conexão",
         description: "Não foi possível conectar ao servidor.",

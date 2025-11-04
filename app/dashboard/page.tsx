@@ -323,13 +323,10 @@ export default function DashboardPage() {
                       <CardDescription>Código: {tournament.code}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        <p className="text-sm"><span className="font-medium">Status:</span> {tournament.status}</p>
-                        <div className="flex gap-2 mt-4">
-                          <Button size="sm" variant="outline" onClick={() => router.push(`/tournaments/${tournament.id}`)}>
-                            Gerenciar
-                          </Button>
-                        </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => router.push(`/tournaments/${tournament.id}`)}>
+                          Gerenciar
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
