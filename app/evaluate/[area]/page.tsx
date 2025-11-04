@@ -21,7 +21,7 @@ import type { EvaluationScore } from "@/lib/rubrics"
 export default function EvaluatePage() {
   const { isAuthenticated, user, loading } = useAuth()
   const { teams, loading: teamsLoading } = useTeams()
-  const { submitEvaluation, loading: evaluationLoading } = useEvaluations()
+  const { submitEvaluation, loading: evaluationLoading, offlineCount, syncOffline } = useEvaluations()
   const router = useRouter()
   const params = useParams()
   const area = params.area as "programming" | "research" | "identity"
@@ -33,6 +33,7 @@ export default function EvaluatePage() {
   const [penaltyCount, setPenaltyCount] = useState(0)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -45,6 +46,26 @@ export default function EvaluatePage() {
       router.push("/dashboard")
     }
   }, [user, area, router])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOffline(!navigator.onLine)
+      
+      const handleOnline = () => {
+        setIsOffline(false)
+        syncOffline()
+      }
+      const handleOffline = () => setIsOffline(true)
+      
+      window.addEventListener('online', handleOnline)
+      window.addEventListener('offline', handleOffline)
+      
+      return () => {
+        window.removeEventListener('online', handleOnline)
+        window.removeEventListener('offline', handleOffline)
+      }
+    }
+  }, [syncOffline])
 
   if (loading || teamsLoading) {
     return (
@@ -137,7 +158,11 @@ export default function EvaluatePage() {
         const maxScore = getMaxPossibleScore(rubric)
         const percentage = calculatePercentage(totalScore, maxScore)
 
-        setSuccess(`Avaliação salva com sucesso! Pontuação: ${totalScore}/${maxScore} (${percentage}%)`)
+        if (result.offline) {
+          setSuccess(`Avaliação salva offline! Pontuação: ${totalScore}/${maxScore} (${percentage}%). Será sincronizada quando a conexão for restaurada.`)
+        } else {
+          setSuccess(`Avaliação salva com sucesso! Pontuação: ${totalScore}/${maxScore} (${percentage}%)`)
+        }
 
         // Reset form
         setSelectedTeam("")
@@ -146,10 +171,10 @@ export default function EvaluatePage() {
         setEvaluationTime(0)
         setPenaltyCount(0)
 
-        // Redirect after 2 seconds
+        // Redirect after 3 seconds (longer for offline message)
         setTimeout(() => {
           router.push("/dashboard")
-        }, 2000)
+        }, result.offline ? 3000 : 2000)
       } else {
         setError(result.error || "Erro ao salvar avaliação. Tente novamente.")
       }
@@ -170,10 +195,22 @@ export default function EvaluatePage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
-          <Button variant="outline" onClick={() => router.push("/dashboard")} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Dashboard
-          </Button>
+          <div className="flex items-center justify-between mb-4">
+            <Button variant="outline" onClick={() => router.push("/dashboard")}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar ao Dashboard
+            </Button>
+            {isOffline && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-md text-sm">
+                <span>⚠️ Modo Offline</span>
+              </div>
+            )}
+            {offlineCount > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
+                <span>{offlineCount} avaliação(ões) pendente(s) de sincronização</span>
+              </div>
+            )}
+          </div>
           <h1 className="text-2xl font-bold text-primary">
             Avaliação -{" "}
             {rubric.area === "programming"

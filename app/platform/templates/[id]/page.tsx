@@ -98,13 +98,6 @@ interface TemplateData {
     allowReevaluation: boolean
   }
   teams: {
-    metadata: Array<{
-      key: string
-      label: string
-      type: "text" | "select" | "number"
-      required: boolean
-      options?: string[]
-    }>
     uniqueName: boolean
     allowMixed: boolean
   }
@@ -153,7 +146,6 @@ export default function TemplateEditPage() {
       allowReevaluation: true
     },
     teams: {
-      metadata: [],
       uniqueName: true,
       allowMixed: false
     },
@@ -258,7 +250,6 @@ export default function TemplateEditPage() {
               allowReevaluation: true
             },
             teams: config.teams || {
-              metadata: [],
               uniqueName: true,
               allowMixed: false
             },
@@ -375,11 +366,23 @@ export default function TemplateEditPage() {
       const token = localStorage.getItem('robotics-token')
       if (!token) return
 
+      // Auto-generate tags from name and description for search purposes
+      const autoTags: string[] = []
+      if (templateData.name) {
+        const nameWords = templateData.name.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+        autoTags.push(...nameWords)
+      }
+      if (templateData.description) {
+        const descWords = templateData.description.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+        autoTags.push(...descWords)
+      }
+      const uniqueTags = [...new Set([...autoTags, ...templateData.tags])]
+
       // Build config object
       const config = {
-        language: templateData.language,
+        language: "pt-BR", // Default to pt-BR, hidden from user
         visibility: templateData.visibility,
-        tags: templateData.tags,
+        tags: uniqueTags, // Auto-generated tags for search
         areas: templateData.areas,
         ranking: templateData.ranking,
         teams: templateData.teams,
@@ -433,10 +436,18 @@ export default function TemplateEditPage() {
   }
 
   const addArea = () => {
+    const areaName = "Nova Área"
+    // Generate code automatically from name
+    const code = areaName.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') || `area_${Date.now()}`
+    
     const newArea: Area = {
       id: Date.now().toString(),
-      name: "Nova Área",
-      code: `area_${Date.now()}`,
+      name: areaName,
+      code,
       scoringType: "rubric",
       weight: 1.0,
       timeLimit: 300,
@@ -561,16 +572,12 @@ export default function TemplateEditPage() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-8 mb-6">
+          <TabsList className="grid w-full grid-cols-7 mb-6">
             <TabsTrigger value="general">Geral</TabsTrigger>
             <TabsTrigger value="areas">Áreas</TabsTrigger>
             <TabsTrigger value="ranking">Ranking</TabsTrigger>
             <TabsTrigger value="teams">Equipes</TabsTrigger>
             <TabsTrigger value="offline">Offline</TabsTrigger>
-            <TabsTrigger value="languages">
-              <Languages className="h-4 w-4 mr-1" />
-              Idiomas
-            </TabsTrigger>
             <TabsTrigger value="preview">
               <Eye className="h-4 w-4 mr-1" />
               Preview
@@ -589,34 +596,15 @@ export default function TemplateEditPage() {
                 <CardDescription>Dados básicos do template</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome do Template *</Label>
-                    <Input
-                      id="name"
-                      value={templateData.name}
-                      onChange={(e) => setTemplateData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Nome do template"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="language">Idioma Base</Label>
-                    <Select 
-                      value={templateData.language}
-                      onValueChange={(value: "pt-BR" | "en-US") => 
-                        setTemplateData(prev => ({ ...prev, language: value }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
-                        <SelectItem value="en-US">Inglês (EUA)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome do Template *</Label>
+                  <Input
+                    id="name"
+                    value={templateData.name}
+                    onChange={(e) => setTemplateData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Nome do template"
+                    required
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -628,59 +616,6 @@ export default function TemplateEditPage() {
                     placeholder="Breve descrição do template"
                     rows={3}
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="type">Tipo de Template</Label>
-                    <Select 
-                      value={templateData.isOfficial ? "official" : "custom"}
-                      onValueChange={(value) => 
-                        setTemplateData(prev => ({ ...prev, isOfficial: value === "official" }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="official">Oficial (Zoom Education)</SelectItem>
-                        <SelectItem value="custom">Da Escola</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="visibility">Visibilidade</Label>
-                    <Select 
-                      value={templateData.visibility}
-                      onValueChange={(value: "private" | "shareable") => 
-                        setTemplateData(prev => ({ ...prev, visibility: value }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="private">Privado</SelectItem>
-                        <SelectItem value="shareable">Compartilhável</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="tags">Tags (separadas por vírgula)</Label>
-                  <Input
-                    id="tags"
-                    value={templateData.tags.join(", ")}
-                    onChange={(e) => {
-                      const tags = e.target.value.split(",").map(t => t.trim()).filter(t => t)
-                      setTemplateData(prev => ({ ...prev, tags }))
-                    }}
-                    placeholder="robótica, competição, educação"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Tags ajudam na busca e organização de templates
-                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -743,15 +678,6 @@ export default function TemplateEditPage() {
             <OfflineSection
               offline={templateData.offline}
               onChange={(offline) => setTemplateData(prev => ({ ...prev, offline }))}
-            />
-          </TabsContent>
-
-          {/* Textos e Idiomas */}
-          <TabsContent value="languages" className="space-y-6">
-            <LanguagesSection
-              translations={templateData.translations || {}}
-              areas={templateData.areas}
-              onChange={(translations) => setTemplateData(prev => ({ ...prev, translations }))}
             />
           </TabsContent>
 
@@ -907,15 +833,18 @@ function AreaCard({
             <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
             <Input
               value={area.name}
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              className="w-48 font-semibold"
+              onChange={(e) => {
+                const name = e.target.value
+                // Generate code automatically from name
+                const code = name.toLowerCase()
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[^a-z0-9]+/g, '_')
+                  .replace(/^_+|_+$/g, '')
+                onUpdate({ name, code: code || `area_${Date.now()}` })
+              }}
+              className="w-full font-semibold"
               placeholder="Nome da área"
-            />
-            <Input
-              value={area.code}
-              onChange={(e) => onUpdate({ code: e.target.value })}
-              className="w-32 text-sm"
-              placeholder="código"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -1562,51 +1491,11 @@ function RankingSection({ ranking, areas, onChange }: { ranking: any; areas: Are
 
 // Fully implemented Teams Section
 function TeamsSection({ teams, onChange }: { teams: any; onChange: (teams: any) => void }) {
-  const addMetadata = () => {
-    const newMetadata = {
-      key: `field_${Date.now()}`,
-      label: "Novo Campo",
-      type: "text" as "text" | "select" | "number",
-      required: false,
-      options: [] as string[]
-    }
-    const metadata = [...(teams.metadata || []), newMetadata]
-    onChange({ ...teams, metadata })
-  }
-
-  const updateMetadata = (index: number, updates: any) => {
-    const metadata = [...(teams.metadata || [])]
-    metadata[index] = { ...metadata[index], ...updates }
-    onChange({ ...teams, metadata })
-  }
-
-  const deleteMetadata = (index: number) => {
-    const metadata = (teams.metadata || []).filter((_: any, i: number) => i !== index)
-    onChange({ ...teams, metadata })
-  }
-
-  // Default metadata fields
-  const defaultFields = [
-    { key: "grade", label: "Série/Ano", type: "text" as const },
-    { key: "shift", label: "Turno", type: "select" as const, options: ["Manhã", "Tarde", "Noite"] },
-    { key: "division", label: "Divisão/Arena", type: "text" as const },
-    { key: "category", label: "Categoria", type: "select" as const, options: ["Iniciante", "Avançado"] }
-  ]
-
-  const initializeDefaults = () => {
-    if (!teams.metadata || teams.metadata.length === 0) {
-      onChange({ ...teams, metadata: defaultFields.map(f => ({
-        ...f,
-        required: false
-      })) })
-    }
-  }
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Equipes e Organização</CardTitle>
-        <CardDescription>Configure metadados e campos personalizados para equipes</CardDescription>
+        <CardDescription>Configure as regras de organização das equipes</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4">
@@ -1636,115 +1525,6 @@ function TeamsSection({ teams, onChange }: { teams: any; onChange: (teams: any) 
           </div>
         </div>
 
-        <Separator />
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base font-semibold">Campos de Metadados</Label>
-              <p className="text-sm text-muted-foreground">
-                Defina campos padrão e personalizados que aparecerão no cadastro das equipes
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={initializeDefaults}>
-                Usar Padrões
-              </Button>
-              <Button size="sm" variant="outline" onClick={addMetadata}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Campo
-              </Button>
-            </div>
-          </div>
-
-          {(teams.metadata || []).length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Nenhum campo configurado. Clique em "Usar Padrões" para adicionar campos padrão ou "Novo Campo" para criar um personalizado.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {(teams.metadata || []).map((field: any, index: number) => (
-                <Card key={index} className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-muted-foreground">Campo #{index + 1}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => deleteMetadata(index)}
-                      className="text-destructive h-6 w-6 p-0"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-sm">Chave (ID interno) *</Label>
-                        <Input
-                          value={field.key}
-                          onChange={(e) => updateMetadata(index, { key: e.target.value })}
-                          placeholder="Ex: coach_name"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-sm">Rótulo (nome exibido) *</Label>
-                        <Input
-                          value={field.label}
-                          onChange={(e) => updateMetadata(index, { label: e.target.value })}
-                          placeholder="Ex: Nome do Treinador"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-sm">Tipo *</Label>
-                        <Select
-                          value={field.type}
-                          onValueChange={(value: "text" | "select" | "number") => {
-                            const updates: any = { type: value }
-                            if (value === "select" && !field.options) {
-                              updates.options = []
-                            }
-                            updateMetadata(index, updates)
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="text">Texto</SelectItem>
-                            <SelectItem value="select">Seleção</SelectItem>
-                            <SelectItem value="number">Número</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1 flex items-center space-x-2 pt-6">
-                        <Switch
-                          checked={field.required}
-                          onCheckedChange={(checked) => updateMetadata(index, { required: checked })}
-                        />
-                        <Label className="text-sm">Campo obrigatório</Label>
-                      </div>
-                    </div>
-                    {field.type === "select" && (
-                      <div className="space-y-1">
-                        <Label className="text-sm">Opções (separar por vírgula)</Label>
-                        <Input
-                          value={field.options?.join(", ") || ""}
-                          onChange={(e) => {
-                            const options = e.target.value.split(",").map(o => o.trim()).filter(o => o)
-                            updateMetadata(index, { options })
-                          }}
-                          placeholder="Ex: Opção 1, Opção 2, Opção 3"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
       </CardContent>
     </Card>
   )
@@ -1769,7 +1549,7 @@ function OfflineSection({ offline, onChange }: any) {
           <div className="space-y-2">
             <Label>Dados a pré-carregar</Label>
             <div className="space-y-2">
-              {['areas', 'rubrics', 'missions', 'ranking', 'metadata'].map((item) => (
+              {['areas', 'rubrics', 'missions', 'ranking'].map((item) => (
                 <div key={item} className="flex items-center space-x-2">
                   <input
                     type="checkbox"
@@ -2002,7 +1782,6 @@ function PreviewSection({ templateData }: { templateData: TemplateData }) {
             <p className="text-sm text-muted-foreground mb-4">{templateData.description}</p>
           )}
           <div className="flex gap-2 flex-wrap">
-            <Badge>{templateData.language}</Badge>
             <Badge variant={templateData.isOfficial ? "default" : "secondary"}>
               {templateData.isOfficial ? "Oficial" : "Personalizado"}
             </Badge>
@@ -2033,7 +1812,7 @@ function PreviewSection({ templateData }: { templateData: TemplateData }) {
             <CardHeader className="bg-primary/5">
               <CardTitle className="text-xl">{selectedArea.name}</CardTitle>
               <CardDescription>
-                Código: {selectedArea.code} | Tipo: {selectedArea.scoringType} | Peso: {selectedArea.weight}x
+                Tipo: {selectedArea.scoringType} | Peso: {selectedArea.weight}x
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">

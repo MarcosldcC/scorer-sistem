@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Trophy, Users, Eye, Settings, Plus, Edit, Trash2, Save, X, AlertCircle, CheckCircle2, FileText, Gavel, Upload, Download, FileJson } from "lucide-react"
+import { ArrowLeft, Trophy, Users, Eye, Settings, Plus, Edit, Trash2, Save, X, AlertCircle, CheckCircle2, FileText, Gavel, Upload, Download, FileJson, AlertTriangle, FileSpreadsheet } from "lucide-react"
+import * as XLSX from 'xlsx'
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Switch } from "@/components/ui/switch"
@@ -121,12 +122,27 @@ export default function TournamentDetailPage() {
   })
   const [selectedJudgeIds, setSelectedJudgeIds] = useState<string[]>([])
   
+  // Judge creation
+  const [showCreateJudgeDialog, setShowCreateJudgeDialog] = useState(false)
+  const [judgeForm, setJudgeForm] = useState({
+    name: "",
+    email: ""
+  })
+  const [deleteJudgeDialog, setDeleteJudgeDialog] = useState<{
+    open: boolean
+    judgeId: string | null
+    judgeName: string
+  }>({
+    open: false,
+    judgeId: null,
+    judgeName: ""
+  })
+  
   // Template management
   const [showAddAreaDialog, setShowAddAreaDialog] = useState(false)
   const [editingArea, setEditingArea] = useState<TournamentArea | null>(null)
   const [areaForm, setAreaForm] = useState({
     name: "",
-    code: "",
     description: "",
     scoringType: "rubric" as "rubric" | "performance" | "mixed",
     weight: 1.0,
@@ -416,11 +432,281 @@ export default function TournamentDetailPage() {
     }
   }
 
+  const handleDownloadTemplate = () => {
+    // Criar dados da planilha modelo
+    const templateData = [
+      ['Nome da Equipe', 'Turma', 'Turno'],
+      ['', '', '']
+    ]
+
+    // Criar workbook
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet(templateData)
+
+    // Ajustar largura das colunas
+    ws['!cols'] = [
+      { wch: 30 }, // Nome da Equipe
+      { wch: 20 }, // Turma
+      { wch: 15 }  // Turno
+    ]
+
+    // Adicionar worksheet ao workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Equipes')
+
+    // Baixar arquivo
+    XLSX.writeFile(wb, 'modelo_equipes.xlsx')
+
+    toast({
+      title: "Planilha modelo baixada!",
+      description: "O arquivo modelo_equipes.xlsx foi baixado com sucesso.",
+      variant: "default",
+    })
+  }
+
+  const handleImportTeams = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Verificar extensão
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      toast({
+        title: "Formato inválido",
+        description: "Por favor, selecione um arquivo Excel (.xlsx ou .xls).",
+        variant: "destructive",
+      })
+      e.target.value = ''
+      return
+    }
+
+    setSaving(true)
+    try {
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer)
+          const workbook = XLSX.read(data, { type: 'array' })
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][]
+
+          if (jsonData.length < 2) {
+            toast({
+              title: "Planilha vazia",
+              description: "A planilha não contém dados válidos.",
+              variant: "destructive",
+            })
+            return
+          }
+
+          // Pular cabeçalho (primeira linha)
+          const teamsData = jsonData.slice(1).filter(row => row && row.length > 0 && row[0])
+
+          if (teamsData.length === 0) {
+            toast({
+              title: "Nenhuma equipe encontrada",
+              description: "A planilha não contém equipes para importar.",
+              variant: "destructive",
+            })
+            return
+          }
+
+          const token = localStorage.getItem('robotics-token')
+          if (!token) return
+
+          // Importar equipes em lote
+          let successCount = 0
+          let errorCount = 0
+          const errors: string[] = []
+
+          for (const row of teamsData) {
+            const name = row[0]?.toString().trim()
+            const grade = row[1]?.toString().trim() || undefined
+            const shift = row[2]?.toString().trim() || undefined
+
+            if (!name) {
+              errorCount++
+              errors.push(`Linha sem nome: ${JSON.stringify(row)}`)
+              continue
+            }
+
+            try {
+              const response = await fetch('/api/teams', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  tournamentId,
+                  name,
+                  grade,
+                  shift,
+                  metadata: {
+                    grade,
+                    shift
+                  }
+                })
+              })
+
+              const data = await response.json()
+
+              if (response.ok && data.success) {
+                successCount++
+              } else {
+                errorCount++
+                errors.push(`${name}: ${data.error || 'Erro desconhecido'}`)
+              }
+            } catch (err) {
+              errorCount++
+              errors.push(`${name}: Erro de conexão`)
+            }
+          }
+
+          // Recarregar equipes
+          fetchTeams()
+
+          // Mostrar resultado
+          if (successCount > 0) {
+            toast({
+              title: "Importação concluída!",
+              description: `${successCount} equipe(s) importada(s) com sucesso${errorCount > 0 ? `. ${errorCount} erro(s).` : '.'}`,
+              variant: errorCount > 0 ? "default" : "default",
+            })
+          } else {
+            toast({
+              title: "Importação falhou",
+              description: `Nenhuma equipe foi importada. ${errors.slice(0, 3).join('; ')}`,
+              variant: "destructive",
+            })
+          }
+        } catch (err) {
+          console.error('Import error:', err)
+          toast({
+            title: "Erro ao processar planilha",
+            description: "Verifique o formato do arquivo Excel.",
+            variant: "destructive",
+          })
+        } finally {
+          setSaving(false)
+          e.target.value = ''
+        }
+      }
+
+      reader.readAsArrayBuffer(file)
+    } catch (err) {
+      setSaving(false)
+      toast({
+        title: "Erro ao ler arquivo",
+        description: "Não foi possível ler o arquivo selecionado.",
+        variant: "destructive",
+      })
+      e.target.value = ''
+    }
+  }
+
   const handleOpenJudgeAssignDialog = (areaId: string, areaName: string) => {
     const area = areas.find(a => a.id === areaId)
     const currentJudgeIds = area?.assignedJudges?.map(j => j.user.id) || []
     setSelectedJudgeIds(currentJudgeIds)
     setJudgeAssignDialog({ open: true, areaId, areaName })
+  }
+
+  const handleCreateJudge = async () => {
+    if (!judgeForm.name.trim() || !judgeForm.email.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Nome e email são obrigatórios.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: judgeForm.name.trim(),
+          email: judgeForm.email.trim(),
+          role: 'judge'
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Juiz criado!",
+          description: `O juiz "${judgeForm.name}" foi criado com sucesso. Um email foi enviado para configurar a senha.`,
+          variant: "default",
+        })
+        setJudgeForm({ name: "", email: "" })
+        setShowCreateJudgeDialog(false)
+        fetchJudges()
+      } else {
+        toast({
+          title: "Erro ao criar juiz",
+          description: data.error || "Não foi possível criar o juiz.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteJudge = async () => {
+    if (!deleteJudgeDialog.judgeId) return
+
+    setSaving(true)
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch(`/api/users?id=${deleteJudgeDialog.judgeId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Juiz excluído!",
+          description: `O juiz "${deleteJudgeDialog.judgeName}" foi excluído com sucesso.`,
+          variant: "default",
+        })
+        setDeleteJudgeDialog({ open: false, judgeId: null, judgeName: "" })
+        fetchJudges()
+        fetchAreas() // Refresh areas to update assigned judges
+      } else {
+        toast({
+          title: "Erro ao excluir juiz",
+          description: data.error || "Não foi possível excluir o juiz.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleAssignJudges = async () => {
@@ -635,15 +921,14 @@ export default function TournamentDetailPage() {
 
   const handleEditArea = (area: TournamentArea) => {
     setEditingArea(area)
-    setAreaForm({
-      name: area.name,
-      code: area.code,
-      description: area.description || "",
-      scoringType: area.scoringType as "rubric" | "performance" | "mixed",
-      weight: area.weight,
-      timeLimit: area.timeLimit ? Math.floor(area.timeLimit / 60).toString() : "",
-      timeAction: (area.timeAction || "alert") as "alert" | "block"
-    })
+        setAreaForm({
+          name: area.name,
+          description: area.description || "",
+          scoringType: area.scoringType as "rubric" | "performance" | "mixed",
+          weight: area.weight,
+          timeLimit: area.timeLimit ? Math.floor(area.timeLimit / 60).toString() : "",
+          timeAction: (area.timeAction || "alert") as "alert" | "block"
+        })
     setShowAddAreaDialog(true)
   }
 
@@ -685,10 +970,10 @@ export default function TournamentDetailPage() {
   }
 
   const handleSaveArea = async () => {
-    if (!areaForm.name.trim() || !areaForm.code.trim()) {
+    if (!areaForm.name.trim()) {
       toast({
-        title: "Campos obrigatórios",
-        description: "Nome e código da área são obrigatórios.",
+        title: "Campo obrigatório",
+        description: "Nome da área é obrigatório.",
         variant: "destructive",
       })
       return
@@ -699,10 +984,18 @@ export default function TournamentDetailPage() {
       const token = localStorage.getItem('robotics-token')
       if (!token) return
 
+      // Generate code automatically from name
+      const code = areaForm.name.trim().toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .toUpperCase() || `AREA_${Date.now()}`
+
       const areaData: any = {
         tournamentId,
         name: areaForm.name.trim(),
-        code: areaForm.code.trim(),
+        code,
         description: areaForm.description.trim() || "",
         scoringType: areaForm.scoringType,
         weight: areaForm.weight,
@@ -748,7 +1041,6 @@ export default function TournamentDetailPage() {
         setEditingArea(null)
         setAreaForm({
           name: "",
-          code: "",
           description: "",
           scoringType: "rubric",
           weight: 1.0,
@@ -1002,7 +1294,6 @@ export default function TournamentDetailPage() {
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <CardTitle className="text-lg">{area.name}</CardTitle>
-                                  <Badge variant="secondary">{area.code}</Badge>
                                   <Badge variant="outline">{area.scoringType}</Badge>
                                   <Badge variant="outline">Peso: {area.weight}x</Badge>
                                 </div>
@@ -1067,13 +1358,43 @@ export default function TournamentDetailPage() {
                     <CardTitle>Gerenciar Equipes</CardTitle>
                     <CardDescription>Crie e gerencie as equipes do torneio</CardDescription>
                   </div>
-                  <Button onClick={() => {
-                    setTeamForm({ name: "", code: "", grade: "", shift: "" })
-                    setActiveTab("teams")
-                  }}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Equipe
-                  </Button>
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleImportTeams}
+                      className="hidden"
+                      id="import-teams-file"
+                      disabled={saving}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownloadTemplate}
+                      disabled={saving}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Baixar Modelo
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      disabled={saving}
+                    >
+                      <label htmlFor="import-teams-file" className="cursor-pointer flex items-center gap-2">
+                        <FileSpreadsheet className="h-4 w-4" />
+                        Importar Excel
+                      </label>
+                    </Button>
+                    <Button onClick={() => {
+                      setTeamForm({ name: "", code: "", grade: "", shift: "" })
+                      setActiveTab("teams")
+                    }}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nova Equipe
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1186,66 +1507,168 @@ export default function TournamentDetailPage() {
           </TabsContent>
 
           <TabsContent value="judges">
-            <Card>
-              <CardHeader>
-                <CardTitle>Atribuir Juízes às Áreas</CardTitle>
-                <CardDescription>
-                  Selecione os juízes que avaliarão cada área. Você pode atribuir múltiplos juízes para a mesma área.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {areas.length === 0 ? (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Nenhuma área de avaliação encontrada. Configure o template do torneio primeiro.
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <div className="space-y-4">
-                    {areas.map((area) => (
-                      <Card key={area.id}>
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <CardTitle className="text-lg">{area.name}</CardTitle>
-                              <CardDescription>
-                                Código: {area.code} | Tipo: {area.scoringType} | Peso: {area.weight}x
-                              </CardDescription>
-                            </div>
-                            <Button
-                              variant="outline"
-                              onClick={() => handleOpenJudgeAssignDialog(area.id, area.name)}
-                            >
-                              <Gavel className="h-4 w-4 mr-2" />
-                              Atribuir Juízes
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {area.assignedJudges && area.assignedJudges.length > 0 ? (
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">Juízes atribuídos:</Label>
-                              <div className="flex flex-wrap gap-2">
-                                {area.assignedJudges.map((judge) => (
-                                  <Badge key={judge.id} variant="secondary">
-                                    {judge.user.name} ({judge.user.email})
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">
-                              Nenhum juiz atribuído a esta área ainda.
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
+            <div className="space-y-4">
+              {/* Judges List */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Gerenciar Juízes</CardTitle>
+                      <CardDescription>
+                        Crie e gerencie os juízes do torneio. Você pode atribuir áreas a cada juiz abaixo.
+                      </CardDescription>
+                    </div>
+                    <Button onClick={() => setShowCreateJudgeDialog(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Juiz
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {judges.length === 0 ? (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Nenhum juiz cadastrado ainda. Clique em "Novo Juiz" para criar um.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-3">
+                      {judges.map((judge) => {
+                        // Get areas assigned to this judge
+                        const judgeAssignments = areas.flatMap(area => 
+                          (area.assignedJudges || [])
+                            .filter(assignment => assignment.user.id === judge.id)
+                            .map(() => area)
+                        )
+
+                        return (
+                          <Card key={judge.id}>
+                            <CardHeader>
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <CardTitle className="text-lg">{judge.name}</CardTitle>
+                                  <CardDescription>{judge.email}</CardDescription>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Get all areas assigned to this judge
+                                      const assignedAreaIds = judgeAssignments.map(a => a.id)
+                                      setSelectedJudgeIds([judge.id])
+                                      // Open dialog with first area or let user choose
+                                      if (areas.length > 0) {
+                                        handleOpenJudgeAssignDialog(areas[0].id, areas[0].name)
+                                      }
+                                    }}
+                                  >
+                                    <Gavel className="h-4 w-4 mr-2" />
+                                    Atribuir Áreas
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => setDeleteJudgeDialog({
+                                      open: true,
+                                      judgeId: judge.id,
+                                      judgeName: judge.name
+                                    })}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              {judgeAssignments.length > 0 ? (
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Áreas atribuídas:</Label>
+                                  <div className="flex flex-wrap gap-2">
+                                    {judgeAssignments.map((area) => (
+                                      <Badge key={area.id} variant="secondary">
+                                        {area.name}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  Nenhuma área atribuída ainda.
+                                </p>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Areas with Judges */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Atribuir Juízes às Áreas</CardTitle>
+                  <CardDescription>
+                    Selecione os juízes que avaliarão cada área. Você pode atribuir múltiplos juízes para a mesma área.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {areas.length === 0 ? (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Nenhuma área de avaliação encontrada. Configure o template do torneio primeiro.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-4">
+                      {areas.map((area) => (
+                        <Card key={area.id}>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <CardTitle className="text-lg">{area.name}</CardTitle>
+                                <CardDescription>
+                                  Tipo: {area.scoringType} | Peso: {area.weight}x
+                                </CardDescription>
+                              </div>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleOpenJudgeAssignDialog(area.id, area.name)}
+                              >
+                                <Gavel className="h-4 w-4 mr-2" />
+                                Atribuir Juízes
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {area.assignedJudges && area.assignedJudges.length > 0 ? (
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">Juízes atribuídos:</Label>
+                                <div className="flex flex-wrap gap-2">
+                                  {area.assignedJudges.map((judge) => (
+                                    <Badge key={judge.id} variant="secondary">
+                                      {judge.user.name} ({judge.user.email})
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                Nenhum juiz atribuído a esta área ainda.
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="preview">
@@ -1305,7 +1728,7 @@ export default function TournamentDetailPage() {
                             <div>
                               <div className="font-medium">{area.name}</div>
                               <div className="text-sm text-muted-foreground">
-                                {area.code} • {area.scoringType} • Peso: {area.weight}x
+                                {area.scoringType} • Peso: {area.weight}x
                               </div>
                             </div>
                             {area.assignedJudges && area.assignedJudges.length > 0 && (
@@ -1325,6 +1748,90 @@ export default function TournamentDetailPage() {
         </Tabs>
       </main>
 
+      {/* Create Judge Dialog */}
+      <Dialog open={showCreateJudgeDialog} onOpenChange={setShowCreateJudgeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Novo Juiz</DialogTitle>
+            <DialogDescription>
+              Crie um novo juiz para o torneio. Um email será enviado para configurar a senha.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="judgeName">Nome *</Label>
+              <Input
+                id="judgeName"
+                value={judgeForm.name}
+                onChange={(e) => setJudgeForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome completo do juiz"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="judgeEmail">Email *</Label>
+              <Input
+                id="judgeEmail"
+                type="email"
+                value={judgeForm.email}
+                onChange={(e) => setJudgeForm(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="email@gmail.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                O email deve ser um endereço Gmail válido (@gmail.com ou @googlemail.com)
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateJudgeDialog(false)
+                setJudgeForm({ name: "", email: "" })
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateJudge} disabled={saving}>
+              {saving ? 'Criando...' : 'Criar Juiz'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Judge Dialog */}
+      <AlertDialog open={deleteJudgeDialog.open} onOpenChange={(open) => setDeleteJudgeDialog({ open, judgeId: null, judgeName: "" })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <AlertDialogTitle>Excluir Juiz</AlertDialogTitle>
+                <AlertDialogDescription className="mt-1">
+                  Esta ação não pode ser desfeita. O juiz e todas as atribuições de áreas serão removidas.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          {deleteJudgeDialog.judgeId && (
+            <div className="py-4 px-2 bg-muted rounded-lg">
+              <p className="text-sm font-medium">Juiz: <span className="font-semibold">{deleteJudgeDialog.judgeName}</span></p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteJudge}
+              disabled={saving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {saving ? "Excluindo..." : "Excluir Juiz"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Judge Assignment Dialog */}
       <Dialog open={judgeAssignDialog.open} onOpenChange={(open) => setJudgeAssignDialog({ open, areaId: null, areaName: "" })}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -1339,7 +1846,7 @@ export default function TournamentDetailPage() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Nenhum juiz cadastrado. Crie usuários com perfil de juiz primeiro.
+                  Nenhum juiz cadastrado. Clique em "Novo Juiz" para criar um.
                 </AlertDescription>
               </Alert>
             ) : (
@@ -1415,25 +1922,14 @@ export default function TournamentDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="areaName">Nome da Área *</Label>
-                <Input
-                  id="areaName"
-                  value={areaForm.name}
-                  onChange={(e) => setAreaForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex: Design, Performance, Inovação"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="areaCode">Código *</Label>
-                <Input
-                  id="areaCode"
-                  value={areaForm.code}
-                  onChange={(e) => setAreaForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                  placeholder="Ex: DESIGN, PERF"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="areaName">Nome da Área *</Label>
+              <Input
+                id="areaName"
+                value={areaForm.name}
+                onChange={(e) => setAreaForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: Design, Performance, Inovação"
+              />
             </div>
 
             <div className="space-y-2">

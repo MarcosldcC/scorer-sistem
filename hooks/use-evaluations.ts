@@ -1,5 +1,12 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { getAuthHeaders } from './use-auth-api'
+import { 
+  isOnline, 
+  saveEvaluationOffline, 
+  syncOfflineEvaluations,
+  getOfflineEvaluations,
+  type OfflineEvaluation
+} from '@/lib/offline'
 
 export interface EvaluationData {
   teamId: string
@@ -26,31 +33,155 @@ export interface Evaluation {
 export function useEvaluations() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [offlineCount, setOfflineCount] = useState(0)
+
+  // Check for offline evaluations on mount
+  useEffect(() => {
+    const checkOffline = () => {
+      const offline = getOfflineEvaluations().filter(e => !e.isSynced)
+      setOfflineCount(offline.length)
+    }
+    
+    checkOffline()
+    
+    // Check periodically
+    const interval = setInterval(checkOffline, 5000)
+    
+    // Try to sync when online
+    if (isOnline()) {
+      syncOfflineEvaluations().then(count => {
+        if (count > 0) {
+          checkOffline()
+        }
+      })
+    }
+    
+    return () => clearInterval(interval)
+  }, [])
+
+  // Listen for online events
+  useEffect(() => {
+    const handleOnline = () => {
+      syncOfflineEvaluations().then(count => {
+        if (count > 0) {
+          const offline = getOfflineEvaluations().filter(e => !e.isSynced)
+          setOfflineCount(offline.length)
+        }
+      })
+    }
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', handleOnline)
+      return () => window.removeEventListener('online', handleOnline)
+    }
+  }, [])
 
   const submitEvaluation = useCallback(async (evaluationData: EvaluationData) => {
     try {
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/evaluations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify(evaluationData)
-      })
+      // Generate unique ID for offline evaluation
+      const evaluationId = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-      const data = await response.json()
+      // If offline, save locally
+      if (!isOnline()) {
+        const offlineEval: OfflineEvaluation = {
+          id: evaluationId,
+          teamId: evaluationData.teamId,
+          area: evaluationData.area,
+          scores: evaluationData.scores,
+          comments: evaluationData.comments || '',
+          evaluationTime: evaluationData.evaluationTime,
+          penalties: evaluationData.penalties || [],
+          timestamp: Date.now(),
+          isSynced: false,
+          syncAttempts: 0
+        }
+        
+        saveEvaluationOffline(offlineEval)
+        
+        const offline = getOfflineEvaluations().filter(e => !e.isSynced)
+        setOfflineCount(offline.length)
+        
+        return { 
+          success: true, 
+          evaluation: { id: evaluationId, ...evaluationData },
+          offline: true 
+        }
+      }
 
-      if (response.ok) {
-        return { success: true, evaluation: data.evaluation }
-      } else {
-        setError(data.error || 'Erro ao submeter avaliação')
-        return { success: false, error: data.error }
+      // Try to submit online
+      try {
+        const response = await fetch('/api/evaluations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
+          body: JSON.stringify(evaluationData)
+        })
+
+        const data = await response.json()
+
+        if (response.ok) {
+          return { success: true, evaluation: data.evaluation, offline: false }
+        } else {
+          // If server error, save offline
+          const offlineEval: OfflineEvaluation = {
+            id: evaluationId,
+            teamId: evaluationData.teamId,
+            area: evaluationData.area,
+            scores: evaluationData.scores,
+            comments: evaluationData.comments || '',
+            evaluationTime: evaluationData.evaluationTime,
+            penalties: evaluationData.penalties || [],
+            timestamp: Date.now(),
+            isSynced: false,
+            syncAttempts: 0
+          }
+          
+          saveEvaluationOffline(offlineEval)
+          
+          const offline = getOfflineEvaluations().filter(e => !e.isSynced)
+          setOfflineCount(offline.length)
+          
+          return { 
+            success: true, 
+            evaluation: { id: evaluationId, ...evaluationData },
+            offline: true,
+            message: 'Avaliação salva offline. Será sincronizada quando a conexão for restaurada.'
+          }
+        }
+      } catch (fetchError) {
+        // Network error, save offline
+        const offlineEval: OfflineEvaluation = {
+          id: evaluationId,
+          teamId: evaluationData.teamId,
+          area: evaluationData.area,
+          scores: evaluationData.scores,
+          comments: evaluationData.comments || '',
+          evaluationTime: evaluationData.evaluationTime,
+          penalties: evaluationData.penalties || [],
+          timestamp: Date.now(),
+          isSynced: false,
+          syncAttempts: 0
+        }
+        
+        saveEvaluationOffline(offlineEval)
+        
+        const offline = getOfflineEvaluations().filter(e => !e.isSynced)
+        setOfflineCount(offline.length)
+        
+        return { 
+          success: true, 
+          evaluation: { id: evaluationId, ...evaluationData },
+          offline: true,
+          message: 'Avaliação salva offline. Será sincronizada quando a conexão for restaurada.'
+        }
       }
     } catch (err) {
-      const errorMessage = 'Erro de conexão'
+      const errorMessage = 'Erro ao salvar avaliação'
       setError(errorMessage)
       console.error('Submit evaluation error:', err)
       return { success: false, error: errorMessage }
@@ -94,6 +225,12 @@ export function useEvaluations() {
     loading,
     error,
     submitEvaluation,
-    getEvaluations
+    getEvaluations,
+    offlineCount,
+    syncOffline: () => syncOfflineEvaluations().then(count => {
+      const offline = getOfflineEvaluations().filter(e => !e.isSynced)
+      setOfflineCount(offline.length)
+      return count
+    })
   }
 }
