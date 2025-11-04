@@ -138,11 +138,28 @@ export default function UsersManagement() {
       const data = await response.json()
 
       if (response.ok && data.success) {
+        // Show success toast with warning if email failed
+        const description = data.warning 
+          ? `${data.message}\n\n⚠️ ${data.warning}`
+          : data.message
+        
         toast({
           title: "Usuário criado!",
-          description: data.message || "Usuário criado com sucesso. Um email foi enviado para configurar a senha.",
+          description: description,
           variant: "default",
         })
+        
+        // Also show warning toast separately if email failed
+        if (data.warning) {
+          setTimeout(() => {
+            toast({
+              title: "Aviso sobre email",
+              description: data.warning,
+              variant: "destructive",
+            })
+          }, 500)
+        }
+        
         setUserForm({ name: "", email: "", role: "judge" })
         setShowCreateDialog(false)
         fetchUsers()

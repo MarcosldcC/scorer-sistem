@@ -37,7 +37,14 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
     const resend = new Resend(resendApiKey)
 
     // Get from email from env or use default
+    // IMPORTANT: onboarding@resend.dev may not work in production
+    // You should configure RESEND_FROM_EMAIL with a verified domain/email
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+    
+    if (!process.env.RESEND_FROM_EMAIL) {
+      console.warn('⚠️ RESEND_FROM_EMAIL not configured. Using default: onboarding@resend.dev')
+      console.warn('⚠️ This may not work in production. Please configure RESEND_FROM_EMAIL with a verified email.')
+    }
     
     // Log email configuration (without sensitive data)
     console.log('Sending email:', {
@@ -62,6 +69,13 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
         name: result.error.name,
         statusCode: result.error.statusCode
       })
+      
+      // Check if error is related to unverified domain/email
+      if (result.error.message?.includes('domain') || result.error.message?.includes('verify') || result.error.message?.includes('from')) {
+        console.error('⚠️ Email domain/address not verified in Resend')
+        console.error('⚠️ Please verify your domain in Resend dashboard or use a verified email address')
+      }
+      
       return false
     }
 

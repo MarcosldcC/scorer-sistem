@@ -274,16 +274,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Send welcome email with password setup link
-    // Email MUST be sent successfully - if it fails, rollback user creation
-    // This ensures the email actually exists and can receive emails
+    // TEMPORARY: Allow user creation even if email fails (domain not configured)
+    // TODO: Re-enable email validation when domain is properly configured
     let emailSent = false
     let emailError: any = null
     
     try {
       emailSent = await sendWelcomeEmail(normalizedEmail, name, resetToken, role)
       if (!emailSent) {
-        console.error('Email failed to send - rolling back user creation')
-        emailError = { message: 'Email service returned false - email may not exist or be invalid' }
+        console.error('Email failed to send')
+        emailError = { message: 'Email service returned false' }
+        console.warn('⚠️ Email failed to send, but user will be created (temporary - domain not configured)')
       }
     } catch (err: any) {
       console.error('Error sending welcome email:', err)
@@ -293,41 +294,32 @@ export async function POST(request: NextRequest) {
         name: err.name
       })
       emailError = err
+      console.warn('⚠️ Email error occurred, but user will be created (temporary - domain not configured)')
     }
     
-    // If email failed, rollback user creation
-    // This ensures we only create accounts for emails that actually exist
+    // TEMPORARY: Don't rollback if email fails
+    // User can still set password via "forgot password" flow
     if (!emailSent) {
-      console.error('Email failed to send, rolling back user creation')
-      try {
-        await prisma.user.delete({
-          where: { id: newUser.id }
-        })
-        console.log('User deleted successfully after email failure')
-      } catch (deleteError: any) {
-        console.error('Error deleting user after email failure:', deleteError)
+      console.warn('⚠️ Email failed to send, but user was created')
+      console.warn('⚠️ User can use "forgot password" to set their password')
+      if (!process.env.RESEND_FROM_EMAIL) {
+        console.warn('⚠️ RESEND_FROM_EMAIL is not configured. Please configure it when domain is available.')
       }
-      
-      // Return detailed error message
-      const errorMessage = emailError?.message || 'Não foi possível enviar o email de boas-vindas'
-      const errorDetails = emailError?.message || 'Email não existe ou não pode receber emails'
-      
-      return NextResponse.json(
-        { 
-          error: 'Não foi possível criar o usuário. O email não existe ou não pode receber emails.',
-          details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
-        },
-        { status: 400 }
-      )
     }
 
     // Remove password from response
     const { password: _, tempPassword: __, ...userResponse } = newUser
 
+    // Return success message (with warning if email failed)
+    const message = emailSent 
+      ? 'Usuário criado com sucesso. Um email foi enviado para configurar a senha.'
+      : 'Usuário criado com sucesso. O email de boas-vindas não foi enviado (serviço de email não configurado). O usuário pode usar "Esqueci minha senha" para configurar a senha.'
+
     return NextResponse.json({
       success: true,
       user: userResponse,
-      message: 'Usuário criado com sucesso. Um email foi enviado para configurar a senha.'
+      message,
+      warning: !emailSent ? 'Email não foi enviado. Configure o domínio no Resend para habilitar emails.' : undefined
     })
 
   } catch (error: any) {
