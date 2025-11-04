@@ -150,7 +150,7 @@ export default function DashboardPage() {
         title: "Gerenciar Usuários",
         description: "Criar juízes e visualizadores",
         icon: Settings,
-        href: "/platform/users",
+        href: user?.role === 'platform_admin' ? "/platform/users" : "/users",
         color: "text-purple-600"
       },
       {
