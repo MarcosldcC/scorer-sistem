@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { FileText, Plus, Search, Edit, Trash2, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface Template {
   id: string
@@ -152,30 +153,22 @@ export default function TemplatesManagement() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Gerenciar Templates</h1>
-              <p className="text-muted-foreground">Criar e gerenciar templates oficiais de torneio</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => router.push('/dashboard/platform')}>
-                Voltar
-              </Button>
-              <Button 
-                className="bg-accent hover:bg-accent/90"
-                onClick={() => router.push('/platform/templates/new')}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Template
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader />
 
       <main className="container mx-auto px-4 py-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-primary mb-2">Gerenciar Templates</h1>
+            <p className="text-muted-foreground">Criar e gerenciar templates oficiais de torneio</p>
+          </div>
+          <Button 
+            className="bg-accent hover:bg-accent/90"
+            onClick={() => router.push('/platform/templates/new')}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Template
+          </Button>
+        </div>
         {/* Search */}
         <div className="mb-6">
           <div className="relative">

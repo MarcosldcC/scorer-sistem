@@ -17,6 +17,7 @@ import { RUBRICS, getRubricForGrade, calculateTotalScore, calculatePercentage, g
 import { useTeams } from "@/hooks/use-teams"
 import { useEvaluations } from "@/hooks/use-evaluations"
 import type { EvaluationScore } from "@/lib/rubrics"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 export default function EvaluatePage() {
   const { isAuthenticated, user, loading } = useAuth()
@@ -193,33 +194,35 @@ export default function EvaluatePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <DashboardHeader />
+
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <Button variant="outline" onClick={() => router.push("/dashboard")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar ao Dashboard
-            </Button>
-            {isOffline && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-md text-sm">
-                <span>⚠️ Modo Offline</span>
-              </div>
-            )}
-            {offlineCount > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
-                <span>{offlineCount} avaliação(ões) pendente(s) de sincronização</span>
-              </div>
-            )}
+            <div>
+              <h1 className="text-2xl font-bold text-primary mb-2">
+                Avaliação -{" "}
+                {rubric.area === "programming"
+                  ? "Programação"
+                  : rubric.area === "research"
+                    ? (selectedTeamData?.grade === "2" ? "Storytelling" : "Pesquisa")
+                    : "Torcida"}
+              </h1>
+              <p className="text-muted-foreground">Juiz: {user.name}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {isOffline && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-md text-sm">
+                  <span>⚠️ Modo Offline</span>
+                </div>
+              )}
+              {offlineCount > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
+                  <span>{offlineCount} avaliação(ões) pendente(s) de sincronização</span>
+                </div>
+              )}
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-primary">
-            Avaliação -{" "}
-            {rubric.area === "programming"
-              ? "Programação"
-              : rubric.area === "research"
-                ? (selectedTeamData?.grade === "2" ? "Storytelling" : "Pesquisa")
-                : "Torcida"}
-          </h1>
-          <p className="text-muted-foreground">Juiz: {user.name}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

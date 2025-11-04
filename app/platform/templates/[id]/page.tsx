@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface Area {
   id: string
@@ -505,28 +506,23 @@ export default function TemplateEditPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => router.push('/platform/templates')}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-primary">
-                  {isNew ? "Criar Novo Template" : "Editar Template"}
-                </h1>
-                {!isNew && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={templateData.status === 'published' ? 'default' : 'secondary'}>
-                      {templateData.status === 'published' ? 'Publicado' : 'Rascunho'}
-                    </Badge>
-                  </div>
-                )}
+      <DashboardHeader />
+
+      <main className="container mx-auto px-4 py-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-primary mb-2">
+              {isNew ? "Criar Novo Template" : "Editar Template"}
+            </h1>
+            {!isNew && (
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant={templateData.status === 'published' ? 'default' : 'secondary'}>
+                  {templateData.status === 'published' ? 'Publicado' : 'Rascunho'}
+                </Badge>
               </div>
-            </div>
-            <div className="flex gap-2">
+            )}
+          </div>
+          <div className="flex gap-2">
               {!isNew && templateData.isOfficial && templateData.status === 'published' && (
                 <Button 
                   variant="outline" 
@@ -554,9 +550,6 @@ export default function TemplateEditPage() {
             </div>
           </div>
         </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6">
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />

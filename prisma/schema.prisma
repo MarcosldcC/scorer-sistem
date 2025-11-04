@@ -220,7 +220,7 @@ model UserTournamentArea {
 // Teams with flexible metadata - Now school-level, not tournament-specific
 model Team {
   id      String  @id @default(cuid())
-  schoolId String // Team belongs to school
+  schoolId String? // Team belongs to school (nullable for backward compatibility)
   name    String
   code    String? // Optional team code
 
@@ -235,7 +235,7 @@ model Team {
   updatedAt DateTime @updatedAt
 
   // Relations
-  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school      School?           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   evaluations Evaluation[]
   tournaments TournamentTeam[] // Many-to-many relationship with tournaments
 

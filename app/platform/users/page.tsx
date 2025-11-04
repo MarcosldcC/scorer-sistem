@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Users, Search, Edit, Trash2, Eye, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface PlatformUser {
   id: string
@@ -197,23 +198,13 @@ export default function PlatformUsersManagement() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Usuários da Plataforma</h1>
-              <p className="text-muted-foreground">Gerenciar admins e usuários globais</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => router.push('/dashboard/platform')}>
-                Voltar
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader />
 
       <main className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-primary mb-2">Usuários da Plataforma</h1>
+          <p className="text-muted-foreground">Gerenciar admins e usuários globais</p>
+        </div>
         {/* Search */}
         <div className="mb-6">
           <div className="relative">

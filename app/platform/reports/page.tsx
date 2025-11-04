@@ -99,21 +99,13 @@ export default function PlatformReports() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Relatórios Globais</h1>
-              <p className="text-muted-foreground">Visualize métricas e estatísticas da plataforma</p>
-            </div>
-            <Button variant="outline" onClick={() => router.push('/dashboard/platform')}>
-              Voltar
-            </Button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader />
 
       <main className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-primary mb-2">Relatórios Globais</h1>
+          <p className="text-muted-foreground">Visualize métricas e estatísticas da plataforma</p>
+        </div>
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card>

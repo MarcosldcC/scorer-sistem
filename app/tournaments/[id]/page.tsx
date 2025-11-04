@@ -18,6 +18,7 @@ import * as XLSX from 'xlsx'
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Switch } from "@/components/ui/switch"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface Tournament {
   id: string
@@ -1114,27 +1115,24 @@ export default function TournamentDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-primary">{tournament.name}</h1>
-                <p className="text-sm text-muted-foreground">Código: {tournament.code}</p>
-              </div>
-            </div>
-            <Badge variant={tournament.status === 'published' ? 'default' : 'secondary'}>
-              {tournament.status}
-            </Badge>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader />
 
       <main className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-primary mb-2">{tournament?.name || 'Carregando...'}</h1>
+              {tournament && (
+                <p className="text-sm text-muted-foreground">Código: {tournament.code}</p>
+              )}
+            </div>
+            {tournament && (
+              <Badge variant={tournament.status === 'published' ? 'default' : 'secondary'}>
+                {tournament.status}
+              </Badge>
+            )}
+          </div>
+        </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="info">

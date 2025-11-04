@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Building2, Plus, Search, Edit, Trash2, AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface School {
   id: string
@@ -308,18 +309,14 @@ export default function SchoolsManagement() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Gerenciar Escolas</h1>
-              <p className="text-muted-foreground">Criar e gerenciar escolas na plataforma</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => router.push('/dashboard/platform')}>
-                Voltar
-              </Button>
-              <Dialog open={dialogOpen} onOpenChange={(open) => {
+      <DashboardHeader />
+
+      <main className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-primary mb-2">Gerenciar Escolas</h1>
+          <p className="text-muted-foreground">Criar e gerenciar escolas na plataforma</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
                 setDialogOpen(open)
                 if (!open) {
                   // Reset form when dialog closes
