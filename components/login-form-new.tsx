@@ -76,7 +76,7 @@ export function LoginFormNew() {
       </div>
       
       <Card className="w-full max-w-md relative z-10 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
-        <CardHeader className="text-center pb-8 pt-8">
+        <CardHeader className="text-center pb-4 pt-8">
           <div className="w-32 h-32 mx-auto flex items-center justify-center">
             <LogoZ width={128} height={128} />
           </div>
@@ -129,7 +129,7 @@ export function LoginFormNew() {
             <div className="flex items-center justify-end">
               <button 
                 type="button" 
-                className="px-4 py-2 text-base font-medium text-[#009DE0] hover:text-[#007BBF] hover:underline transition-colors"
+                className="px-4 py-2 text-sm font-medium text-[#009DE0] hover:text-[#007BBF] hover:underline transition-colors"
                 onClick={() => router.push('/auth/forgot-password')}
               >
                 Esqueceu a senha?
