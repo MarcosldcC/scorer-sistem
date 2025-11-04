@@ -38,6 +38,14 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
 
     // Get from email from env or use default
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+    
+    // Log email configuration (without sensitive data)
+    console.log('Sending email:', {
+      to,
+      from: fromEmail,
+      subject,
+      hasResendFromEmail: !!process.env.RESEND_FROM_EMAIL
+    })
 
     const result = await resend.emails.send({
       from: fromEmail,
@@ -49,10 +57,21 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
 
     if (result.error) {
       console.error('Error sending email via Resend:', result.error)
+      console.error('Resend error details:', {
+        message: result.error.message,
+        name: result.error.name,
+        statusCode: result.error.statusCode
+      })
+      return false
+    }
+
+    if (!result.data) {
+      console.error('Resend returned no data, result:', result)
       return false
     }
 
     console.log('✅ Email sent successfully to:', to)
+    console.log('Email ID:', result.data.id)
     return true
   } catch (error) {
     console.error('Error sending email:', error)
