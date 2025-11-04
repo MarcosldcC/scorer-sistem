@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { config } from '@/lib/config'
 import { isValidGmail, normalizeGmail } from '@/lib/email-validation'
+import { verifyGmailExists } from '@/lib/email-verification'
 import { sendWelcomeEmail } from '@/lib/email'
 import crypto from 'crypto'
 
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate Gmail
+    // Validate Gmail format
     if (!isValidGmail(email)) {
       return NextResponse.json(
         { error: 'Email deve ser um endereço Gmail válido (@gmail.com ou @googlemail.com)' },
@@ -150,6 +151,15 @@ export async function POST(request: NextRequest) {
 
     // Normalize Gmail (remove dots, lowercase)
     const normalizedEmail = normalizeGmail(email)
+
+    // Verify if Gmail exists before creating user
+    const emailVerification = await verifyGmailExists(normalizedEmail)
+    if (!emailVerification.exists) {
+      return NextResponse.json(
+        { error: emailVerification.error || 'Email não encontrado ou inválido. Verifique se o email existe.' },
+        { status: 400 }
+      )
+    }
 
     // Check if email already exists (after normalization)
     const existingUser = await prisma.user.findUnique({
@@ -230,11 +240,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Send welcome email with password setup link
+    // This is required - if email fails, we should rollback user creation
+    let emailSent = false
     try {
-      await sendWelcomeEmail(normalizedEmail, name, resetToken, role)
+      emailSent = await sendWelcomeEmail(normalizedEmail, name, resetToken, role)
+      if (!emailSent) {
+        // If email failed to send, delete the user and return error
+        await prisma.user.delete({
+          where: { id: newUser.id }
+        })
+        return NextResponse.json(
+          { error: 'Não foi possível enviar o email de boas-vindas. Verifique se o email existe e tente novamente.' },
+          { status: 500 }
+        )
+      }
     } catch (emailError) {
       console.error('Error sending welcome email:', emailError)
-      // Continue even if email fails - user can still request password reset
+      // Delete user if email fails
+      try {
+        await prisma.user.delete({
+          where: { id: newUser.id }
+        })
+      } catch (deleteError) {
+        console.error('Error deleting user after email failure:', deleteError)
+      }
+      return NextResponse.json(
+        { error: 'Não foi possível enviar o email de boas-vindas. Verifique se o email existe e tente novamente.' },
+        { status: 500 }
+      )
     }
 
     // Remove password from response
