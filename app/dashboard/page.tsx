@@ -367,15 +367,17 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F7F9FB]">
       <DashboardHeader />
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-8 bg-[#F7F9FB] min-h-screen">
         <DashboardStats teams={teams} judgeAreas={user.areas || []} />
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div>
-            <h2 className="text-xl font-semibold text-primary mb-4">Áreas de Avaliação</h2>
+            <h2 className="text-2xl font-bold text-[#F36F21] uppercase tracking-wide mb-6 pb-2 border-b-2 border-[#F36F21]/20">
+              ÁREAS DE AVALIAÇÃO
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {EVALUATION_AREAS.map((area) => {
                 const canEvaluate = (user.areas || []).includes(area.id)
@@ -401,24 +403,34 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-primary">Ações Rápidas</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-[#F36F21] uppercase tracking-wide pb-2 border-b-2 border-[#F36F21]/20">
+                AÇÕES RÁPIDAS
+              </h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div
-                className="p-4 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card 
+                className="cursor-pointer hover:shadow-lg transition-all duration-200"
                 onClick={() => router.push("/rankings")}
               >
-                <h3 className="font-medium text-primary mb-2">Ver Rankings</h3>
-                <p className="text-sm text-muted-foreground">Consulte o ranking atual das equipes por turma e turno</p>
-              </div>
-              <div
-                className="p-4 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-[#0C2340]">Ver Rankings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-[#5A5A5A]">Consulte o ranking atual das equipes por turma e turno</p>
+                </CardContent>
+              </Card>
+              <Card 
+                className="cursor-pointer hover:shadow-lg transition-all duration-200"
                 onClick={() => router.push("/reports")}
               >
-                <h3 className="font-medium text-primary mb-2">Relatórios</h3>
-                <p className="text-sm text-muted-foreground">Visualize estatísticas e exporte dados das avaliações</p>
-              </div>
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-[#0C2340]">Relatórios</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-[#5A5A5A]">Visualize estatísticas e exporte dados das avaliações</p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>

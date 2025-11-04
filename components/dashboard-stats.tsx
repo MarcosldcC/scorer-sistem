@@ -28,48 +28,48 @@ export function DashboardStats({ teams, judgeAreas }: DashboardStatsProps) {
     judgeAreas.length > 0 ? Math.round((judgeStats.evaluated / (judgeAreas.length * totalTeams)) * 100) : 0
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total de Equipes</CardTitle>
-          <Trophy className="h-4 w-4 text-muted-foreground" />
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <Card className="border-l-4 border-l-[#009DE0]">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-semibold text-[#0C2340] uppercase tracking-wide">Total de Equipes</CardTitle>
+          <Trophy className="h-5 w-5 text-[#009DE0]" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-primary">{totalTeams}</div>
-          <p className="text-xs text-muted-foreground">Equipes no torneio</p>
+          <div className="text-3xl font-bold text-[#0C2340] mb-1">{totalTeams}</div>
+          <p className="text-xs text-[#5A5A5A] font-medium">Equipes no torneio</p>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Suas Avaliações</CardTitle>
-          <CheckCircle className="h-4 w-4 text-muted-foreground" />
+      <Card className="border-l-4 border-l-[#7AC142]">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-semibold text-[#0C2340] uppercase tracking-wide">Suas Avaliações</CardTitle>
+          <CheckCircle className="h-5 w-5 text-[#7AC142]" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-green-600">{judgeStats.evaluated}</div>
-          <p className="text-xs text-muted-foreground">Equipes avaliadas por você</p>
+          <div className="text-3xl font-bold text-[#7AC142] mb-1">{judgeStats.evaluated}</div>
+          <p className="text-xs text-[#5A5A5A] font-medium">Equipes avaliadas por você</p>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
+      <Card className="border-l-4 border-l-[#F36F21]">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-semibold text-[#0C2340] uppercase tracking-wide">Pendentes</CardTitle>
+          <Clock className="h-5 w-5 text-[#F36F21]" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-orange-600">{judgeStats.pending}</div>
-          <p className="text-xs text-muted-foreground">Avaliações pendentes</p>
+          <div className="text-3xl font-bold text-[#F36F21] mb-1">{judgeStats.pending}</div>
+          <p className="text-xs text-[#5A5A5A] font-medium">Avaliações pendentes</p>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Progresso</CardTitle>
-          <Target className="h-4 w-4 text-muted-foreground" />
+      <Card className="border-l-4 border-l-[#007BBF]">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-semibold text-[#0C2340] uppercase tracking-wide">Progresso</CardTitle>
+          <Target className="h-5 w-5 text-[#007BBF]" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-accent">{completionRate}%</div>
-          <p className="text-xs text-muted-foreground">Taxa de conclusão</p>
+          <div className="text-3xl font-bold text-[#009DE0] mb-1">{completionRate}%</div>
+          <p className="text-xs text-[#5A5A5A] font-medium">Taxa de conclusão</p>
         </CardContent>
       </Card>
     </div>

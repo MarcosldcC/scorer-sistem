@@ -52,44 +52,57 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F9FB] p-4 relative overflow-hidden">
+      {/* Fundo ilustrado com padrão leve */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23009DE0' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          backgroundSize: '60px 60px'
+        }} />
+      </div>
+      
+      <Card className="w-full max-w-md relative z-10 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
+        <CardHeader className="text-center pb-6 relative">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push('/')}
-            className="absolute left-4 top-4"
+            className="absolute left-0 top-0 text-[#5A5A5A] hover:text-[#009DE0]"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
-          <CardTitle className="text-2xl font-bold text-primary">Esqueceu a senha?</CardTitle>
-          <CardDescription>
+          <div className="mb-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-[#009DE0] to-[#007BBF] flex items-center justify-center mb-4 shadow-lg">
+              <span className="text-2xl font-bold text-white">?</span>
+            </div>
+          </div>
+          <CardTitle className="text-3xl font-bold text-[#0C2340] mb-2">Esqueceu a senha?</CardTitle>
+          <CardDescription className="text-[#5A5A5A] text-base">
             Digite seu email e enviaremos um link para redefinir sua senha
           </CardDescription>
         </CardHeader>
         <CardContent>
           {success ? (
-            <div className="space-y-4">
-              <Alert>
-                <AlertDescription>
+            <div className="space-y-5">
+              <Alert className="bg-[#F7F9FB] border-[#009DE0] rounded-lg">
+                <AlertDescription className="text-[#0C2340]">
                   Se o email estiver cadastrado, você receberá um link para redefinir sua senha. 
                   Verifique sua caixa de entrada e a pasta de spam.
                 </AlertDescription>
               </Alert>
               <Button 
                 variant="outline" 
-                className="w-full"
+                className="w-full rounded-full"
                 onClick={() => router.push('/')}
               >
                 Voltar para o login
               </Button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-[#0C2340] font-medium">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -102,19 +115,23 @@ export default function ForgotPasswordPage() {
               </div>
 
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="rounded-lg">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="w-full bg-[#009DE0] hover:bg-[#0088C7] text-white font-semibold shadow-md hover:shadow-lg transition-all" 
+                disabled={isLoading}
+              >
                 {isLoading ? "Enviando..." : "Enviar link de redefinição"}
               </Button>
 
               <Button 
                 type="button"
                 variant="link"
-                className="w-full"
+                className="w-full text-[#009DE0] hover:text-[#007BBF] hover:underline"
                 onClick={() => router.push('/')}
               >
                 Voltar para o login

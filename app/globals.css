@@ -4,40 +4,50 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated color tokens to match robotics tournament design brief */
-  --background: oklch(1 0 0); /* #ffffff */
-  --foreground: oklch(0.205 0 0); /* #1f2937 */
-  --card: oklch(0.97 0 0); /* #f1f5f9 */
-  --card-foreground: oklch(0.205 0 0); /* #1f2937 */
-  --popover: oklch(1 0 0); /* #ffffff */
-  --popover-foreground: oklch(0.205 0 0); /* #1f2937 */
-  --primary: oklch(0.205 0 0); /* #1f2937 */
-  --primary-foreground: oklch(1 0 0); /* #ffffff */
-  --secondary: oklch(0.556 0.222 264.376); /* #6366f1 */
-  --secondary-foreground: oklch(1 0 0); /* #ffffff */
-  --muted: oklch(0.97 0 0); /* #f1f5f9 */
-  --muted-foreground: oklch(0.556 0 0); /* #6b7280 */
-  --accent: oklch(0.556 0.222 264.376); /* #6366f1 */
-  --accent-foreground: oklch(1 0 0); /* #ffffff */
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.556 0 0); /* #6b7280 */
-  --input: oklch(0.97 0 0); /* #f1f5f9 */
-  --ring: oklch(0.556 0.222 264.376); /* #6366f1 */
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.97 0 0); /* #f1f5f9 */
-  --sidebar-foreground: oklch(0.205 0 0); /* #1f2937 */
-  --sidebar-primary: oklch(0.205 0 0); /* #1f2937 */
-  --sidebar-primary-foreground: oklch(1 0 0); /* #ffffff */
-  --sidebar-accent: oklch(0.556 0.222 264.376); /* #6366f1 */
-  --sidebar-accent-foreground: oklch(1 0 0); /* #ffffff */
-  --sidebar-border: oklch(0.556 0 0); /* #6b7280 */
-  --sidebar-ring: oklch(0.556 0.222 264.376); /* #6366f1 */
+  /* Paleta de cores Zoom Education */
+  --background: oklch(1 0 0); /* #FFFFFF - Branco */
+  --foreground: oklch(0.15 0.05 260); /* #0C2340 - Azul escuro */
+  --card: oklch(1 0 0); /* #FFFFFF - Branco */
+  --card-foreground: oklch(0.15 0.05 260); /* #0C2340 - Azul escuro */
+  --popover: oklch(1 0 0); /* #FFFFFF - Branco */
+  --popover-foreground: oklch(0.15 0.05 260); /* #0C2340 - Azul escuro */
+  --primary: oklch(0.55 0.15 220); /* #009DE0 - Azul Zoom */
+  --primary-foreground: oklch(1 0 0); /* #FFFFFF - Branco */
+  --secondary: oklch(0.65 0.15 50); /* #F36F21 - Laranja Zoom */
+  --secondary-foreground: oklch(1 0 0); /* #FFFFFF - Branco */
+  --muted: oklch(0.98 0 0); /* #F7F9FB - Cinza claro */
+  --muted-foreground: oklch(0.38 0 0); /* #5A5A5A - Cinza escuro */
+  --accent: oklch(0.55 0.15 220); /* #009DE0 - Azul Zoom */
+  --accent-foreground: oklch(1 0 0); /* #FFFFFF - Branco */
+  --destructive: oklch(0.55 0.15 30); /* #E64A19 - Vermelho suave */
+  --destructive-foreground: oklch(1 0 0); /* #FFFFFF - Branco */
+  --border: oklch(0.92 0 0); /* #E6E6E6 - Cinza claro para bordas */
+  --input: oklch(0.98 0 0); /* #F7F9FB - Cinza claro */
+  --ring: oklch(0.55 0.15 220); /* #009DE0 - Azul Zoom */
+  --chart-1: oklch(0.55 0.15 220); /* #009DE0 - Azul Zoom */
+  --chart-2: oklch(0.65 0.15 50); /* #F36F21 - Laranja Zoom */
+  --chart-3: oklch(0.7 0.12 145); /* #7AC142 - Verde */
+  --chart-4: oklch(0.5 0.15 200); /* #007BBF - Azul médio */
+  --chart-5: oklch(0.55 0.15 30); /* #E64A19 - Vermelho suave */
+  --radius: 0.75rem; /* 12px - Bordas arredondadas */
+  --sidebar: oklch(1 0 0); /* #FFFFFF - Branco */
+  --sidebar-foreground: oklch(0.15 0.05 260); /* #0C2340 - Azul escuro */
+  --sidebar-primary: oklch(0.55 0.15 220); /* #009DE0 - Azul Zoom */
+  --sidebar-primary-foreground: oklch(1 0 0); /* #FFFFFF - Branco */
+  --sidebar-accent: oklch(0.65 0.15 50); /* #F36F21 - Laranja Zoom */
+  --sidebar-accent-foreground: oklch(1 0 0); /* #FFFFFF - Branco */
+  --sidebar-border: oklch(0.92 0 0); /* #E6E6E6 - Cinza claro */
+  --sidebar-ring: oklch(0.55 0.15 220); /* #009DE0 - Azul Zoom */
+  
+  /* Cores Zoom Education adicionais */
+  --zoom-blue: #009DE0;
+  --zoom-orange: #F36F21;
+  --zoom-green: #7AC142;
+  --zoom-dark-blue: #0C2340;
+  --zoom-gray-dark: #5A5A5A;
+  --zoom-gray-light: #F7F9FB;
+  --zoom-red: #E64A19;
+  --zoom-blue-medium: #007BBF;
 }
 
 .dark {
@@ -76,8 +86,8 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -122,5 +132,18 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+  
+  /* Transições suaves para todos os elementos interativos */
+  button, a, input, select, textarea {
+    transition: all 0.2s ease-in-out;
+  }
+  
+  /* Estilo para títulos de seção em caixa alta e laranja */
+  .section-title {
+    @apply uppercase font-semibold tracking-wide;
+    color: var(--zoom-orange);
   }
 }
