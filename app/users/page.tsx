@@ -148,17 +148,20 @@ export default function UsersManagement() {
         fetchUsers()
       } else {
         console.error('Error creating user:', data)
+        const errorMessage = data.error || "Não foi possível criar o usuário."
+        const errorDetails = data.details ? `\n\nDetalhes: ${data.details}` : ''
         toast({
           title: "Erro ao criar usuário",
-          description: data.error || "Não foi possível criar o usuário.",
+          description: errorMessage + errorDetails,
           variant: "destructive",
         })
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating user:', err)
+      const errorMessage = err.message || "Não foi possível conectar ao servidor."
       toast({
         title: "Erro de conexão",
-        description: "Não foi possível conectar ao servidor.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

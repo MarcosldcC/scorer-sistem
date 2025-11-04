@@ -111,6 +111,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    let body
+    try {
+      body = await request.json()
+    } catch (parseError: any) {
+      console.error('Error parsing request body:', parseError)
+      return NextResponse.json(
+        { error: 'Formato de dados inválido. Verifique os dados enviados.' },
+        { status: 400 }
+      )
+    }
+
     const {
       name,
       email,
@@ -118,7 +129,7 @@ export async function POST(request: NextRequest) {
       role,
       schoolId,
       areas
-    } = await request.json()
+    } = body
 
     if (!name || !email || !role) {
       return NextResponse.json(
@@ -153,12 +164,20 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = normalizeGmail(email)
 
     // Verify if Gmail exists before creating user
-    const emailVerification = await verifyGmailExists(normalizedEmail)
-    if (!emailVerification.exists) {
-      return NextResponse.json(
-        { error: emailVerification.error || 'Email não encontrado ou inválido. Verifique se o email existe.' },
-        { status: 400 }
-      )
+    let emailVerification
+    try {
+      emailVerification = await verifyGmailExists(normalizedEmail)
+      if (!emailVerification.exists) {
+        return NextResponse.json(
+          { error: emailVerification.error || 'Email não encontrado ou inválido. Verifique se o email existe.' },
+          { status: 400 }
+        )
+      }
+    } catch (emailVerifyError: any) {
+      console.error('Error verifying email:', emailVerifyError)
+      // Continue with user creation if email verification fails
+      // The email service will handle bounces
+      console.warn('Email verification failed, continuing with user creation')
     }
 
     // Check if email already exists (after normalization)
@@ -189,8 +208,23 @@ export async function POST(request: NextRequest) {
       targetSchoolId = schoolId || null
     } else {
       // School admin creating user - uses their own schoolId
+      if (!user.schoolId) {
+        console.error('School admin user has no schoolId:', user)
+        return NextResponse.json(
+          { error: 'Usuário não está associado a uma escola. Contate o administrador.' },
+          { status: 400 }
+        )
+      }
       targetSchoolId = user.schoolId
     }
+    
+    console.log('Creating user with:', {
+      name,
+      email: normalizedEmail,
+      role,
+      schoolId: targetSchoolId,
+      createdBy: user.role
+    })
 
     // Validate school exists if provided
     if (targetSchoolId) {
@@ -240,34 +274,49 @@ export async function POST(request: NextRequest) {
     }
 
     // Send welcome email with password setup link
-    // This is required - if email fails, we should rollback user creation
+    // In development, allow user creation even if email fails
+    // In production, email is required
     let emailSent = false
+    let emailError: any = null
+    
     try {
       emailSent = await sendWelcomeEmail(normalizedEmail, name, resetToken, role)
       if (!emailSent) {
-        // If email failed to send, delete the user and return error
-        await prisma.user.delete({
-          where: { id: newUser.id }
-        })
-        return NextResponse.json(
-          { error: 'Não foi possível enviar o email de boas-vindas. Verifique se o email existe e tente novamente.' },
-          { status: 500 }
-        )
+        console.error('Email failed to send')
+        emailError = { message: 'Email service returned false' }
       }
-    } catch (emailError) {
-      console.error('Error sending welcome email:', emailError)
-      // Delete user if email fails
+    } catch (err: any) {
+      console.error('Error sending welcome email:', err)
+      console.error('Email error details:', {
+        message: err.message,
+        code: err.code,
+        name: err.name
+      })
+      emailError = err
+    }
+    
+    // In production, rollback if email fails
+    // In development, allow user creation but warn
+    if (!emailSent && process.env.NODE_ENV === 'production') {
+      console.error('Email failed to send in production, rolling back user creation')
       try {
         await prisma.user.delete({
           where: { id: newUser.id }
         })
-      } catch (deleteError) {
+      } catch (deleteError: any) {
         console.error('Error deleting user after email failure:', deleteError)
       }
       return NextResponse.json(
-        { error: 'Não foi possível enviar o email de boas-vindas. Verifique se o email existe e tente novamente.' },
+        { 
+          error: 'Não foi possível enviar o email de boas-vindas. Verifique se o email existe e tente novamente.',
+          details: emailError?.message || 'Email service returned false'
+        },
         { status: 500 }
       )
+    } else if (!emailSent) {
+      // In development, log warning but allow user creation
+      console.warn('⚠️ Email failed to send, but user was created (development mode)')
+      console.warn('⚠️ Make sure RESEND_API_KEY is configured in .env')
     }
 
     // Remove password from response
@@ -280,15 +329,28 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
+    console.error('Create user error:', error)
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      stack: error.stack
+    })
+    
     if (error.code === 'P2002') {
       return NextResponse.json(
-        { error: 'Email já cadastrado' },
+        { error: 'Email já está cadastrado' },
         { status: 400 }
       )
     }
-    console.error('Create user error:', error)
+    
+    // Return more specific error messages
+    const errorMessage = error.message || 'Erro interno do servidor'
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { 
+        error: 'Erro interno do servidor',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     )
   }
