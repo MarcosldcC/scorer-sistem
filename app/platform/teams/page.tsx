@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Users, Trash2, Edit } from "lucide-react"
+import { Plus, Search, Users, Trash2, Edit, Download, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import * as XLSX from 'xlsx'
 
 interface Team {
   id: string
@@ -171,6 +172,189 @@ export default function TeamsManagement() {
     }
   }
 
+  const handleDownloadTemplate = () => {
+    // Criar dados da planilha modelo
+    const templateData = [
+      ['Nome da Equipe', 'Código', 'Turma', 'Turno'],
+      ['Equipe Exemplo 1', 'EQ001', '2º ano', 'Manhã'],
+      ['Equipe Exemplo 2', 'EQ002', '3º ano', 'Tarde'],
+      ['', '', '', '']
+    ]
+
+    // Criar workbook
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet(templateData)
+
+    // Ajustar largura das colunas
+    ws['!cols'] = [
+      { wch: 30 }, // Nome da Equipe
+      { wch: 15 }, // Código
+      { wch: 20 }, // Turma
+      { wch: 15 }  // Turno
+    ]
+
+    // Adicionar worksheet ao workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Equipes')
+
+    // Baixar arquivo
+    XLSX.writeFile(wb, 'modelo_equipes.xlsx')
+
+    toast({
+      title: "Planilha modelo baixada!",
+      description: "O arquivo modelo_equipes.xlsx foi baixado com sucesso.",
+      variant: "default",
+    })
+  }
+
+  const handleImportTeams = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Verificar extensão
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      toast({
+        title: "Formato inválido",
+        description: "Por favor, selecione um arquivo Excel (.xlsx ou .xls).",
+        variant: "destructive",
+      })
+      e.target.value = ''
+      return
+    }
+
+    setSaving(true)
+    try {
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer)
+          const workbook = XLSX.read(data, { type: 'array' })
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][]
+
+          if (jsonData.length < 2) {
+            toast({
+              title: "Planilha vazia",
+              description: "A planilha não contém dados válidos.",
+              variant: "destructive",
+            })
+            setSaving(false)
+            e.target.value = ''
+            return
+          }
+
+          // Pular cabeçalho (primeira linha)
+          const teamsData = jsonData.slice(1).filter(row => row && row.length > 0 && row[0])
+
+          if (teamsData.length === 0) {
+            toast({
+              title: "Nenhuma equipe encontrada",
+              description: "A planilha não contém equipes para importar.",
+              variant: "destructive",
+            })
+            setSaving(false)
+            e.target.value = ''
+            return
+          }
+
+          const token = localStorage.getItem('robotics-token')
+          if (!token) {
+            setSaving(false)
+            e.target.value = ''
+            return
+          }
+
+          // Importar equipes em lote
+          let successCount = 0
+          let errorCount = 0
+          const errors: string[] = []
+
+          for (const row of teamsData) {
+            const name = row[0]?.toString().trim()
+            const code = row[1]?.toString().trim() || undefined
+            const grade = row[2]?.toString().trim() || undefined
+            const shift = row[3]?.toString().trim() || undefined
+
+            if (!name) {
+              errorCount++
+              errors.push(`Linha sem nome: ${JSON.stringify(row)}`)
+              continue
+            }
+
+            try {
+              const response = await fetch('/api/teams', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  name,
+                  code,
+                  grade,
+                  shift,
+                  metadata: {
+                    grade,
+                    shift
+                  }
+                })
+              })
+
+              const data = await response.json()
+
+              if (response.ok && data.success) {
+                successCount++
+              } else {
+                errorCount++
+                errors.push(`${name}: ${data.error || 'Erro desconhecido'}`)
+              }
+            } catch (err) {
+              errorCount++
+              errors.push(`${name}: Erro de conexão`)
+            }
+          }
+
+          // Recarregar equipes
+          fetchTeams()
+
+          // Mostrar resultado
+          if (successCount > 0) {
+            toast({
+              title: "Importação concluída!",
+              description: `${successCount} equipe(s) importada(s) com sucesso${errorCount > 0 ? `. ${errorCount} erro(s).` : '.'}`,
+              variant: errorCount > 0 ? "default" : "default",
+            })
+          } else {
+            toast({
+              title: "Importação falhou",
+              description: `Nenhuma equipe foi importada. ${errors.slice(0, 3).join('; ')}`,
+              variant: "destructive",
+            })
+          }
+        } catch (err) {
+          console.error('Import error:', err)
+          toast({
+            title: "Erro ao processar planilha",
+            description: "Verifique o formato do arquivo Excel.",
+            variant: "destructive",
+          })
+        } finally {
+          setSaving(false)
+          e.target.value = ''
+        }
+      }
+
+      reader.readAsArrayBuffer(file)
+    } catch (err) {
+      setSaving(false)
+      toast({
+        title: "Erro ao ler arquivo",
+        description: "Não foi possível ler o arquivo selecionado.",
+        variant: "destructive",
+      })
+      e.target.value = ''
+    }
+  }
+
   const filteredTeams = teams.filter(team =>
     team.name.toLowerCase().includes(search.toLowerCase()) ||
     team.code?.toLowerCase().includes(search.toLowerCase()) ||
@@ -205,13 +389,42 @@ export default function TeamsManagement() {
             </h1>
             <p className="text-[#5A5A5A]">Crie e gerencie equipes da sua escola</p>
           </div>
-          <Button
-            onClick={() => setShowForm(!showForm)}
-            className="rounded-full bg-[#009DE0] hover:bg-[#0088C7]"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Equipe
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleDownloadTemplate}
+              variant="outline"
+              className="rounded-full"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Baixar Modelo
+            </Button>
+            <label htmlFor="import-file" className="cursor-pointer">
+              <Button
+                variant="outline"
+                className="rounded-full"
+                type="button"
+                onClick={() => document.getElementById('import-file')?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Importar Equipes
+              </Button>
+            </label>
+            <input
+              id="import-file"
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportTeams}
+              className="hidden"
+              disabled={saving}
+            />
+            <Button
+              onClick={() => setShowForm(!showForm)}
+              className="rounded-full bg-[#009DE0] hover:bg-[#0088C7]"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Equipe
+            </Button>
+          </div>
         </div>
 
         {showForm && (
