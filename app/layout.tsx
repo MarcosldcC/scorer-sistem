@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   description: "Scorer Z - Sistema para avaliação de equipes no torneio de robótica",
   generator: "v0.app",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    icon: "/Logo.scorer.png",
+    shortcut: "/Logo.scorer.png",
+    apple: "/Logo.scorer.png",
   },
 }
 
@@ -31,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/Logo.scorer.png" type="image/png" />
       </head>
       <body className={`font-sans ${inter.variable} antialiased`}>
         <Suspense fallback={null}>{children}</Suspense>

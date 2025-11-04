@@ -9,7 +9,7 @@ interface LogoZProps {
 export function LogoZ({ width = 64, height = 64, className = "" }: LogoZProps) {
   return (
     <Image
-      src="/logo-z.svg"
+      src="/Logo.scorer.png"
       alt="Scorer Z Logo"
       width={width}
       height={height}
