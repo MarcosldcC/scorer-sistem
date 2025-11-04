@@ -28,7 +28,7 @@ export default function DashboardPage() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [tournamentsLoading, setTournamentsLoading] = useState(true)
   const [schoolTeams, setSchoolTeams] = useState<any[]>([])
-  const [teamsLoading, setTeamsLoading] = useState(true)
+  const [schoolTeamsLoading, setSchoolTeamsLoading] = useState(true)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -46,10 +46,10 @@ export default function DashboardPage() {
 
   const fetchSchoolTeams = async () => {
     try {
-      setTeamsLoading(true)
+      setSchoolTeamsLoading(true)
       const token = localStorage.getItem('robotics-token')
       if (!token) {
-        setTeamsLoading(false)
+        setSchoolTeamsLoading(false)
         return
       }
 
@@ -64,7 +64,7 @@ export default function DashboardPage() {
     } catch (err) {
       console.error('Error fetching school teams:', err)
     } finally {
-      setTeamsLoading(false)
+      setSchoolTeamsLoading(false)
     }
   }
 
@@ -394,7 +394,7 @@ export default function DashboardPage() {
                 Gerenciar Equipes
               </Button>
             </div>
-            {teamsLoading ? (
+            {schoolTeamsLoading ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
