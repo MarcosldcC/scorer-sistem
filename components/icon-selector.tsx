@@ -102,8 +102,9 @@ export function IconSelector({ value, onChange }: IconSelectorProps) {
 
       {/* Grid de ícones */}
       <div className="grid grid-cols-8 gap-3 max-h-64 overflow-y-auto p-2 border border-[#E6E6E6] rounded-lg">
-        {filteredIcons.map(([name, IconComponent]) => {
+        {filteredIcons.map(([name, IconComp]) => {
           const isSelected = value === name
+          if (!IconComp) return null
           return (
             <button
               key={name}
@@ -116,7 +117,7 @@ export function IconSelector({ value, onChange }: IconSelectorProps) {
               }`}
               title={name}
             >
-              <IconComponent
+              <IconComp
                 className={`h-6 w-6 ${
                   isSelected ? "text-[#009DE0]" : "text-[#5A5A5A]"
                 }`}

@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ArrowLeft, Trophy, CheckCircle2, AlertCircle, Upload, FileJson } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { IconSelector } from "@/components/icon-selector"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface Template {
   id: string
@@ -329,45 +330,40 @@ export default function NewTournamentPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-primary">Criar Novo Torneio</h1>
-                <p className="text-sm text-muted-foreground">
-                  Passo {currentStep} de 2
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleImportTemplate}
-                  className="hidden"
-                  id="import-template-file"
-                />
+      <DashboardHeader />
+
+      <main className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-primary mb-2">Criar Novo Torneio</h1>
+              <p className="text-muted-foreground">Passo {currentStep} de 2</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportTemplate}
+                className="hidden"
+                id="import-template-file"
+              />
+              <label htmlFor="import-template-file">
                 <Button
                   variant="outline"
                   size="sm"
-                  asChild
                   type="button"
+                  className="rounded-full cursor-pointer"
+                  onClick={() => document.getElementById('import-template-file')?.click()}
                 >
-                  <label htmlFor="import-template-file" className="cursor-pointer flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Importar Template JSON
-                  </label>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar Template JSON
                 </Button>
-              </div>
+              </label>
             </div>
           </div>
 
           {/* Stepper */}
-          <div className="mt-4 flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-6">
             <div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                 currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted'
@@ -389,9 +385,7 @@ export default function NewTournamentPage() {
             </div>
           </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-6">
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />

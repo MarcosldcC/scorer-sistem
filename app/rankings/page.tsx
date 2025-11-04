@@ -12,6 +12,7 @@ import { RankingTable } from "@/components/ranking-table"
 import { DeleteEvaluationModal } from "@/components/delete-evaluation-modal"
 import { useToast } from "@/hooks/use-toast"
 import type { RankingFilters } from "@/hooks/use-rankings"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 export default function RankingsPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -112,13 +113,10 @@ export default function RankingsPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <DashboardHeader />
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
-          <Button variant="outline" onClick={() => router.push("/dashboard")} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Dashboard
-          </Button>
-          <h1 className="text-2xl font-bold text-primary">Rankings das Equipes</h1>
+          <h1 className="text-2xl font-bold text-primary mb-2">Rankings das Equipes</h1>
           <p className="text-muted-foreground">Visualize o desempenho das equipes por turma e turno</p>
         </div>
 

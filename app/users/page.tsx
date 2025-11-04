@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Users, Search, Plus, Trash2, AlertTriangle, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface User {
   id: string
@@ -261,28 +262,17 @@ export default function UsersManagement() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-primary">Gerenciar Usuários</h1>
-                <p className="text-sm text-muted-foreground">Crie e gerencie juízes e visualizadores</p>
-              </div>
-            </div>
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Usuário
-            </Button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader />
 
       <main className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-primary mb-2">Gerenciar Usuários</h1>
+          <p className="text-muted-foreground mb-4">Crie e gerencie juízes e visualizadores</p>
+          <Button onClick={() => setShowCreateDialog(true)} className="rounded-full bg-[#009DE0] hover:bg-[#0088C7]">
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Usuário
+          </Button>
+        </div>
         {/* Search */}
         <div className="mb-6">
           <div className="relative">

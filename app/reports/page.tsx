@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ArrowLeft, Download, FileText, BarChart3, Users, Trophy, TrendingUp } from "lucide-react"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 export default function ReportsPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -134,13 +135,10 @@ export default function ReportsPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <DashboardHeader />
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
-          <Button variant="outline" onClick={() => router.push("/dashboard")} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Dashboard
-          </Button>
-          <h1 className="text-2xl font-bold text-primary">Relatórios de Avaliação</h1>
+          <h1 className="text-2xl font-bold text-primary mb-2">Relatórios de Avaliação</h1>
           <p className="text-muted-foreground">Visualize estatísticas e exporte dados das avaliações</p>
         </div>
 
