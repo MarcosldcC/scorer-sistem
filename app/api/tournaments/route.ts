@@ -173,14 +173,37 @@ export async function POST(request: NextRequest) {
         rankingMethod: rankingMethod || 'percentage',
         allowReevaluation: allowReevaluation !== undefined ? allowReevaluation : true,
         configLocked: false,
-        features: features || {},
-        // Link teams if provided
-        teams: teamIds && Array.isArray(teamIds) && teamIds.length > 0 ? {
-          create: teamIds.map((teamId: string) => ({
+        features: features || {}
+      }
+    })
+
+    // Link teams if provided (create TournamentTeam entries separately)
+    if (teamIds && Array.isArray(teamIds) && teamIds.length > 0) {
+      // Verify that all team IDs exist and belong to the same school
+      const existingTeams = await prisma.team.findMany({
+        where: {
+          id: { in: teamIds },
+          schoolId: schoolId
+        },
+        select: { id: true }
+      })
+
+      const validTeamIds = existingTeams.map(t => t.id)
+      
+      if (validTeamIds.length > 0) {
+        await prisma.tournamentTeam.createMany({
+          data: validTeamIds.map((teamId: string) => ({
+            tournamentId: tournament.id,
             teamId
-          }))
-        } : undefined
-      },
+          })),
+          skipDuplicates: true
+        })
+      }
+    }
+
+    // Fetch tournament with teams included
+    const tournamentWithTeams = await prisma.tournament.findUnique({
+      where: { id: tournament.id },
       include: {
         teams: {
           include: {
@@ -192,13 +215,34 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      tournament
+      tournament: tournamentWithTeams
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create tournament error:', error)
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta
+    })
+    
+    // Return more specific error messages
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Código do torneio já existe' },
+        { status: 400 }
+      )
+    }
+    
+    if (error?.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Referência inválida. Verifique se a escola existe.' },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { error: error?.message || 'Erro interno do servidor' },
       { status: 500 }
     )
   }
