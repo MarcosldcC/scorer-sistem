@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth-api"
 import { useRouter } from "next/navigation"
+import { LogoZ } from "@/components/logo-z"
 
 export function DashboardHeader() {
   const { user, logout } = useAuth()
@@ -18,9 +19,10 @@ export function DashboardHeader() {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <LogoZ width={40} height={40} />
             <div>
-              <h1 className="text-2xl font-semibold text-[#0C2340] tracking-tight">Sistema de Avaliação</h1>
-              <p className="text-sm text-[#5A5A5A] mt-0.5">Torneio de Robótica - Bem-vindo, {user?.name}</p>
+              <h1 className="text-2xl font-semibold text-[#0C2340] tracking-tight">Scorer Z</h1>
+              <p className="text-sm text-[#5A5A5A] mt-0.5">Sistema de Avaliação - Bem-vindo, {user?.name}</p>
             </div>
           </div>
           <div className="flex items-center gap-6">

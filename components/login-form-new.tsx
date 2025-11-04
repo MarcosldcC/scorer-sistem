@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth-api"
 import { useRouter } from "next/navigation"
+import { LogoZ } from "@/components/logo-z"
 
 export function LoginFormNew() {
   const [email, setEmail] = useState("")
@@ -77,12 +78,12 @@ export function LoginFormNew() {
       <Card className="w-full max-w-md relative z-10 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
         <CardHeader className="text-center pb-6">
           <div className="mb-4">
-            <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-[#009DE0] to-[#007BBF] flex items-center justify-center mb-4 shadow-lg">
-              <span className="text-2xl font-bold text-white">S</span>
+            <div className="w-16 h-16 mx-auto flex items-center justify-center mb-4">
+              <LogoZ width={64} height={64} />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold text-[#0C2340] mb-2">Sistema de Avaliação</CardTitle>
-          <CardDescription className="text-[#5A5A5A] text-base">Plataforma Multi-Escola de Torneios</CardDescription>
+          <CardTitle className="text-3xl font-bold text-[#0C2340] mb-2">Scorer Z</CardTitle>
+          <CardDescription className="text-[#5A5A5A] text-base">Sistema de Avaliação - Plataforma Multi-Escola de Torneios</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">

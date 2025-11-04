@@ -113,23 +113,23 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0;">Sistema de Avaliação</h1>
+      <div style="background: linear-gradient(135deg, #009DE0 0%, #007BBF 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">Scorer Z</h1>
       </div>
       <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
         <h2 style="color: #333; margin-top: 0;">Redefinir Senha</h2>
         <p>Olá,</p>
         <p>Você solicitou a redefinição de senha da sua conta. Clique no botão abaixo para criar uma nova senha:</p>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetLink}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Redefinir Senha</a>
+          <a href="${resetLink}" style="background: linear-gradient(135deg, #009DE0 0%, #007BBF 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Redefinir Senha</a>
         </div>
         <p style="color: #666; font-size: 14px;">Ou copie e cole este link no seu navegador:</p>
-        <p style="color: #667eea; font-size: 12px; word-break: break-all;">${resetLink}</p>
+        <p style="color: #009DE0; font-size: 12px; word-break: break-all;">${resetLink}</p>
         <p style="color: #666; font-size: 14px; margin-top: 30px;">Este link expira em 1 hora.</p>
         <p style="color: #666; font-size: 14px;">Se você não solicitou esta redefinição, ignore este email.</p>
       </div>
       <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
-        <p>© ${new Date().getFullYear()} Sistema de Avaliação. Todos os direitos reservados.</p>
+        <p>© ${new Date().getFullYear()} Scorer Z. Todos os direitos reservados.</p>
       </div>
     </body>
     </html>
@@ -149,7 +149,7 @@ Se você não solicitou esta redefinição, ignore este email.
 
   return await sendEmail({
     to: email,
-    subject: 'Redefinir Senha - Sistema de Avaliação',
+    subject: 'Redefinir Senha - Scorer Z',
     html,
     text
   })
@@ -176,24 +176,24 @@ export async function sendWelcomeEmail(email: string, userName: string, resetTok
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0;">Sistema de Avaliação</h1>
+      <div style="background: linear-gradient(135deg, #009DE0 0%, #007BBF 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">Scorer Z</h1>
       </div>
       <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
         <h2 style="color: #333; margin-top: 0;">Bem-vindo(a), ${userName}!</h2>
-        <p>Sua conta foi criada com sucesso no Sistema de Avaliação.</p>
+        <p>Sua conta foi criada com sucesso no Scorer Z.</p>
         <p><strong>Função:</strong> ${roleName}</p>
         <p>Para começar a usar a plataforma, defina sua senha clicando no botão abaixo:</p>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetLink}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Definir Senha</a>
+          <a href="${resetLink}" style="background: linear-gradient(135deg, #009DE0 0%, #007BBF 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Definir Senha</a>
         </div>
         <p style="color: #666; font-size: 14px;">Ou copie e cole este link no seu navegador:</p>
-        <p style="color: #667eea; font-size: 12px; word-break: break-all;">${resetLink}</p>
+        <p style="color: #009DE0; font-size: 12px; word-break: break-all;">${resetLink}</p>
         <p style="color: #666; font-size: 14px; margin-top: 30px;">Este link expira em 1 hora.</p>
         <p style="color: #666; font-size: 14px;">Após definir sua senha, você poderá fazer login normalmente.</p>
       </div>
       <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
-        <p>© ${new Date().getFullYear()} Sistema de Avaliação. Todos os direitos reservados.</p>
+        <p>© ${new Date().getFullYear()} Scorer Z. Todos os direitos reservados.</p>
       </div>
     </body>
     </html>
@@ -202,7 +202,7 @@ export async function sendWelcomeEmail(email: string, userName: string, resetTok
   const text = `
 Bem-vindo(a), ${userName}!
 
-Sua conta foi criada com sucesso no Sistema de Avaliação.
+Sua conta foi criada com sucesso no Scorer Z.
 Função: ${roleName}
 
 Para começar a usar a plataforma, defina sua senha clicando no link abaixo:
@@ -215,7 +215,7 @@ Após definir sua senha, você poderá fazer login normalmente.
 
   return await sendEmail({
     to: email,
-    subject: 'Bem-vindo ao Sistema de Avaliação',
+    subject: 'Bem-vindo ao Scorer Z',
     html,
     text
   })

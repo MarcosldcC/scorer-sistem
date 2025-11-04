@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth-api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, FileText, Users, Award } from "lucide-react"
+import { LogoZ } from "@/components/logo-z"
 
 export default function PlatformAdminDashboard() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -147,17 +148,20 @@ export default function PlatformAdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border">
+      <header className="bg-white border-b border-[#E6E6E6] sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Dashboard - Administrador da Plataforma</h1>
-              <p className="text-muted-foreground">Bem-vindo, {user.name}</p>
+            <div className="flex items-center gap-4">
+              <LogoZ width={40} height={40} />
+              <div>
+                <h1 className="text-2xl font-semibold text-[#0C2340] tracking-tight">Scorer Z</h1>
+                <p className="text-sm text-[#5A5A5A] mt-0.5">Dashboard - Administrador da Plataforma - Bem-vindo, {user.name}</p>
+              </div>
             </div>
             <Button variant="outline" onClick={() => {
               router.push('/')
               localStorage.removeItem('robotics-token')
-            }}>
+            }} className="rounded-full">
               Sair
             </Button>
           </div>

@@ -13,9 +13,14 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Sistema de Avaliação - Torneio de Robótica",
-  description: "Sistema para avaliação de equipes no torneio de robótica",
+  title: "Scorer Z - Sistema de Avaliação",
+  description: "Scorer Z - Sistema para avaliação de equipes no torneio de robótica",
   generator: "v0.app",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 }
 
 export default function RootLayout({
@@ -25,6 +30,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+      </head>
       <body className={`font-sans ${inter.variable} antialiased`}>
         <Suspense fallback={null}>{children}</Suspense>
         <Toaster />
