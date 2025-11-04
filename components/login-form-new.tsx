@@ -76,11 +76,9 @@ export function LoginFormNew() {
       </div>
       
       <Card className="w-full max-w-md relative z-10 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
-        <CardHeader className="text-center pb-6">
-          <div className="mb-4">
-            <div className="w-16 h-16 mx-auto flex items-center justify-center">
-              <LogoZ width={64} height={64} />
-            </div>
+        <CardHeader className="text-center pb-4 pt-6">
+          <div className="w-24 h-24 mx-auto flex items-center justify-center">
+            <LogoZ width={96} height={96} />
           </div>
         </CardHeader>
         <CardContent>
