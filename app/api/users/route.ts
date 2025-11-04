@@ -274,16 +274,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Send welcome email with password setup link
-    // In development, allow user creation even if email fails
-    // In production, email is required
+    // Create user even if email fails, but warn about it
     let emailSent = false
     let emailError: any = null
+    let emailWarning: string | null = null
     
     try {
       emailSent = await sendWelcomeEmail(normalizedEmail, name, resetToken, role)
       if (!emailSent) {
         console.error('Email failed to send')
         emailError = { message: 'Email service returned false' }
+        emailWarning = 'Não foi possível enviar o email de boas-vindas. Verifique se RESEND_API_KEY está configurada. O usuário pode usar "Esqueci minha senha" para configurar a senha.'
       }
     } catch (err: any) {
       console.error('Error sending welcome email:', err)
@@ -293,39 +294,32 @@ export async function POST(request: NextRequest) {
         name: err.name
       })
       emailError = err
+      emailWarning = `Erro ao enviar email: ${err.message || 'Erro desconhecido'}. O usuário pode usar "Esqueci minha senha" para configurar a senha.`
     }
     
-    // In production, rollback if email fails
-    // In development, allow user creation but warn
-    if (!emailSent && process.env.NODE_ENV === 'production') {
-      console.error('Email failed to send in production, rolling back user creation')
-      try {
-        await prisma.user.delete({
-          where: { id: newUser.id }
-        })
-      } catch (deleteError: any) {
-        console.error('Error deleting user after email failure:', deleteError)
+    // Log warning if email failed but don't rollback
+    // User can still set password via "forgot password" flow
+    if (!emailSent) {
+      console.warn('⚠️ Email failed to send, but user was created')
+      console.warn('⚠️ User can use "forgot password" to set their password')
+      if (!process.env.RESEND_API_KEY) {
+        console.warn('⚠️ RESEND_API_KEY is not configured. Please configure it in environment variables.')
       }
-      return NextResponse.json(
-        { 
-          error: 'Não foi possível enviar o email de boas-vindas. Verifique se o email existe e tente novamente.',
-          details: emailError?.message || 'Email service returned false'
-        },
-        { status: 500 }
-      )
-    } else if (!emailSent) {
-      // In development, log warning but allow user creation
-      console.warn('⚠️ Email failed to send, but user was created (development mode)')
-      console.warn('⚠️ Make sure RESEND_API_KEY is configured in .env')
     }
 
     // Remove password from response
     const { password: _, tempPassword: __, ...userResponse } = newUser
 
+    // Return success with warning if email failed
+    const message = emailSent 
+      ? 'Usuário criado com sucesso. Um email foi enviado para configurar a senha.'
+      : 'Usuário criado com sucesso, mas o email de boas-vindas não foi enviado. O usuário pode usar "Esqueci minha senha" para configurar a senha.'
+
     return NextResponse.json({
       success: true,
       user: userResponse,
-      message: 'Usuário criado com sucesso. Um email foi enviado para configurar a senha.'
+      message,
+      warning: emailWarning || undefined
     })
 
   } catch (error: any) {
