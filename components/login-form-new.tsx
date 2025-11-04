@@ -78,12 +78,10 @@ export function LoginFormNew() {
       <Card className="w-full max-w-md relative z-10 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
         <CardHeader className="text-center pb-6">
           <div className="mb-4">
-            <div className="w-16 h-16 mx-auto flex items-center justify-center mb-4">
+            <div className="w-16 h-16 mx-auto flex items-center justify-center">
               <LogoZ width={64} height={64} />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold text-[#0C2340] mb-2">Scorer Z</CardTitle>
-          <CardDescription className="text-[#5A5A5A] text-base">Sistema de Avaliação - Plataforma Multi-Escola de Torneios</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -112,16 +110,15 @@ export function LoginFormNew() {
                   disabled={isLoading}
                   className="rounded-lg border-2 focus-visible:border-[#009DE0] focus-visible:ring-[#009DE0]/20 pr-10"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 text-[#5A5A5A] hover:text-[#009DE0] hover:bg-transparent"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#5A5A5A] hover:text-[#009DE0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isLoading}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+                </button>
               </div>
             </div>
 
@@ -135,7 +132,7 @@ export function LoginFormNew() {
               <Button 
                 type="button" 
                 variant="link" 
-                className="px-0 text-base font-medium text-[#009DE0] hover:text-[#007BBF] hover:underline py-2"
+                className="px-4 py-2 text-base font-medium text-[#009DE0] hover:text-[#007BBF] hover:underline"
                 onClick={() => router.push('/auth/forgot-password')}
               >
                 Esqueceu a senha?
