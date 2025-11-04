@@ -28,6 +28,7 @@ model School {
   templates           TournamentTemplate[]
   templateAssignments TemplateSchoolAssignment[] // Official templates assigned to this school
   settings            SchoolSettings?
+  teams               Team[] // Teams belonging to this school
 
   @@map("schools")
 }
@@ -82,6 +83,7 @@ model Tournament {
   name            String
   code            String    @unique // Unique code within platform
   description     String?
+  icon            String? // Icon name from lucide-react icon library
   status          String    @default("draft") // draft, ready, published, paused, finished, archived
   isActive        Boolean   @default(true)
   templateId      String? // Reference to template used
@@ -107,7 +109,7 @@ model Tournament {
   school      School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   template    TournamentTemplate?  @relation(fields: [templateId], references: [id])
   areas       TournamentArea[]
-  teams       Team[]
+  teams       TournamentTeam[] // Many-to-many relationship with teams
   evaluations Evaluation[]
   userAreas   UserTournamentArea[]
   snapshots   RankingSnapshot[]
@@ -215,12 +217,12 @@ model UserTournamentArea {
   @@map("user_tournament_areas")
 }
 
-// Teams with flexible metadata
+// Teams with flexible metadata - Now school-level, not tournament-specific
 model Team {
-  id           String  @id @default(cuid())
-  tournamentId String
-  name         String
-  code         String? // Optional team code
+  id      String  @id @default(cuid())
+  schoolId String // Team belongs to school
+  name    String
+  code    String? // Optional team code
 
   // Flexible metadata as JSON
   metadata Json? // { grade, shift, division, category, etc. }
@@ -233,10 +235,26 @@ model Team {
   updatedAt DateTime @updatedAt
 
   // Relations
-  tournament  Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   evaluations Evaluation[]
+  tournaments TournamentTeam[] // Many-to-many relationship with tournaments
 
   @@map("teams")
+}
+
+// Many-to-many relationship between Tournaments and Teams
+model TournamentTeam {
+  id           String   @id @default(cuid())
+  tournamentId String
+  teamId       String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, teamId])
+  @@map("tournament_teams")
 }
 
 // Evaluations with history and sync support

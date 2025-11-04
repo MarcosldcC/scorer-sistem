@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ArrowLeft, Trophy, CheckCircle2, AlertCircle, Upload, FileJson } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { IconSelector } from "@/components/icon-selector"
 
 interface Template {
   id: string
@@ -39,6 +40,7 @@ export default function NewTournamentPage() {
     name: "",
     description: "",
     templateId: "",
+    icon: "",
     
     // Etapa 2: Configurações do torneio
     startDate: "",
@@ -270,6 +272,7 @@ export default function NewTournamentPage() {
           name: formData.name.trim(),
           code: finalCode,
           description: formData.description?.trim() || null,
+          icon: formData.icon || null,
           templateId: customTemplateId || (formData.templateId && formData.templateId !== 'none' ? formData.templateId : null),
           startDate: formData.startDate || null,
           endDate: formData.endDate || null,
@@ -432,6 +435,11 @@ export default function NewTournamentPage() {
                       rows={4}
                     />
                   </div>
+
+                  <IconSelector
+                    value={formData.icon}
+                    onChange={(icon) => setFormData(prev => ({ ...prev, icon }))}
+                  />
 
                   {importedTemplate && (
                     <Alert className="bg-primary/5 border-primary/20">

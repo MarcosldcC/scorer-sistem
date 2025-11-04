@@ -31,38 +31,63 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { searchParams } = new URL(request.url)
-    const tournamentId = searchParams.get('tournamentId')
-
-    if (!tournamentId) {
-      return NextResponse.json(
-        { error: 'ID do torneio é obrigatório' },
-        { status: 400 }
-      )
-    }
-
-    // Verify tournament access
-    const tournament = await prisma.tournament.findUnique({
-      where: { id: tournamentId }
-    })
-
-    if (!tournament) {
-      return NextResponse.json(
-        { error: 'Torneio não encontrado' },
-        { status: 404 }
-      )
-    }
-
-    // Check permissions
-    if (tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
+    // Check permissions - only school_admin can list teams
+    if (user.role !== 'school_admin' && user.role !== 'platform_admin') {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }
       )
     }
 
+    const { searchParams } = new URL(request.url)
+    const tournamentId = searchParams.get('tournamentId')
+    const schoolId = user.role === 'platform_admin' ? searchParams.get('schoolId') : user.schoolId
+
+    if (!schoolId) {
+      return NextResponse.json(
+        { error: 'ID da escola é obrigatório' },
+        { status: 400 }
+      )
+    }
+
+    // If tournamentId is provided, get teams linked to that tournament
+    // Otherwise, get all teams from the school
+    let whereClause: any = { schoolId }
+    
+    if (tournamentId) {
+      // Verify tournament access
+      const tournament = await prisma.tournament.findUnique({
+        where: { id: tournamentId }
+      })
+
+      if (!tournament) {
+        return NextResponse.json(
+          { error: 'Torneio não encontrado' },
+          { status: 404 }
+        )
+      }
+
+      // Check permissions
+      if (tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
+        return NextResponse.json(
+          { error: 'Acesso negado' },
+          { status: 403 }
+        )
+      }
+
+      // Get teams linked to this tournament
+      whereClause = {
+        schoolId,
+        tournaments: {
+          some: {
+            tournamentId
+          }
+        }
+      }
+    }
+
     const teams = await prisma.team.findMany({
-      where: { tournamentId },
+      where: whereClause,
       include: {
         evaluations: {
           include: {
@@ -77,7 +102,10 @@ export async function GET(request: NextRequest) {
               }
             }
           }
-        }
+        },
+        tournaments: tournamentId ? {
+          where: { tournamentId }
+        } : true
       },
       orderBy: { name: 'asc' }
     })
@@ -127,8 +155,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check permissions - only school_admin can create teams
+    if (user.role !== 'school_admin' && user.role !== 'platform_admin') {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
     const { 
-      tournamentId,
+      tournamentId, // Optional - if provided, team will be linked to tournament
+      schoolId: requestSchoolId, // Optional - for platform admin
       name,
       code,
       grade,
@@ -136,30 +173,42 @@ export async function POST(request: NextRequest) {
       metadata 
     } = await request.json()
 
-    if (!tournamentId || !name) {
+    if (!name) {
       return NextResponse.json(
-        { error: 'Torneio e nome são obrigatórios' },
+        { error: 'Nome é obrigatório' },
         { status: 400 }
       )
     }
 
-    // Verify tournament and permissions
-    const tournament = await prisma.tournament.findUnique({
-      where: { id: tournamentId }
-    })
+    // Get schoolId: platform admin must provide it, school admin uses their own
+    const schoolId = user.role === 'platform_admin' ? requestSchoolId : user.schoolId
 
-    if (!tournament) {
+    if (!schoolId) {
       return NextResponse.json(
-        { error: 'Torneio não encontrado' },
-        { status: 404 }
+        { error: 'ID da escola é obrigatório' },
+        { status: 400 }
       )
     }
 
-    if (tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
-      return NextResponse.json(
-        { error: 'Acesso negado' },
-        { status: 403 }
-      )
+    // If tournamentId is provided, verify tournament and permissions
+    if (tournamentId) {
+      const tournament = await prisma.tournament.findUnique({
+        where: { id: tournamentId }
+      })
+
+      if (!tournament) {
+        return NextResponse.json(
+          { error: 'Torneio não encontrado' },
+          { status: 404 }
+        )
+      }
+
+      if (tournament.schoolId !== schoolId && user.role !== 'platform_admin') {
+        return NextResponse.json(
+          { error: 'Acesso negado' },
+          { status: 403 }
+        )
+      }
     }
 
     // Build metadata
@@ -168,14 +217,21 @@ export async function POST(request: NextRequest) {
     if (shift) teamMetadata.shift = shift
     if (metadata) Object.assign(teamMetadata, metadata)
 
+    // Create team
     const team = await prisma.team.create({
       data: {
-        tournamentId,
+        schoolId,
         name,
         code,
         grade,
         shift,
-        metadata: teamMetadata
+        metadata: teamMetadata,
+        // Link to tournament if provided
+        tournaments: tournamentId ? {
+          create: {
+            tournamentId
+          }
+        } : undefined
       }
     })
 
@@ -204,6 +260,14 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Check permissions - only school_admin can update teams
+    if (user.role !== 'school_admin' && user.role !== 'platform_admin') {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
     const { id, name, code, grade, shift, metadata } = await request.json()
 
     if (!id) {
@@ -216,7 +280,7 @@ export async function PUT(request: NextRequest) {
     const team = await prisma.team.findUnique({
       where: { id },
       include: {
-        tournament: true
+        school: true
       }
     })
 
@@ -227,7 +291,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    if (team.tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
+    if (team.schoolId !== user.schoolId && user.role !== 'platform_admin') {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }
@@ -277,6 +341,14 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Check permissions - only school_admin can delete teams
+    if (user.role !== 'school_admin' && user.role !== 'platform_admin') {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -290,7 +362,7 @@ export async function DELETE(request: NextRequest) {
     const team = await prisma.team.findUnique({
       where: { id },
       include: {
-        tournament: true
+        school: true
       }
     })
 
@@ -301,7 +373,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    if (team.tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
+    if (team.schoolId !== user.schoolId && user.role !== 'platform_admin') {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }

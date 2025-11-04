@@ -107,12 +107,14 @@ export async function POST(request: NextRequest) {
       name,
       code,
       description,
+      icon,
       templateId,
       startDate,
       endDate,
       rankingMethod,
       allowReevaluation,
       features,
+      teamIds, // Array of team IDs to link to tournament
       schoolId: requestSchoolId
     } = body
 
@@ -162,6 +164,7 @@ export async function POST(request: NextRequest) {
         name,
         code,
         description,
+        icon: icon || null,
         templateId: templateId || null,
         templateVersion,
         startDate: startDate ? new Date(startDate) : null,
@@ -170,7 +173,20 @@ export async function POST(request: NextRequest) {
         rankingMethod: rankingMethod || 'percentage',
         allowReevaluation: allowReevaluation !== undefined ? allowReevaluation : true,
         configLocked: false,
-        features: features || {}
+        features: features || {},
+        // Link teams if provided
+        teams: teamIds && Array.isArray(teamIds) && teamIds.length > 0 ? {
+          create: teamIds.map((teamId: string) => ({
+            teamId
+          }))
+        } : undefined
+      },
+      include: {
+        teams: {
+          include: {
+            team: true
+          }
+        }
       }
     })
 

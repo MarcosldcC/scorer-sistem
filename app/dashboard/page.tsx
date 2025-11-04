@@ -11,6 +11,7 @@ import { EVALUATION_AREAS } from "@/lib/teams"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Trophy, Users, Settings, Plus, FileText, Award, BarChart3 } from "lucide-react"
+import * as LucideIcons from "lucide-react"
 
 export default function DashboardPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -141,9 +142,9 @@ export default function DashboardPage() {
       },
       {
         title: "Gerenciar Equipes",
-        description: "Criar e gerenciar equipes dos torneios",
+        description: "Criar e gerenciar equipes da escola",
         icon: Users,
-        href: "#tournaments",
+        href: "/platform/teams",
         color: "text-green-600"
       },
       {
@@ -316,21 +317,39 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
               ) : (
-                tournaments.map((tournament) => (
-                  <Card key={tournament.id} className="cursor-pointer hover:bg-muted/50 transition-colors">
-                    <CardHeader>
-                      <CardTitle>{tournament.name}</CardTitle>
-                      <CardDescription>Código: {tournament.code}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => router.push(`/tournaments/${tournament.id}`)}>
-                          Gerenciar
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                tournaments.map((tournament) => {
+                  // Get icon component dynamically from lucide-react
+                  const IconComponent = tournament.icon && LucideIcons[tournament.icon as keyof typeof LucideIcons] 
+                    ? (LucideIcons[tournament.icon as keyof typeof LucideIcons] as React.ComponentType<any>)
+                    : Trophy
+
+                  return (
+                    <Card key={tournament.id} className="cursor-pointer hover:shadow-lg transition-all duration-200">
+                      <CardHeader>
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-[#009DE0]/10 flex items-center justify-center">
+                            <IconComponent className="h-6 w-6 text-[#009DE0]" />
+                          </div>
+                          <div className="flex-1">
+                            <CardTitle className="text-lg font-bold text-[#0C2340]">{tournament.name}</CardTitle>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="rounded-full"
+                            onClick={() => router.push(`/tournaments/${tournament.id}`)}
+                          >
+                            Gerenciar
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })
               )}
             </div>
           </div>
