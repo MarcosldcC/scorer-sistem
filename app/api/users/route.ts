@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { config } from '@/lib/config'
-import { isValidGmail, normalizeGmail } from '@/lib/email-validation'
+import { isValidGmail } from '@/lib/email-validation'
 import { verifyGmailExists } from '@/lib/email-verification'
 import { sendWelcomeEmail } from '@/lib/email'
 import crypto from 'crypto'
@@ -162,8 +162,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Normalize Gmail (remove dots, lowercase)
-    const normalizedEmail = normalizeGmail(email)
+    // Use email exactly as provided (lowercase for consistency but keep dots)
+    const normalizedEmail = email.toLowerCase().trim()
 
     // Verify if Gmail exists before creating user (optional check)
     // If verification fails, we'll still create the user and let the email service handle bounces
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
       console.warn('Email verification failed, continuing with user creation')
     }
 
-    // Check if email already exists (after normalization)
+    // Check if email already exists (exact match)
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail }
     })

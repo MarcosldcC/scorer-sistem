@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { prisma } from '@/lib/prisma'
 import { config } from '@/lib/config'
-import { normalizeGmail } from '@/lib/email-validation'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -29,8 +28,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Normalize email if provided (same as creation)
-    const normalizedEmail = email ? normalizeGmail(email) : null
+    // Use email exactly as provided (lowercase for consistency but keep dots)
+    const normalizedEmail = email ? email.toLowerCase().trim() : null
 
     // Find user by email or name
     let user
