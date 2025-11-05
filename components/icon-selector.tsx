@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Trophy, Award, Target, Star, Flame, Zap, Rocket, Crown,
-  Shield, Sword, Medal, Gem, Heart, Flag, Gamepad2, Chess,
+  Shield, Sword, Medal, Gem, Heart, Flag, Gamepad2, Grid,
   Bot, Cpu, Code, Database, Network, Brain, Lightbulb,
   Sparkles, Sun, Moon, Rainbow, Palette, Music, Book,
-  GraduationCap, School, Users, Team, UserCircle, UserCheck
+  GraduationCap, School, Users, UserPlus, UserCircle, UserCheck
 } from "lucide-react"
 
 interface IconSelectorProps {
@@ -20,7 +20,7 @@ interface IconSelectorProps {
 // Lista de ícones disponíveis com suas categorias
 const ICON_CATEGORIES: Record<string, Record<string, React.ComponentType<any>>> = {
   "Esportes e Competição": {
-    Trophy, Award, Target, Star, Medal, Crown, Flag, Chess
+    Trophy, Award, Target, Star, Medal, Crown, Flag, Grid
   },
   "Tecnologia": {
     Bot, Cpu, Code, Database, Network, Brain, Gamepad2
@@ -29,7 +29,7 @@ const ICON_CATEGORIES: Record<string, Record<string, React.ComponentType<any>>> 
     Lightbulb, Sparkles, Sun, Moon, Rainbow, Palette, Music, Book
   },
   "Educação": {
-    GraduationCap, School, Users, Team, UserCircle, UserCheck
+    GraduationCap, School, Users, UserPlus, UserCircle, UserCheck
   },
   "Diversos": {
     Flame, Zap, Rocket, Heart, Gem
