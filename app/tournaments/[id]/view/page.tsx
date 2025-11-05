@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Trophy, ArrowLeft } from "lucide-react"
 
 export default function TournamentViewPage() {
+  console.log('=== TournamentViewPage RENDER ===')
   const params = useParams()
   const tournamentId = params.id as string
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -23,6 +24,17 @@ export default function TournamentViewPage() {
   const [tournamentAreas, setTournamentAreas] = useState<any[]>([])
   const [userAssignedAreas, setUserAssignedAreas] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+
+  console.log('Component state:', {
+    tournamentId,
+    isAuthenticated,
+    authLoading,
+    user: user ? { id: user.id, role: user.role, email: user.email } : null,
+    tournamentAreasCount: tournamentAreas.length,
+    userAssignedAreasCount: userAssignedAreas.length,
+    loading,
+    teamsLoading
+  })
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -59,9 +71,84 @@ export default function TournamentViewPage() {
     }
   }
 
+  const fetchUserAssignedAreas = async () => {
+    console.log('=== fetchUserAssignedAreas CALLED ===')
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token || !user) {
+        console.log('Missing token or user:', { hasToken: !!token, hasUser: !!user })
+        return
+      }
+
+      console.log('Fetching user assigned areas for user:', user.id, 'tournament:', tournamentId)
+      
+      // Fetch assignments for current user in this tournament
+      const response = await fetch(`/api/user-areas?tournamentId=${tournamentId}&userId=${user.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+
+      console.log('User areas response:', data)
+
+      if (response.ok) {
+        // Get areas assigned to current user
+        const assignments = data.assignments || []
+        console.log('All assignments for user:', assignments)
+        
+        // Extract area codes from assignments
+        const userAreas = assignments
+          .map((assignment: any) => {
+            // Try multiple ways to get the area code
+            const code = assignment.area?.code || assignment.areaCode || null
+            console.log('Mapping assignment:', {
+              assignmentId: assignment.id,
+              userId: assignment.userId,
+              user: assignment.user,
+              area: assignment.area,
+              areaId: assignment.area?.id,
+              areaCode: assignment.area?.code,
+              areaCodeFromAssignment: assignment.areaCode,
+              finalCode: code,
+              fullAssignment: assignment
+            })
+            return code
+          })
+          .filter((code: string | null): code is string => !!code) // Remove null/undefined
+        
+        console.log('Final userAreas (area codes):', userAreas)
+        console.log('Number of assignments:', assignments.length)
+        console.log('Number of userAreas extracted:', userAreas.length)
+        console.log('Tournament areas codes:', tournamentAreas.map((a: any) => ({ id: a.id, code: a.code, name: a.name })))
+        
+        setUserAssignedAreas(userAreas)
+      } else {
+        console.error('Failed to fetch user areas:', data)
+        // Fallback: use user.areas if available
+        if (user?.areas) {
+          console.log('Using fallback user.areas:', user.areas)
+          setUserAssignedAreas(user.areas)
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching user assigned areas:', err)
+      // Fallback: use user.areas if available
+      if (user?.areas) {
+        console.log('Using fallback user.areas:', user.areas)
+        setUserAssignedAreas(user.areas)
+      }
+    }
+  }
+
   useEffect(() => {
+    console.log('=== useEffect for user areas triggered ===', {
+      tournamentAreasLength: tournamentAreas.length,
+      tournamentId,
+      hasUser: !!user,
+      userRole: user?.role
+    })
+    
     if (tournamentAreas.length > 0 && tournamentId && user) {
-      console.log('useEffect triggered - fetching user areas:', {
+      console.log('Conditions met - processing user areas:', {
         tournamentAreasCount: tournamentAreas.length,
         tournamentId,
         userRole: user.role,
@@ -75,16 +162,17 @@ export default function TournamentViewPage() {
         setUserAssignedAreas(allCodes)
       } else if (user.role === 'judge') {
         // For judges, fetch assigned areas
-        console.log('Fetching assigned areas for judge')
+        console.log('Fetching assigned areas for judge - calling fetchUserAssignedAreas')
         fetchUserAssignedAreas()
       }
     } else {
-      console.log('useEffect conditions not met:', {
+      console.log('useEffect conditions NOT met:', {
         tournamentAreasLength: tournamentAreas.length,
         tournamentId,
         hasUser: !!user
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentAreas, tournamentId, user])
 
   const fetchTournament = async () => {
@@ -155,70 +243,6 @@ export default function TournamentViewPage() {
       }
     } catch (err) {
       console.error('Error fetching tournament areas:', err)
-    }
-  }
-
-  const fetchUserAssignedAreas = async () => {
-    try {
-      const token = localStorage.getItem('robotics-token')
-      if (!token || !user) return
-
-      console.log('Fetching user assigned areas for user:', user.id, 'tournament:', tournamentId)
-      
-      // Fetch assignments for current user in this tournament
-      const response = await fetch(`/api/user-areas?tournamentId=${tournamentId}&userId=${user.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      const data = await response.json()
-
-      console.log('User areas response:', data)
-
-      if (response.ok) {
-        // Get areas assigned to current user
-        const assignments = data.assignments || []
-        console.log('All assignments for user:', assignments)
-        
-        // Extract area codes from assignments
-        const userAreas = assignments
-          .map((assignment: any) => {
-            // Try multiple ways to get the area code
-            const code = assignment.area?.code || assignment.areaCode || null
-            console.log('Mapping assignment:', {
-              assignmentId: assignment.id,
-              userId: assignment.userId,
-              user: assignment.user,
-              area: assignment.area,
-              areaId: assignment.area?.id,
-              areaCode: assignment.area?.code,
-              areaCodeFromAssignment: assignment.areaCode,
-              finalCode: code,
-              fullAssignment: assignment
-            })
-            return code
-          })
-          .filter((code: string | null): code is string => !!code) // Remove null/undefined
-        
-        console.log('Final userAreas (area codes):', userAreas)
-        console.log('Number of assignments:', assignments.length)
-        console.log('Number of userAreas extracted:', userAreas.length)
-        console.log('Tournament areas codes:', tournamentAreas.map((a: any) => ({ id: a.id, code: a.code, name: a.name })))
-        
-        setUserAssignedAreas(userAreas)
-      } else {
-        console.error('Failed to fetch user areas:', data)
-        // Fallback: use user.areas if available
-        if (user?.areas) {
-          console.log('Using fallback user.areas:', user.areas)
-          setUserAssignedAreas(user.areas)
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching user assigned areas:', err)
-      // Fallback: use user.areas if available
-      if (user?.areas) {
-        console.log('Using fallback user.areas:', user.areas)
-        setUserAssignedAreas(user.areas)
-      }
     }
   }
 
