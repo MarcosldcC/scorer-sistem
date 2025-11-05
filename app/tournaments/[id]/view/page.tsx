@@ -29,21 +29,27 @@ export default function TournamentViewPage() {
   }, [isAuthenticated, authLoading, router])
 
   useEffect(() => {
-    if (isAuthenticated && tournamentId) {
+    // Wait for auth to finish loading before fetching data
+    if (!authLoading && isAuthenticated && tournamentId) {
       loadTournamentData()
+    } else if (!authLoading && !isAuthenticated) {
+      // If not authenticated after loading, redirect
+      router.push("/")
     }
-  }, [isAuthenticated, tournamentId])
+  }, [isAuthenticated, authLoading, tournamentId, router])
 
   const loadTournamentData = async () => {
     setLoading(true)
     try {
-      await Promise.all([
+      // Use Promise.allSettled to ensure all requests complete even if some fail
+      await Promise.allSettled([
         fetchTournament(),
         fetchTournamentAreas()
       ])
     } catch (err) {
       console.error('Error loading tournament data:', err)
     } finally {
+      // Always set loading to false, even if requests fail
       setLoading(false)
     }
   }
@@ -61,17 +67,28 @@ export default function TournamentViewPage() {
   const fetchTournament = async () => {
     try {
       const token = localStorage.getItem('robotics-token')
-      if (!token) return
+      if (!token) {
+        console.warn('No token found for fetching tournament')
+        return
+      }
 
       const response = await fetch('/api/tournaments', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
+      
+      if (!response.ok) {
+        console.error('Failed to fetch tournaments:', response.status, response.statusText)
+        return
+      }
+
       const data = await response.json()
 
-      if (response.ok) {
-        const found = data.tournaments?.find((t: any) => t.id === tournamentId)
+      if (response.ok && data.tournaments) {
+        const found = data.tournaments.find((t: any) => t.id === tournamentId)
         if (found) {
           setTournament(found)
+        } else {
+          console.warn('Tournament not found:', tournamentId)
         }
       }
     } catch (err) {
@@ -82,11 +99,20 @@ export default function TournamentViewPage() {
   const fetchTournamentAreas = async () => {
     try {
       const token = localStorage.getItem('robotics-token')
-      if (!token) return
+      if (!token) {
+        console.warn('No token found for fetching tournament areas')
+        return
+      }
 
       const response = await fetch(`/api/tournament-areas?tournamentId=${tournamentId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
+      
+      if (!response.ok) {
+        console.error('Failed to fetch tournament areas:', response.status, response.statusText)
+        return
+      }
+
       const data = await response.json()
 
       if (response.ok) {
