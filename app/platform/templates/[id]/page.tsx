@@ -398,13 +398,15 @@ export default function TemplateEditPage() {
         name: templateData.name,
         description: templateData.description,
         isOfficial: templateData.isOfficial,
-        config
+        config,
+        isActive: publish // Set isActive based on publish status
       } : {
         id: templateId,
         name: templateData.name,
         description: templateData.description,
         config,
-        version: undefined // Will be auto-incremented
+        version: undefined, // Will be auto-incremented
+        isActive: publish || templateData.status === 'published' // Update isActive when publishing
       }
 
       const response = await fetch(url, {
@@ -420,13 +422,26 @@ export default function TemplateEditPage() {
 
       if (response.ok) {
         setSuccess(publish ? 'Template publicado com sucesso!' : 'Template salvo com sucesso!')
-        if (isNew && data.template) {
+        
+        // Update local state with published status
+        if (publish) {
+          setTemplateData(prev => ({ ...prev, status: 'published' }))
+        }
+        
+        // Refresh template data if it was updated
+        if (!isNew && data.template) {
+          // Reload template to get updated data
+          setTimeout(() => {
+            window.location.reload()
+          }, 1000)
+        } else if (isNew && data.template) {
           setTimeout(() => {
             router.push(`/platform/templates/${data.template.id}`)
           }, 1500)
         }
       } else {
         setError(data.error || 'Erro ao salvar template')
+        console.error('Save template error:', data)
       }
     } catch (err) {
       setError('Erro de conexão')

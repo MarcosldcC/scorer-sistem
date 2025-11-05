@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, description, config, isOfficial, cloneFromId } = await request.json()
+    const { name, description, config, isOfficial, cloneFromId, isActive } = await request.json()
 
     if (!name || !config) {
       return NextResponse.json(
@@ -202,6 +202,7 @@ export async function POST(request: NextRequest) {
         config: finalConfig,
         version: '1.0.0',
         isOfficial: isOfficial || false,
+        isActive: isActive !== undefined ? isActive : false, // Default to inactive for new templates
         schoolId: user.schoolId || null,
         createdBy: user.userId || user.id
       }
@@ -232,7 +233,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { id, name, description, config, version } = await request.json()
+    const { id, name, description, config, version, isActive } = await request.json()
 
     if (!id) {
       return NextResponse.json(
@@ -274,15 +275,22 @@ export async function PUT(request: NextRequest) {
     // Increment version if config changed
     const newVersion = version || incrementVersion(existingTemplate.version)
 
+    const updateData: any = {
+      ...(name && { name }),
+      ...(description !== undefined && { description }),
+      ...(config && { config }),
+      version: newVersion,
+      updatedAt: new Date()
+    }
+
+    // Update isActive if provided (for publishing/unpublishing)
+    if (isActive !== undefined) {
+      updateData.isActive = isActive
+    }
+
     const template = await prisma.tournamentTemplate.update({
       where: { id },
-      data: {
-        ...(name && { name }),
-        ...(description !== undefined && { description }),
-        ...(config && { config }),
-        version: newVersion,
-        updatedAt: new Date()
-      }
+      data: updateData
     })
 
     return NextResponse.json({
