@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,291 +7,213 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Multi-tenant: Schools/Organizations
 model School {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?  @unique
-  code      String   @unique // Unique identifier code for the school
-  password  String? // Password for school access (optional)
-  location  String? // School location/address
-  status    String   @default("draft") // draft, active, suspended, archived
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
+  id                  String                     @id @default(cuid())
+  name                String
+  email               String?                    @unique
+  code                String                     @unique
+  status              String                     @default("draft")
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  location            String?
+  password            String?
+  settings            SchoolSettings?
+  teams               Team[]
+  templateAssignments TemplateSchoolAssignment[]
+  templates           TournamentTemplate[]
   tournaments         Tournament[]
   users               User[]
-  templates           TournamentTemplate[]
-  templateAssignments TemplateSchoolAssignment[] // Official templates assigned to this school
-  settings            SchoolSettings?
-  teams               Team[] // Teams belonging to this school
 
   @@map("schools")
 }
 
-// Tournament Templates (Official and Custom)
 model TournamentTemplate {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  version     String   @default("1.0.0") // Semantic versioning
-  isOfficial  Boolean  @default(false) // Official templates by Zoom Education
-  isActive    Boolean  @default(true)
-  createdBy   String? // Platform admin or school ID
-  schoolId    String? // If null, is an official template
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Template configuration as JSON
-  config Json // Stores area types, rubrics, penalties, etc.
-
-  // Changelog and tracking
-  changelog Json? // Version history and changes
-
-  // Relations
+  id              String                     @id @default(cuid())
+  name            String
+  description     String?
+  version         String                     @default("1.0.0")
+  isOfficial      Boolean                    @default(false)
+  isActive        Boolean                    @default(true)
+  createdBy       String?
+  schoolId        String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+  config          Json
+  changelog       Json?
+  assignedSchools TemplateSchoolAssignment[]
   school          School?                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   tournaments     Tournament[]
-  assignedSchools TemplateSchoolAssignment[] // Schools this official template is assigned to
 
   @@map("tournament_templates")
 }
 
-// Many-to-many relationship between official templates and schools
 model TemplateSchoolAssignment {
-  id         String   @id @default(cuid())
+  id         String             @id @default(cuid())
   templateId String
   schoolId   String
-  assignedAt DateTime @default(now())
-  assignedBy String? // Platform admin ID who assigned it
-
-  // Relations
-  template TournamentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  school   School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  assignedAt DateTime           @default(now())
+  assignedBy String?
+  school     School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  template   TournamentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@unique([templateId, schoolId])
   @@map("template_school_assignments")
 }
 
-// Tournaments
 model Tournament {
-  id              String    @id @default(cuid())
-  schoolId        String
-  name            String
-  code            String    @unique // Unique code within platform
-  description     String?
-  icon            String? // Icon name from lucide-react icon library
-  status          String    @default("draft") // draft, ready, published, paused, finished, archived
-  isActive        Boolean   @default(true)
-  templateId      String? // Reference to template used
-  templateVersion String? // Locked version when tournament is published
-  startDate       DateTime?
-  endDate         DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  // Tournament settings
-  rankingMethod     String  @default("percentage") // "percentage" or "raw"
-  weights           Json? // Area weights: { areaId: weight }
-  tieBreak          Json? // Tie-break criteria order
-  allowReevaluation Boolean @default(true)
-
-  // Config lock when published
-  configLocked Boolean @default(false)
-
-  // Feature flags
-  features Json? // { reevaluation, multiRounds, penalties, timer, publicLink, etc. }
-
-  // Relations
-  school      School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  template    TournamentTemplate?  @relation(fields: [templateId], references: [id])
-  areas       TournamentArea[]
-  teams       TournamentTeam[] // Many-to-many relationship with teams
-  evaluations Evaluation[]
-  userAreas   UserTournamentArea[]
-  snapshots   RankingSnapshot[]
+  id                String               @id @default(cuid())
+  schoolId          String
+  name              String
+  code              String               @unique
+  description       String?
+  status            String               @default("draft")
+  isActive          Boolean              @default(true)
+  templateId        String?
+  templateVersion   String?
+  startDate         DateTime?
+  endDate           DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  rankingMethod     String               @default("percentage")
+  weights           Json?
+  tieBreak          Json?
+  allowReevaluation Boolean              @default(true)
+  configLocked      Boolean              @default(false)
+  features          Json?
+  icon              String?
+  evaluations       Evaluation[]
+  snapshots         RankingSnapshot[]
+  areas             TournamentArea[]
+  teams             TournamentTeam[]
+  school            School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  template          TournamentTemplate?  @relation(fields: [templateId], references: [id])
+  userAreas         UserTournamentArea[]
 
   @@map("tournaments")
 }
 
-// Tournament Areas (Flexible configuration)
 model TournamentArea {
-  id           String  @id @default(cuid())
-  tournamentId String
-  name         String // Display name
-  code         String // Internal code
-  description  String?
-  weight       Float   @default(1.0)
-  order        Int     @default(0)
-
-  // Scoring type configuration
-  scoringType String // "rubric", "performance", "mixed"
-
-  // Rubric configuration (if scoringType is rubric or mixed)
-  rubricConfig Json?
-
-  // Performance configuration (if scoringType is performance or mixed)
+  id                String               @id @default(cuid())
+  tournamentId      String
+  name              String
+  code              String
+  description       String?
+  weight            Float                @default(1.0)
+  order             Int                  @default(0)
+  scoringType       String
+  rubricConfig      Json?
   performanceConfig Json?
-
-  // Multi-judge aggregation
-  aggregationMethod String @default("last") // "last", "average", "median", "best", "worst"
-
-  // Time settings
-  timeLimit  Int? // in seconds
-  timeAction String @default("alert") // "alert" or "block"
-
-  // Rounds support (optional)
-  allowRounds       Boolean @default(false)
-  maxRounds         Int     @default(1)
-  roundsAggregation String? // "best", "average", "sum"
-
-  // Validation limits
-  penaltyLimits Json? // Max penalties per type and validation rules
-
-  // Pricing (optional)
-  hasPrice    Boolean @default(false)
-  priceConfig Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  tournament     Tournament           @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  evaluations    Evaluation[]
-  assignedJudges UserTournamentArea[]
+  aggregationMethod String               @default("last")
+  timeLimit         Int?
+  timeAction        String               @default("alert")
+  allowRounds       Boolean              @default(false)
+  maxRounds         Int                  @default(1)
+  roundsAggregation String?
+  penaltyLimits     Json?
+  hasPrice          Boolean              @default(false)
+  priceConfig       Json?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  evaluations       Evaluation[]
+  tournament        Tournament           @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  assignedJudges    UserTournamentArea[]
 
   @@map("tournament_areas")
 }
 
-// Multi-tenant User model
 model User {
-  id       String  @id @default(cuid())
-  schoolId String? // null for platform admins
-  name     String
-  email    String  @unique
-  password String
-
-  // Role system
-  role String // "platform_admin", "school_admin", "judge", "viewer"
-
-  // Legacy fields for backward compatibility
-  isAdmin Boolean  @default(false)
-  areas   String[] // Deprecated, use UserTournamentArea instead
-
-  isActive     Boolean @default(true)
-  isFirstLogin Boolean @default(true) // Force password change on first login
-
-  // Session and security
+  id               String               @id @default(cuid())
+  schoolId         String?
+  name             String
+  email            String               @unique
+  password         String
+  role             String
+  isAdmin          Boolean              @default(false)
+  areas            String[]
+  isActive         Boolean              @default(true)
+  isFirstLogin     Boolean              @default(true)
   lastLoginAt      DateTime?
-  sessionExpiresAt DateTime? // Token expiration for offline mode
-  tempPassword     String? // Temporary password with expiration
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  school        School?              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  evaluations   Evaluation[]
-  assignedAreas UserTournamentArea[]
+  sessionExpiresAt DateTime?
+  tempPassword     String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  evaluations      Evaluation[]
+  assignedAreas    UserTournamentArea[]
+  school           School?              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@map("users")
 }
 
-// User assigned to tournament areas
 model UserTournamentArea {
-  id           String   @id @default(cuid())
+  id           String         @id @default(cuid())
   userId       String
   tournamentId String
   areaId       String
-  createdAt    DateTime @default(now())
-
-  // Relations
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tournament Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  area       TournamentArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  createdAt    DateTime       @default(now())
+  area         TournamentArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  tournament   Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, tournamentId, areaId])
   @@map("user_tournament_areas")
 }
 
-// Teams with flexible metadata - Now school-level, not tournament-specific
 model Team {
-  id      String  @id @default(cuid())
-  schoolId String? // Team belongs to school (nullable for backward compatibility)
-  name    String
-  code    String? // Optional team code
-
-  // Flexible metadata as JSON
-  metadata Json? // { grade, shift, division, category, etc. }
-
-  // Legacy fields for backward compatibility
-  grade String? // Deprecated, use metadata
-  shift String? // Deprecated, use metadata
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  school      School?           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id          String           @id @default(cuid())
+  name        String
+  code        String?
+  metadata    Json?
+  grade       String?
+  shift       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  schoolId    String?
   evaluations Evaluation[]
-  tournaments TournamentTeam[] // Many-to-many relationship with tournaments
+  school      School?          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  tournaments TournamentTeam[]
 
   @@map("teams")
 }
 
-// Many-to-many relationship between Tournaments and Teams
 model TournamentTeam {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   tournamentId String
   teamId       String
-  createdAt    DateTime @default(now())
-
-  // Relations
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   @@unique([tournamentId, teamId])
   @@map("tournament_teams")
 }
 
-// Evaluations with history and sync support
 model Evaluation {
-  id             String   @id @default(cuid())
-  tournamentId   String
-  teamId         String
-  areaId         String
-  round          Int      @default(1) // For multi-round support
-  scores         Json // Array of { criterionId: string, score: number }
-  comments       String?
-  evaluationTime Int // in seconds
-  evaluatedById  String
-  evaluatedAt    DateTime @default(now())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Version and history
-  version  Int     @default(1) // Increments on re-evaluation
-  isActive Boolean @default(true) // Only active version counts for ranking
-
-  // Offline sync support
-  isSynced    Boolean  @default(true)
-  syncVersion Int      @default(0) // For conflict resolution (last-write-wins)
-  syncedAt    DateTime @default(now())
-
-  // Idempotency key for sync
-  idempotencyKey String? @unique // Prevents duplicate syncs
-
-  // Relations
-  tournament  Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  team        Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  area        TournamentArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  evaluatedBy User           @relation(fields: [evaluatedById], references: [id])
-  penalties   Penalty[]
-
-  // For re-evaluation support - track history
-  parentEvaluationId String? // Points to previous evaluation
-  parentEvaluation   Evaluation?  @relation("EvaluationHistory", fields: [parentEvaluationId], references: [id])
-  childEvaluations   Evaluation[] @relation("EvaluationHistory")
+  id                 String         @id @default(cuid())
+  tournamentId       String
+  teamId             String
+  areaId             String
+  round              Int            @default(1)
+  scores             Json
+  comments           String?
+  evaluationTime     Int
+  evaluatedById      String
+  evaluatedAt        DateTime       @default(now())
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  version            Int            @default(1)
+  isActive           Boolean        @default(true)
+  isSynced           Boolean        @default(true)
+  syncVersion        Int            @default(0)
+  syncedAt           DateTime       @default(now())
+  idempotencyKey     String?        @unique
+  parentEvaluationId String?
+  area               TournamentArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  evaluatedBy        User           @relation(fields: [evaluatedById], references: [id])
+  parentEvaluation   Evaluation?    @relation("EvaluationHistory", fields: [parentEvaluationId], references: [id])
+  childEvaluations   Evaluation[]   @relation("EvaluationHistory")
+  team               Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  tournament         Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  penalties          Penalty[]
 
   @@unique([tournamentId, teamId, areaId, evaluatedById, round])
   @@index([teamId, areaId])
@@ -304,20 +223,17 @@ model Evaluation {
 }
 
 model Penalty {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   evaluationId String
-  type         String // robot_touch, etc.
-  points       Int // negative value
+  type         String
+  points       Int
   description  String?
-  createdAt    DateTime @default(now())
-
-  // Relations
-  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
 
   @@map("penalties")
 }
 
-// Platform-wide configuration
 model PlatformConfig {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -327,31 +243,25 @@ model PlatformConfig {
   @@map("platform_config")
 }
 
-// Language and Theme settings per school
 model SchoolSettings {
   id        String   @id @default(cuid())
   schoolId  String   @unique
-  language  String   @default("pt-BR") // pt-BR, en-US
-  branding  Json? // { logo, colors, fonts, etc. }
+  language  String   @default("pt-BR")
+  branding  Json?
   updatedAt DateTime @updatedAt
-
-  // Relations
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@map("school_settings")
 }
 
-// Ranking Snapshots (for historical tracking)
 model RankingSnapshot {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   tournamentId String
-  event        String // published, paused, finished, manual
-  rankings     Json // Complete rankings array
-  metadata     Json? // Additional metadata
-  createdAt    DateTime @default(now())
-
-  // Relations
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  event        String
+  rankings     Json
+  metadata     Json?
+  createdAt    DateTime   @default(now())
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   @@index([tournamentId])
   @@map("ranking_snapshots")

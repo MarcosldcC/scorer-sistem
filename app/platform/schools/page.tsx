@@ -310,7 +310,6 @@ export default function SchoolsManagement() {
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
-
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-primary mb-2">Gerenciar Escolas</h1>
