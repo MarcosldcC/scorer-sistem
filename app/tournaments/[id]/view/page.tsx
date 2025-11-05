@@ -386,11 +386,13 @@ export default function TournamentViewPage() {
                   // Verificar se o usuário pode avaliar esta área
                   // Para juízes: verifica se a área está na lista de áreas atribuídas (userAssignedAreas)
                   // Para school_admin: sempre true (pode avaliar todas)
+                  const areaCodeNormalized = area.id?.trim().toLowerCase()
+                  const assignedCodesNormalized = userAssignedAreas.map(a => String(a).trim().toLowerCase())
+                  
                   const canEvaluate = user?.role === 'school_admin' 
                     ? true 
                     : user?.role === 'judge'
-                      ? userAssignedAreas.includes(area.id) || 
-                        userAssignedAreas.map(a => a?.toLowerCase().trim()).includes(area.id?.toLowerCase().trim())
+                      ? assignedCodesNormalized.includes(areaCodeNormalized)
                       : false
                   
                   console.log('Area check:', {
