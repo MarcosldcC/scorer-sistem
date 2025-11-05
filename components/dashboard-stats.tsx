@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Trophy, Target, Clock, CheckCircle } from "lucide-react"
-import type { Team } from "@/lib/teams"
+import type { Team } from "@/hooks/use-teams"
 
 interface DashboardStatsProps {
   teams: Team[]
@@ -13,10 +13,13 @@ export function DashboardStats({ teams, judgeAreas }: DashboardStatsProps) {
   const totalTeams = teams.length
 
   // Calculate stats for judge's areas only
+  // judgeAreas contains area codes (e.g., "programming", "research", "identity")
   const judgeStats = judgeAreas.reduce(
-    (acc, area) => {
-      const areaKey = area as "programming" | "research" | "identity"
-      const evaluated = teams.filter((team) => team.evaluations[areaKey] !== undefined).length
+    (acc, areaCode) => {
+      // Check if team has evaluation for this area code
+      const evaluated = teams.filter((team) => {
+        return team.evaluations && team.evaluations[areaCode] !== undefined
+      }).length
       acc.evaluated += evaluated
       acc.pending += totalTeams - evaluated
       return acc
@@ -24,8 +27,10 @@ export function DashboardStats({ teams, judgeAreas }: DashboardStatsProps) {
     { evaluated: 0, pending: 0 },
   )
 
+  // Calculate completion rate: total evaluated evaluations / (number of areas * number of teams)
+  const totalPossibleEvaluations = judgeAreas.length * totalTeams
   const completionRate =
-    judgeAreas.length > 0 ? Math.round((judgeStats.evaluated / (judgeAreas.length * totalTeams)) * 100) : 0
+    totalPossibleEvaluations > 0 ? Math.round((judgeStats.evaluated / totalPossibleEvaluations) * 100) : 0
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

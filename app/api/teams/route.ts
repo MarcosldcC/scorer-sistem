@@ -90,6 +90,12 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       include: {
         evaluations: {
+          where: tournamentId ? {
+            tournamentId,
+            isActive: true
+          } : {
+            isActive: true
+          },
           include: {
             evaluatedBy: {
               select: { id: true, name: true }

@@ -292,7 +292,10 @@ export default function TournamentViewPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {evaluationAreas.map((area) => {
                   const canEvaluate = userAreas.includes(area.id)
-                  const evaluatedTeams = teams.filter(team => team.evaluations[area.id] !== undefined)
+                  // Filter teams that have evaluations for this area code
+                  const evaluatedTeams = teams.filter(team => 
+                    team.evaluations && team.evaluations[area.id] !== undefined
+                  )
                   const totalTeams = teams.length
                   const stats = {
                     total: totalTeams,
