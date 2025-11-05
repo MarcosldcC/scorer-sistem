@@ -10,9 +10,12 @@ export interface User {
   schoolId?: string | null
   isFirstLogin?: boolean
   assignedAreas?: Array<{
+    id: string
     areaId: string
     areaCode: string
     areaName: string
+    tournamentId: string
+    tournamentName: string
   }>
 }
 

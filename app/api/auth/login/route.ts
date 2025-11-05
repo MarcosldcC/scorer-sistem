@@ -54,6 +54,12 @@ export async function POST(request: NextRequest) {
                   code: true,
                   name: true
                 }
+              },
+              tournament: {
+                select: {
+                  id: true,
+                  name: true
+                }
               }
             }
           }
@@ -124,11 +130,14 @@ export async function POST(request: NextRequest) {
       { expiresIn: config.jwt.expiresIn }
     )
 
-    // Get assigned areas for the user
+    // Get assigned areas for the user (with tournament info)
     const assignedAreas = user.assignedAreas.map(ua => ({
+      id: ua.id,
       areaId: ua.areaId,
       areaCode: ua.area.code,
-      areaName: ua.area.name
+      areaName: ua.area.name,
+      tournamentId: ua.tournamentId,
+      tournamentName: ua.tournament.name
     }))
 
     return NextResponse.json({

@@ -8,6 +8,7 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { DashboardStats } from "@/components/dashboard-stats"
 import { EvaluationCard } from "@/components/evaluation-card"
 import { EVALUATION_AREAS } from "@/lib/teams"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Trophy, Users, Settings, Plus, FileText, Award, BarChart3, Edit, Trash2, Eye } from "lucide-react"
@@ -569,44 +570,142 @@ export default function DashboardPage() {
   }
 
   // Judge/Viewer Dashboard (original)
+  // Group assignments by tournament
+  const tournamentAssignments = user.assignedAreas?.reduce((acc, assignment) => {
+    const tournamentId = assignment.tournamentId
+    if (!acc[tournamentId]) {
+      acc[tournamentId] = {
+        tournamentId,
+        tournamentName: assignment.tournamentName,
+        areas: []
+      }
+    }
+    acc[tournamentId].areas.push(assignment)
+    return acc
+  }, {} as Record<string, { tournamentId: string; tournamentName: string; areas: typeof user.assignedAreas }>) || {}
+
+  const tournaments = Object.values(tournamentAssignments)
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null)
+
+  // Initialize selected tournament from localStorage or first tournament
+  useEffect(() => {
+    if (typeof window !== 'undefined' && tournaments.length > 0) {
+      const storedTournamentId = localStorage.getItem('selected-tournament-id')
+      const initialTournamentId = storedTournamentId && tournaments.find(t => t.tournamentId === storedTournamentId)
+        ? storedTournamentId
+        : tournaments[0].tournamentId
+      setSelectedTournamentId(initialTournamentId)
+      localStorage.setItem('selected-tournament-id', initialTournamentId)
+    }
+  }, [tournaments.length])
+
+  // Get areas for selected tournament
+  const selectedTournament = tournaments.find(t => t.tournamentId === selectedTournamentId)
+  const assignedAreaCodes = selectedTournament?.areas.map(a => a.areaCode) || []
+  const assignedAreaIds = selectedTournament?.areas.map(a => a.areaId) || []
+
   const handleEvaluate = (areaId: string) => {
-    router.push(`/evaluate/${areaId}`)
+    if (selectedTournamentId) {
+      router.push(`/evaluate/${areaId}?tournamentId=${selectedTournamentId}`)
+    } else {
+      router.push(`/evaluate/${areaId}`)
+    }
   }
+
+  const handleTournamentChange = (tournamentId: string) => {
+    setSelectedTournamentId(tournamentId)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selected-tournament-id', tournamentId)
+    }
+  }
+
+  // Filter teams for selected tournament
+  const tournamentTeams = useTeams(selectedTournamentId ? { tournamentId: selectedTournamentId } : undefined)
+  const judgeTeams = tournamentTeams.teams || []
 
   return (
     <div className="min-h-screen bg-[#F7F9FB]">
       <DashboardHeader />
 
       <main className="container mx-auto px-4 py-8 bg-[#F7F9FB] min-h-screen">
-        <DashboardStats teams={teams} judgeAreas={user.areas || []} />
+        {/* Tournament Selector */}
+        {tournaments.length > 1 && (
+          <div className="mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-[#0C2340]">Selecionar Torneio</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Select value={selectedTournamentId || ''} onValueChange={handleTournamentChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione um torneio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tournaments.map((tournament) => (
+                      <SelectItem key={tournament.tournamentId} value={tournament.tournamentId}>
+                        {tournament.tournamentName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedTournament && (
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-[#0C2340] mb-2">
+              {selectedTournament.tournamentName}
+            </h1>
+            <p className="text-muted-foreground">
+              {selectedTournament.areas.length} área{selectedTournament.areas.length !== 1 ? 's' : ''} atribuída{selectedTournament.areas.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
+
+        <DashboardStats teams={judgeTeams} judgeAreas={assignedAreaCodes} />
 
         <div className="space-y-8">
           <div>
             <h2 className="text-2xl font-bold text-[#F36F21] uppercase tracking-wide mb-6 pb-2 border-b-2 border-[#F36F21]/20">
               ÁREAS DE AVALIAÇÃO
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {EVALUATION_AREAS.map((area) => {
-                const canEvaluate = (user.areas || []).includes(area.id)
-                const evaluatedTeams = teams.filter(team => team.evaluations[area.id] !== undefined)
-                const totalTeams = teams.length
-                const stats = {
-                  total: totalTeams,
-                  evaluated: evaluatedTeams.length,
-                  pending: totalTeams - evaluatedTeams.length
-                }
+            {selectedTournament && selectedTournament.areas.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {EVALUATION_AREAS.filter(area => assignedAreaCodes.includes(area.id)).map((area) => {
+                  const canEvaluate = assignedAreaIds.includes(area.id)
+                  const evaluatedTeams = judgeTeams.filter(team => team.evaluations[area.id] !== undefined)
+                  const totalTeams = judgeTeams.length
+                  const stats = {
+                    total: totalTeams,
+                    evaluated: evaluatedTeams.length,
+                    pending: totalTeams - evaluatedTeams.length
+                  }
 
-                return (
-                  <EvaluationCard
-                    key={area.id}
-                    area={area}
-                    stats={stats}
-                    canEvaluate={canEvaluate}
-                    onEvaluate={() => handleEvaluate(area.id)}
-                  />
-                )
-              })}
-            </div>
+                  return (
+                    <EvaluationCard
+                      key={area.id}
+                      area={area}
+                      stats={stats}
+                      canEvaluate={canEvaluate}
+                      onEvaluate={() => handleEvaluate(area.id)}
+                    />
+                  )
+                })}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">
+                    {tournaments.length === 0 
+                      ? 'Você ainda não foi atribuído a nenhuma área de torneio.'
+                      : 'Nenhuma área atribuída para este torneio.'}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div className="mt-8">

@@ -59,13 +59,26 @@ export default function EvaluatePage() {
   }, [isAuthenticated, loading, router])
 
   useEffect(() => {
-    // Allow school_admin to access any area, other users must have the area assigned
-    if (user && user.role !== 'school_admin') {
+    // Allow school_admin to access any area
+    if (user && user.role === 'school_admin') {
+      return
+    }
+    
+    // For judges, check if they have the area assigned for the selected tournament
+    if (user && user.role === 'judge' && tournamentId) {
+      const hasAreaAssignment = user.assignedAreas?.some(
+        assignment => assignment.areaCode === area && assignment.tournamentId === tournamentId
+      )
+      if (!hasAreaAssignment) {
+        router.push("/dashboard")
+      }
+    } else if (user && user.role !== 'school_admin') {
+      // Fallback to legacy areas check for backward compatibility
       if (!user.areas || !Array.isArray(user.areas) || !user.areas.includes(area)) {
         router.push("/dashboard")
       }
     }
-  }, [user, area, router])
+  }, [user, area, tournamentId, router])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

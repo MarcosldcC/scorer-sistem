@@ -94,15 +94,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user can evaluate this area (backward compatibility with legacy areas array)
-    const hasAccess = user.isAdmin || 
-                      user.role === 'platform_admin' || 
-                      user.role === 'school_admin' ||
-                      user.areas.includes(area)
+    // Check if user can evaluate this area
+    // For judges, check if they are assigned to this area in this tournament
+    let hasAccess = user.isAdmin || 
+                    user.role === 'platform_admin' || 
+                    user.role === 'school_admin'
+    
+    if (!hasAccess && user.role === 'judge') {
+      // Check if judge is assigned to this area in this tournament
+      const assignment = await prisma.userTournamentArea.findUnique({
+        where: {
+          userId_tournamentId_areaId: {
+            userId: user.id,
+            tournamentId: team.tournament.id,
+            areaId: areaId
+          }
+        }
+      })
+      hasAccess = !!assignment
+    } else if (!hasAccess) {
+      // Fallback to legacy areas check for backward compatibility
+      hasAccess = user.areas?.includes(area) || false
+    }
 
     if (!hasAccess) {
       return NextResponse.json(
-        { error: 'Usuário não autorizado para avaliar esta área' },
+        { error: 'Usuário não autorizado para avaliar esta área neste torneio' },
         { status: 403 }
       )
     }
