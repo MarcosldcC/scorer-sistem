@@ -90,8 +90,10 @@ export default function TemplatesManagement() {
 
 
   const handleDeleteClick = (template: Template) => {
+    console.log('Delete button clicked for template:', template.id, template.name)
     setTemplateToDelete(template)
     setDeleteDialogOpen(true)
+    console.log('Dialog should be open now')
   }
 
   const handleDeleteConfirm = async () => {
@@ -262,6 +264,40 @@ export default function TemplatesManagement() {
             </CardContent>
           </Card>
         )}
+
+        {/* Delete Template Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+          setDeleteDialogOpen(open)
+          if (!open) {
+            setTemplateToDelete(null)
+          }
+        }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Template</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o template "{templateToDelete?.name}"? 
+                Esta ação não pode ser desfeita.
+                {templateToDelete && templateToDelete._count.tournaments > 0 && (
+                  <span className="block mt-2 text-destructive font-medium">
+                    ⚠️ Atenção: Este template está sendo usado por {templateToDelete._count.tournaments} torneio(s). 
+                    A exclusão não será possível enquanto houver torneios usando este template.
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? "Excluindo..." : "Excluir Template"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   )
