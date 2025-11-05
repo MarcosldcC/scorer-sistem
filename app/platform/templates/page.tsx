@@ -68,7 +68,8 @@ export default function TemplatesManagement() {
         return
       }
       
-      const response = await fetch('/api/templates?isOfficial=true', {
+      // Platform admin should see all templates, not just official ones
+      const response = await fetch('/api/templates', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

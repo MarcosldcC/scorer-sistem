@@ -85,6 +85,14 @@ export async function GET(request: NextRequest) {
       where.OR = orConditions
     } else if (user.role === 'school_admin') {
       console.log(`[Templates API] School admin without schoolId - User ID: ${user.id || user.userId}, Role: ${user.role}`)
+    } else if (user.role === 'platform_admin') {
+      // Platform admin sees all templates, but can filter by isOfficial if provided
+      if (isOfficial === 'true') {
+        where.isOfficial = true
+      } else if (isOfficial === 'false') {
+        where.isOfficial = false
+      }
+      // Don't filter by isActive for platform_admin - they see all templates
     } else if (isOfficial === 'true') {
       where.isOfficial = true
     } else if (isOfficial === 'false') {
