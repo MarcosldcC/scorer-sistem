@@ -100,6 +100,16 @@ export default function TemplatesManagement() {
     try {
       setDeleting(true)
       const token = localStorage.getItem('robotics-token')
+      if (!token) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Token não encontrado. Faça login novamente.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      console.log('Deleting template:', templateToDelete.id)
       const response = await fetch(`/api/templates?id=${templateToDelete.id}`, {
         method: 'DELETE',
         headers: {
@@ -108,8 +118,9 @@ export default function TemplatesManagement() {
       })
 
       const data = await response.json()
+      console.log('Delete response:', { status: response.status, data })
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         setDeleteDialogOpen(false)
         setTemplateToDelete(null)
         toast({
@@ -119,16 +130,19 @@ export default function TemplatesManagement() {
         })
         fetchTemplates()
       } else {
+        const errorMsg = data.error || 'Não foi possível excluir o template.'
+        console.error('Delete template error:', errorMsg)
         toast({
           title: "Erro ao excluir template",
-          description: data.error || 'Não foi possível excluir o template.',
+          description: errorMsg,
           variant: "destructive",
         })
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Delete template exception:', err)
       toast({
         title: "Erro de conexão",
-        description: "Não foi possível conectar ao servidor.",
+        description: err.message || "Não foi possível conectar ao servidor.",
         variant: "destructive",
       })
     } finally {

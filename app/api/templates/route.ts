@@ -329,19 +329,40 @@ export async function DELETE(request: NextRequest) {
     }
 
     const template = await prisma.tournamentTemplate.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            tournaments: true,
+            assignedSchools: true
+          }
+        }
+      }
     })
 
     if (!template) {
+      console.log(`[DELETE Template] Template not found: ${id}`)
       return NextResponse.json(
         { error: 'Template não encontrado' },
         { status: 404 }
       )
     }
 
+    console.log(`[DELETE Template] Template found:`, {
+      id: template.id,
+      name: template.name,
+      isOfficial: template.isOfficial,
+      schoolId: template.schoolId,
+      userRole: user.role,
+      userSchoolId: user.schoolId,
+      tournamentsCount: template._count.tournaments,
+      assignmentsCount: template._count.assignedSchools
+    })
+
     // Only can delete own templates or be platform admin
     // Platform admins can delete any template, school admins can only delete their own
     if (template.isOfficial && user.role !== 'platform_admin') {
+      console.log(`[DELETE Template] Permission denied: Official template can only be deleted by platform admin`)
       return NextResponse.json(
         { error: 'Apenas admin da plataforma pode excluir templates oficiais' },
         { status: 403 }
@@ -349,6 +370,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (!template.isOfficial && template.schoolId !== user.schoolId && user.role !== 'platform_admin') {
+      console.log(`[DELETE Template] Permission denied:`, {
+        templateSchoolId: template.schoolId,
+        userSchoolId: user.schoolId,
+        userRole: user.role
+      })
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }
@@ -356,27 +382,29 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if template is being used by tournaments
-    const tournamentsUsingTemplate = await prisma.tournament.count({
-      where: { templateId: id }
-    })
-
-    if (tournamentsUsingTemplate > 0) {
+    if (template._count.tournaments > 0) {
+      console.log(`[DELETE Template] Template is being used by ${template._count.tournaments} tournament(s)`)
       return NextResponse.json(
-        { error: `Não é possível excluir o template pois ele está sendo usado por ${tournamentsUsingTemplate} torneio(s). Remova os torneios primeiro ou desassocie o template.` },
+        { error: `Não é possível excluir o template pois ele está sendo usado por ${template._count.tournaments} torneio(s). Remova os torneios primeiro ou desassocie o template.` },
         { status: 400 }
       )
     }
 
     // Delete template school assignments first (if any)
-    await prisma.templateSchoolAssignment.deleteMany({
-      where: { templateId: id }
-    })
+    if (template._count.assignedSchools > 0) {
+      console.log(`[DELETE Template] Deleting ${template._count.assignedSchools} school assignment(s)`)
+      await prisma.templateSchoolAssignment.deleteMany({
+        where: { templateId: id }
+      })
+    }
 
     // Finally delete the template
+    console.log(`[DELETE Template] Deleting template: ${id}`)
     await prisma.tournamentTemplate.delete({
       where: { id }
     })
 
+    console.log(`[DELETE Template] Template deleted successfully: ${id}`)
     return NextResponse.json({ success: true })
 
   } catch (error: any) {
