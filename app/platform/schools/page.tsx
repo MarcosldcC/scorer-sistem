@@ -458,10 +458,89 @@ export default function SchoolsManagement() {
                   )}
                 </DialogContent>
               </Dialog>
-            </div>
+        </div>
+
+        {/* Search */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar escolas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </div>
-      </header>
+
+        {/* Schools List */}
+        {error && !loading && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredSchools.map((school) => (
+            <Card key={school.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <Building2 className="h-8 w-8 text-primary" />
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(school.status)}`}>
+                      {school.status}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditSchool(school)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteClick(school)}
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <CardTitle className="mt-2">{school.name}</CardTitle>
+                <CardDescription>Código: {school.code}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {school.email && (
+                  <p className="text-sm text-muted-foreground mb-2">
+                    <strong>Email:</strong> {school.email}
+                  </p>
+                )}
+                {school.location && (
+                  <p className="text-sm text-muted-foreground mb-2">
+                    <strong>Localização:</strong> {school.location}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Criada em: {new Date(school.createdAt).toLocaleDateString('pt-BR')}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {filteredSchools.length === 0 && (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                {schools.length === 0 ? 'Nenhuma escola cadastrada ainda.' : 'Nenhuma escola encontrada.'}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </main>
 
       {/* Edit School Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -557,89 +636,6 @@ export default function SchoolsManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <main className="container mx-auto px-4 py-6">
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar escolas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-
-        {/* Schools List */}
-        {error && !loading && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSchools.map((school) => (
-            <Card key={school.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <Building2 className="h-8 w-8 text-primary" />
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(school.status)}`}>
-                      {school.status}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditSchool(school)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteClick(school)}
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <CardTitle className="mt-2">{school.name}</CardTitle>
-                <CardDescription>Código: {school.code}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {school.email && (
-                  <p className="text-sm text-muted-foreground mb-2">
-                    <strong>Email:</strong> {school.email}
-                  </p>
-                )}
-                {school.location && (
-                  <p className="text-sm text-muted-foreground mb-2">
-                    <strong>Localização:</strong> {school.location}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Criada em: {new Date(school.createdAt).toLocaleDateString('pt-BR')}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredSchools.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                {schools.length === 0 ? 'Nenhuma escola cadastrada ainda.' : 'Nenhuma escola encontrada.'}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </main>
     </div>
   )
 }

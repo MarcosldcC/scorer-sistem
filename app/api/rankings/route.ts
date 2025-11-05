@@ -61,17 +61,51 @@ export async function GET(request: NextRequest) {
       where: { tournamentId }
     })
 
-    // Build team where clause
-    const where: any = { tournamentId }
-    if (shift) where.shift = shift
-    if (grade) where.grade = grade
+    // Build team where clause - use TournamentTeam relation (many-to-many)
+    const where: any = {
+      schoolId: tournament.schoolId,
+      tournaments: {
+        some: {
+          tournamentId
+        }
+      }
+    }
+    
+    // Filter by shift and/or grade if provided
+    // Note: Teams can have shift/grade in legacy fields or metadata
+    const filters: any[] = []
+    
+    if (shift) {
+      filters.push({
+        OR: [
+          { shift: shift },
+          { metadata: { path: ['shift'], equals: shift } }
+        ]
+      })
+    }
+    
+    if (grade) {
+      filters.push({
+        OR: [
+          { grade: grade },
+          { metadata: { path: ['grade'], equals: grade } }
+        ]
+      })
+    }
+    
+    if (filters.length > 0) {
+      where.AND = filters
+    }
 
     // Get teams with evaluations
     const teams = await prisma.team.findMany({
       where,
       include: {
         evaluations: {
-          where: { isActive: true }, // Only active evaluations count
+          where: { 
+            isActive: true,
+            tournamentId // Filter evaluations by tournament
+          }, // Only active evaluations count
           include: {
             evaluatedBy: {
               select: { id: true, name: true }
