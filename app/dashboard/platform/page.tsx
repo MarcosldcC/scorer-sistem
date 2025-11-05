@@ -125,13 +125,6 @@ export default function PlatformAdminDashboard() {
       color: "text-blue-600"
     },
     {
-      title: "Gerenciar Torneios",
-      description: "Visualizar e gerenciar todos os torneios",
-      icon: Award,
-      href: "/platform/tournaments",
-      color: "text-orange-600"
-    },
-    {
       title: "Templates Oficiais",
       description: "Criar e gerenciar templates de torneio",
       icon: FileText,
