@@ -39,17 +39,20 @@ export default function TournamentViewPage() {
   }, [isAuthenticated, authLoading, tournamentId, router])
 
   const loadTournamentData = async () => {
+    console.log('Loading tournament data for:', tournamentId)
     setLoading(true)
     try {
       // Use Promise.allSettled to ensure all requests complete even if some fail
-      await Promise.allSettled([
+      const results = await Promise.allSettled([
         fetchTournament(),
         fetchTournamentAreas()
       ])
+      console.log('Tournament data loaded:', results)
     } catch (err) {
       console.error('Error loading tournament data:', err)
     } finally {
       // Always set loading to false, even if requests fail
+      console.log('Setting loading to false')
       setLoading(false)
     }
   }

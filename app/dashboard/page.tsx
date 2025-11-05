@@ -434,7 +434,10 @@ export default function DashboardPage() {
                             size="sm" 
                             variant="outline" 
                             className="rounded-full flex-1"
-                            onClick={() => router.push(`/tournaments/${tournament.id}/view`)}
+                            onClick={() => {
+                              console.log('Navigating to tournament view:', tournament.id)
+                              router.push(`/tournaments/${tournament.id}/view`)
+                            }}
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             Ver
