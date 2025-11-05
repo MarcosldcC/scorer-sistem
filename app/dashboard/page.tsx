@@ -10,8 +10,10 @@ import { EvaluationCard } from "@/components/evaluation-card"
 import { EVALUATION_AREAS } from "@/lib/teams"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Trophy, Users, Settings, Plus, FileText, Award, BarChart3 } from "lucide-react"
+import { Trophy, Users, Settings, Plus, FileText, Award, BarChart3, Edit, Trash2, Eye } from "lucide-react"
 import * as LucideIcons from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 export default function DashboardPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -29,6 +31,17 @@ export default function DashboardPage() {
   const [tournamentsLoading, setTournamentsLoading] = useState(true)
   const [schoolTeams, setSchoolTeams] = useState<any[]>([])
   const [schoolTeamsLoading, setSchoolTeamsLoading] = useState(true)
+  const { toast } = useToast()
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean
+    tournamentId: string | null
+    tournamentName: string
+  }>({
+    open: false,
+    tournamentId: null,
+    tournamentName: ""
+  })
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -136,6 +149,50 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDeleteTournament = async () => {
+    if (!deleteDialog.tournamentId) return
+
+    setDeleting(true)
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch(`/api/tournaments?id=${deleteDialog.tournamentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Torneio excluído!",
+          description: `O torneio "${deleteDialog.tournamentName}" foi excluído com sucesso.`,
+          variant: "default",
+        })
+        setDeleteDialog({ open: false, tournamentId: null, tournamentName: "" })
+        fetchTournaments()
+        fetchStats()
+      } else {
+        toast({
+          title: "Erro ao excluir torneio",
+          description: data.error || "Não foi possível excluir o torneio.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      toast({
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   if (authLoading || (user?.role !== 'school_admin' && teamsLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -164,7 +221,7 @@ export default function DashboardPage() {
         title: "Gerenciar Torneios",
         description: "Criar, editar e ativar torneios",
         icon: Trophy,
-        href: "#tournaments",
+        href: "/tournaments",
         color: "text-blue-600"
       },
       {
@@ -351,7 +408,7 @@ export default function DashboardPage() {
                     : Trophy
 
                   return (
-                    <Card key={tournament.id} className="cursor-pointer hover:shadow-lg transition-all duration-200">
+                    <Card key={tournament.id} className="hover:shadow-lg transition-all duration-200">
                       <CardHeader>
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-lg bg-[#009DE0]/10 flex items-center justify-center">
@@ -367,10 +424,32 @@ export default function DashboardPage() {
                           <Button 
                             size="sm" 
                             variant="outline" 
-                            className="rounded-full"
+                            className="rounded-full flex-1"
                             onClick={() => router.push(`/tournaments/${tournament.id}`)}
                           >
-                            Gerenciar
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="rounded-full flex-1"
+                            onClick={() => router.push(`/tournaments/${tournament.id}/view`)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive" 
+                            className="rounded-full"
+                            onClick={() => setDeleteDialog({
+                              open: true,
+                              tournamentId: tournament.id,
+                              tournamentName: tournament.name
+                            })}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </CardContent>
@@ -455,6 +534,33 @@ export default function DashboardPage() {
             )}
           </div>
         </main>
+
+        {/* Delete Tournament Dialog */}
+        <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, tournamentId: null, tournamentName: "" })}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Torneio</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita. O torneio e todos os dados associados serão permanentemente removidos.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {deleteDialog.tournamentId && (
+              <div className="py-4 px-2 bg-muted rounded-lg">
+                <p className="text-sm font-medium">Torneio: <span className="font-semibold">{deleteDialog.tournamentName}</span></p>
+              </div>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteTournament}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? "Excluindo..." : "Excluir Torneio"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     )
   }

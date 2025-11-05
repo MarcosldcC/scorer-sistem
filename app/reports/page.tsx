@@ -16,16 +16,46 @@ export default function ReportsPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
   const router = useRouter()
   
+  const [tournaments, setTournaments] = useState<any[]>([])
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>("")
   const [selectedGrade, setSelectedGrade] = useState<string>("all")
   const [selectedShift, setSelectedShift] = useState<string>("all")
 
-  const { reportData, loading } = useReports()
+  const { reportData, loading } = useReports({ tournamentId: selectedTournamentId || undefined })
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/")
     }
   }, [isAuthenticated, authLoading, router])
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchTournaments()
+    }
+  }, [isAuthenticated, user])
+
+  const fetchTournaments = async () => {
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch('/api/tournaments', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setTournaments(data.tournaments || [])
+        if (data.tournaments && data.tournaments.length > 0 && !selectedTournamentId) {
+          setSelectedTournamentId(data.tournaments[0].id)
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching tournaments:', err)
+    }
+  }
 
   if (authLoading || loading) {
     return (
@@ -137,10 +167,40 @@ export default function ReportsPage() {
     <div className="min-h-screen bg-background">
       <DashboardHeader />
       <div className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-primary mb-2">Relatórios de Avaliação</h1>
-          <p className="text-muted-foreground">Visualize estatísticas e exporte dados das avaliações</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => router.push('/dashboard')}
+              className="rounded-full"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-primary mb-2">Relatórios de Avaliação</h1>
+              <p className="text-muted-foreground">Visualize estatísticas e exporte dados das avaliações</p>
+            </div>
+          </div>
         </div>
+
+        {tournaments.length > 0 && (
+          <div className="mb-6">
+            <label className="text-sm font-medium mb-2 block">Torneio</label>
+            <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
+              <SelectTrigger className="w-full md:w-[300px]">
+                <SelectValue placeholder="Selecione um torneio" />
+              </SelectTrigger>
+              <SelectContent>
+                {tournaments.map((tournament) => (
+                  <SelectItem key={tournament.id} value={tournament.id}>
+                    {tournament.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Filtros */}
         <Card className="mb-6">
@@ -148,7 +208,7 @@ export default function ReportsPage() {
             <CardTitle className="text-lg">Filtros</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Série</label>
                 <Select value={selectedGrade} onValueChange={setSelectedGrade}>
@@ -180,7 +240,7 @@ export default function ReportsPage() {
                 </Select>
               </div>
               <div className="flex items-end">
-                <Button onClick={exportToCSV} className="w-full">
+                <Button onClick={exportToCSV} className="w-full" disabled={!selectedTournamentId}>
                   <Download className="h-4 w-4 mr-2" />
                   Exportar CSV
                 </Button>

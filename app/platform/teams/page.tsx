@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Users, Trash2, Edit, Download, Upload } from "lucide-react"
+import { Plus, Search, Users, Trash2, Edit, Download, Upload, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
 
@@ -383,11 +383,21 @@ export default function TeamsManagement() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-[#F36F21] uppercase tracking-wide mb-2">
-              GERENCIAR EQUIPES
-            </h1>
-            <p className="text-[#5A5A5A]">Crie e gerencie equipes da sua escola</p>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => router.push('/dashboard')}
+              className="rounded-full"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-primary mb-2">
+                Gerenciar Equipes
+              </h1>
+              <p className="text-muted-foreground">Crie e gerencie equipes da sua escola</p>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button

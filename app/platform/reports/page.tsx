@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth-api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Trophy, Users, FileText, Award } from "lucide-react"
+import { DashboardHeader } from "@/components/dashboard-header"
 
 interface PlatformStats {
   activeSchools: number

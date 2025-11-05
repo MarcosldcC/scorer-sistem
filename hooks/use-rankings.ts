@@ -23,6 +23,7 @@ export interface TeamRanking {
 }
 
 export interface RankingFilters {
+  tournamentId?: string
   shift?: string
   grade?: string
 }
@@ -38,6 +39,7 @@ export function useRankings(filters?: RankingFilters) {
       setError(null)
 
       const searchParams = new URLSearchParams()
+      if (filters?.tournamentId) searchParams.set('tournamentId', filters.tournamentId)
       if (filters?.shift) searchParams.set('shift', filters.shift)
       if (filters?.grade) searchParams.set('grade', filters.grade)
 

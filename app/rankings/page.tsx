@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth-api"
 import { useRankings } from "@/hooks/use-rankings"
 import { useDeleteEvaluation } from "@/hooks/use-delete-evaluation"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
 import { RankingFiltersComponent } from "@/components/ranking-filters"
 import { RankingTable } from "@/components/ranking-table"
@@ -17,6 +18,8 @@ import { DashboardHeader } from "@/components/dashboard-header"
 export default function RankingsPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const [tournaments, setTournaments] = useState<any[]>([])
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>("")
   const [filters, setFilters] = useState<RankingFilters>({})
   const { rankings, loading: rankingsLoading, refetch } = useRankings(filters)
   const { deleteEvaluation, loading: deleteLoading } = useDeleteEvaluation()
@@ -39,6 +42,42 @@ export default function RankingsPage() {
       router.push("/")
     }
   }, [isAuthenticated, authLoading, router])
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchTournaments()
+    }
+  }, [isAuthenticated, user])
+
+  const fetchTournaments = async () => {
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch('/api/tournaments', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setTournaments(data.tournaments || [])
+        if (data.tournaments && data.tournaments.length > 0 && !selectedTournamentId) {
+          const firstTournamentId = data.tournaments[0].id
+          setSelectedTournamentId(firstTournamentId)
+          setFilters((prev) => ({ ...prev, tournamentId: firstTournamentId }))
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching tournaments:', err)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedTournamentId) {
+      setFilters((prev) => ({ ...prev, tournamentId: selectedTournamentId }))
+    }
+  }, [selectedTournamentId])
 
   const handleDeleteEvaluation = (teamId: string, teamName: string, area: string) => {
     setDeleteModal({
@@ -115,10 +154,40 @@ export default function RankingsPage() {
     <div className="min-h-screen bg-background">
       <DashboardHeader />
       <div className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-primary mb-2">Rankings das Equipes</h1>
-          <p className="text-muted-foreground">Visualize o desempenho das equipes por turma e turno</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => router.push('/dashboard')}
+              className="rounded-full"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-primary mb-2">Rankings das Equipes</h1>
+              <p className="text-muted-foreground">Visualize o desempenho das equipes por turma e turno</p>
+            </div>
+          </div>
         </div>
+
+        {tournaments.length > 0 && (
+          <div className="mb-6">
+            <label className="text-sm font-medium mb-2 block">Torneio</label>
+            <Select value={selectedTournamentId} onValueChange={setSelectedTournamentId}>
+              <SelectTrigger className="w-full md:w-[300px]">
+                <SelectValue placeholder="Selecione um torneio" />
+              </SelectTrigger>
+              <SelectContent>
+                {tournaments.map((tournament) => (
+                  <SelectItem key={tournament.id} value={tournament.id}>
+                    {tournament.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <RankingFiltersComponent
           filters={filters}

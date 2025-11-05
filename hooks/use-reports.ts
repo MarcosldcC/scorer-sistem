@@ -4,6 +4,7 @@ import { useRankings } from './use-rankings'
 import { calculateTotalScore, calculatePercentage, getMaxPossibleScore, getRubricForGrade } from '@/lib/rubrics'
 
 export interface ReportFilters {
+  tournamentId?: string
   grade?: string
   shift?: string
 }
@@ -31,9 +32,9 @@ export interface ReportData {
   }
 }
 
-export function useReports() {
-  const { teams, loading: teamsLoading } = useTeams()
-  const { rankings, loading: rankingsLoading } = useRankings()
+export function useReports(filters?: ReportFilters) {
+  const { teams, loading: teamsLoading } = useTeams({ tournamentId: filters?.tournamentId })
+  const { rankings, loading: rankingsLoading } = useRankings({ tournamentId: filters?.tournamentId })
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
 

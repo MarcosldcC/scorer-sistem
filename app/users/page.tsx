@@ -265,9 +265,21 @@ export default function UsersManagement() {
       <DashboardHeader />
 
       <main className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-primary mb-2">Gerenciar Usuários</h1>
-          <p className="text-muted-foreground mb-4">Crie e gerencie juízes e visualizadores</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => router.push('/dashboard')}
+              className="rounded-full"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-primary mb-2">Gerenciar Usuários</h1>
+              <p className="text-muted-foreground">Crie e gerencie juízes e visualizadores</p>
+            </div>
+          </div>
           <Button onClick={() => setShowCreateDialog(true)} className="rounded-full bg-[#009DE0] hover:bg-[#0088C7]">
             <Plus className="h-4 w-4 mr-2" />
             Novo Usuário

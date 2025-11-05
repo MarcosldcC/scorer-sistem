@@ -136,13 +136,6 @@ export default function PlatformAdminDashboard() {
       icon: Users,
       href: "/platform/users",
       color: "text-green-600"
-    },
-    {
-      title: "Relatórios Globais",
-      description: "Visualizar métricas da plataforma",
-      icon: Award,
-      href: "/platform/reports",
-      color: "text-orange-600"
     }
   ]
 
@@ -177,7 +170,7 @@ export default function PlatformAdminDashboard() {
         {/* Quick Actions */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-primary mb-4">Ações Rápidas</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {quickActions.map((action) => (
               <Card 
                 key={action.title}
@@ -193,27 +186,6 @@ export default function PlatformAdminDashboard() {
             ))}
           </div>
         </div>
-
-        {/* Welcome Message */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Bem-vindo ao Sistema de Gestão da Plataforma</CardTitle>
-            <CardDescription>
-              Gerencie escolas, templates e usuários da plataforma multi-tenant de torneios
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Como administrador da plataforma, você tem acesso total para:
-            </p>
-            <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-              <li>Criar e gerenciar escolas na plataforma</li>
-              <li>Configurar templates oficiais de torneios</li>
-              <li>Visualizar estatísticas globais de uso</li>
-              <li>Gerenciar usuários administrativos</li>
-            </ul>
-          </CardContent>
-        </Card>
       </main>
     </div>
   )

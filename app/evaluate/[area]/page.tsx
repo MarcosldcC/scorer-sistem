@@ -21,11 +21,25 @@ import { DashboardHeader } from "@/components/dashboard-header"
 
 export default function EvaluatePage() {
   const { isAuthenticated, user, loading } = useAuth()
-  const { teams, loading: teamsLoading } = useTeams()
-  const { submitEvaluation, loading: evaluationLoading, offlineCount, syncOffline } = useEvaluations()
   const router = useRouter()
   const params = useParams()
   const area = params.area as "programming" | "research" | "identity"
+  
+  // Get tournamentId from localStorage (set by tournament view page) or URL query params
+  const [tournamentId, setTournamentId] = useState<string | undefined>(undefined)
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Check URL query params first
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlTournamentId = urlParams.get('tournamentId')
+      const storedTournamentId = localStorage.getItem('selected-tournament-id')
+      setTournamentId(urlTournamentId || storedTournamentId || undefined)
+    }
+  }, [])
+  
+  const { teams, loading: teamsLoading } = useTeams(tournamentId ? { tournamentId } : undefined)
+  const { submitEvaluation, loading: evaluationLoading, offlineCount, syncOffline } = useEvaluations()
 
   const [selectedTeam, setSelectedTeam] = useState("")
   const [scores, setScores] = useState<EvaluationScore[]>([])
