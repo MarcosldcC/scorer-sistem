@@ -91,13 +91,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify password (check both regular and temp password)
+    // Verify password
+    // The password field contains the hashed temporary password (or regular password)
     const isValidPassword = await bcrypt.compare(password, user.password)
-    const isValidTempPassword = user.tempPassword 
-      ? await bcrypt.compare(password, user.tempPassword)
-      : false
 
-    if (!isValidPassword && !isValidTempPassword) {
+    if (!isValidPassword) {
       return NextResponse.json(
         { error: 'Senha incorreta' },
         { status: 401 }
