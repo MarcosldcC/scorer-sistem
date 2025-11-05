@@ -547,7 +547,6 @@ export default function TemplateEditPage() {
                 <CheckCircle2 className="h-4 w-4 mr-2" />
                 {templateData.status === 'published' ? 'Já Publicado' : 'Publicar Template'}
               </Button>
-            </div>
           </div>
         </div>
         {error && (
