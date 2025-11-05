@@ -61,13 +61,29 @@ export default function TournamentViewPage() {
 
   useEffect(() => {
     if (tournamentAreas.length > 0 && tournamentId && user) {
+      console.log('useEffect triggered - fetching user areas:', {
+        tournamentAreasCount: tournamentAreas.length,
+        tournamentId,
+        userRole: user.role,
+        userId: user.id
+      })
+      
       // For school_admin, set all areas when tournamentAreas are loaded
       if (user.role === 'school_admin') {
-        setUserAssignedAreas(tournamentAreas.map((area: any) => area.code))
-      } else {
+        const allCodes = tournamentAreas.map((area: any) => area.code)
+        console.log('Setting all areas for school_admin:', allCodes)
+        setUserAssignedAreas(allCodes)
+      } else if (user.role === 'judge') {
         // For judges, fetch assigned areas
+        console.log('Fetching assigned areas for judge')
         fetchUserAssignedAreas()
       }
+    } else {
+      console.log('useEffect conditions not met:', {
+        tournamentAreasLength: tournamentAreas.length,
+        tournamentId,
+        hasUser: !!user
+      })
     }
   }, [tournamentAreas, tournamentId, user])
 
@@ -134,6 +150,7 @@ export default function TournamentViewPage() {
       if (response.ok) {
         const areas = data.areas || []
         console.log('Setting tournament areas:', areas.length, 'areas')
+        console.log('Areas details:', areas.map((a: any) => ({ id: a.id, code: a.code, name: a.name })))
         setTournamentAreas(areas)
       }
     } catch (err) {
@@ -147,7 +164,9 @@ export default function TournamentViewPage() {
       if (!token || !user) return
 
       console.log('Fetching user assigned areas for user:', user.id, 'tournament:', tournamentId)
-      const response = await fetch(`/api/user-areas?tournamentId=${tournamentId}`, {
+      
+      // Fetch assignments for current user in this tournament
+      const response = await fetch(`/api/user-areas?tournamentId=${tournamentId}&userId=${user.id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await response.json()
@@ -157,25 +176,41 @@ export default function TournamentViewPage() {
       if (response.ok) {
         // Get areas assigned to current user
         const assignments = data.assignments || []
-        console.log('All assignments:', assignments)
+        console.log('All assignments for user:', assignments)
         
+        // Extract area codes from assignments
         const userAreas = assignments
-          .filter((assignment: any) => {
-            const matches = assignment.userId === user.id || assignment.user?.id === user.id
-            console.log('Checking assignment:', assignment, 'matches:', matches, 'user.id:', user.id)
-            return matches
-          })
           .map((assignment: any) => {
-            const code = assignment.area?.code || assignment.areaCode
-            console.log('Mapping assignment to code:', code, 'assignment:', assignment)
+            // Try multiple ways to get the area code
+            const code = assignment.area?.code || assignment.areaCode || null
+            console.log('Mapping assignment:', {
+              assignmentId: assignment.id,
+              userId: assignment.userId,
+              user: assignment.user,
+              area: assignment.area,
+              areaId: assignment.area?.id,
+              areaCode: assignment.area?.code,
+              areaCodeFromAssignment: assignment.areaCode,
+              finalCode: code,
+              fullAssignment: assignment
+            })
             return code
           })
-          .filter((code: string) => code) // Remove undefined/null
+          .filter((code: string | null): code is string => !!code) // Remove null/undefined
         
-        console.log('Final userAreas:', userAreas)
+        console.log('Final userAreas (area codes):', userAreas)
+        console.log('Number of assignments:', assignments.length)
+        console.log('Number of userAreas extracted:', userAreas.length)
+        console.log('Tournament areas codes:', tournamentAreas.map((a: any) => ({ id: a.id, code: a.code, name: a.name })))
+        
         setUserAssignedAreas(userAreas)
       } else {
         console.error('Failed to fetch user areas:', data)
+        // Fallback: use user.areas if available
+        if (user?.areas) {
+          console.log('Using fallback user.areas:', user.areas)
+          setUserAssignedAreas(user.areas)
+        }
       }
     } catch (err) {
       console.error('Error fetching user assigned areas:', err)
@@ -211,6 +246,14 @@ export default function TournamentViewPage() {
     : user?.role === 'judge'
       ? (userAssignedAreas.length > 0 ? userAssignedAreas : (user?.areas || []))
       : (user?.areas || [])
+
+  console.log('User areas comparison:', {
+    tournamentAreasCodes: tournamentAreas.map((a: any) => a.code),
+    userAssignedAreas,
+    userAreas,
+    userRole: user?.role,
+    evaluationAreasIds: evaluationAreas.map(a => a.id)
+  })
 
   console.log('Render check:', { 
     authLoading, 
@@ -307,7 +350,20 @@ export default function TournamentViewPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {evaluationAreas.map((area) => {
-                  const canEvaluate = userAreas.includes(area.id)
+                  // Compare area code with user's assigned area codes
+                  // Use exact match first, then try case-insensitive if needed
+                  const canEvaluate = userAreas.includes(area.id) || 
+                    userAreas.map(a => a?.toLowerCase()).includes(area.id?.toLowerCase())
+                  
+                  console.log('Area check:', {
+                    areaId: area.id,
+                    areaCode: area.id,
+                    userAreas,
+                    canEvaluate,
+                    exactMatch: userAreas.includes(area.id),
+                    caseInsensitiveMatch: userAreas.map(a => a?.toLowerCase()).includes(area.id?.toLowerCase())
+                  })
+                  
                   // Filter teams that have evaluations for this area code
                   const evaluatedTeams = teams.filter(team => 
                     team.evaluations && team.evaluations[area.id] !== undefined

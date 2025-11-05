@@ -53,6 +53,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Check permissions
+    // - platform_admin: can access any tournament
+    // - school_admin: can access tournaments from their school
+    // - judge: can access tournaments from their school (to see areas they can evaluate)
+    // - viewer: can access tournaments from their school (to view rankings)
     if (tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
       return NextResponse.json(
         { error: 'Acesso negado' },
