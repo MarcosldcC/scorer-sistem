@@ -165,15 +165,16 @@ export async function POST(request: NextRequest) {
     // Normalize Gmail (remove dots, lowercase)
     const normalizedEmail = normalizeGmail(email)
 
-    // Verify if Gmail exists before creating user
+    // Verify if Gmail exists before creating user (optional check)
+    // If verification fails, we'll still create the user and let the email service handle bounces
     let emailVerification
     try {
       emailVerification = await verifyGmailExists(normalizedEmail)
       if (!emailVerification.exists) {
-        return NextResponse.json(
-          { error: emailVerification.error || 'Email não encontrado ou inválido. Verifique se o email existe.' },
-          { status: 400 }
-        )
+        // Log warning but don't block user creation
+        // The email service will handle bounces if email is invalid
+        console.warn('Email verification failed:', emailVerification.error || 'Email não encontrado ou inválido')
+        console.warn('Continuing with user creation anyway - email service will handle bounces')
       }
     } catch (emailVerifyError: any) {
       console.error('Error verifying email:', emailVerifyError)
