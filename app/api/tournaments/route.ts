@@ -389,16 +389,54 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Delete related data first (Prisma will handle cascades if configured)
+    // But we need to delete manually if cascades aren't set up
+    
+    // Delete tournament teams (many-to-many)
+    await prisma.tournamentTeam.deleteMany({
+      where: { tournamentId: id }
+    })
+
+    // Delete user tournament area assignments
+    await prisma.userTournamentArea.deleteMany({
+      where: { tournamentId: id }
+    })
+
+    // Delete tournament areas
+    await prisma.tournamentArea.deleteMany({
+      where: { tournamentId: id }
+    })
+
+    // Delete evaluations (if not cascade)
+    await prisma.evaluation.deleteMany({
+      where: { tournamentId: id }
+    })
+
+    // Finally delete the tournament
     await prisma.tournament.delete({
       where: { id }
     })
 
     return NextResponse.json({ success: true })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete tournament error:', error)
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta
+    })
+    
+    // Return more specific error messages
+    if (error?.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Não é possível excluir o torneio pois há dados relacionados. Verifique se há avaliações ou áreas associadas.' },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { error: error?.message || 'Erro interno do servidor ao excluir torneio' },
       { status: 500 }
     )
   }
