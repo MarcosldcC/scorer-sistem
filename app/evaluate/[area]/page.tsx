@@ -183,7 +183,8 @@ export default function EvaluatePage() {
         scores,
         comments,
         evaluationTime,
-        penalties
+        penalties,
+        tournamentId: tournamentId || undefined
       })
 
       if (result.success) {

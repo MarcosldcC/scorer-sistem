@@ -35,7 +35,11 @@ export interface ReportData {
 export function useReports(filters?: ReportFilters) {
   // Use useMemo to stabilize the filters object
   const teamFilters = useMemo(() => ({ tournamentId: filters?.tournamentId }), [filters?.tournamentId])
-  const rankingFilters = useMemo(() => ({ tournamentId: filters?.tournamentId }), [filters?.tournamentId])
+  const rankingFilters = useMemo(() => ({ 
+    tournamentId: filters?.tournamentId,
+    shift: filters?.shift,
+    grade: filters?.grade
+  }), [filters?.tournamentId, filters?.shift, filters?.grade])
   
   const { teams, loading: teamsLoading } = useTeams(teamFilters)
   const { rankings, loading: rankingsLoading } = useRankings(rankingFilters)

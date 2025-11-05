@@ -211,21 +211,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build metadata
-    const teamMetadata: any = {}
-    if (grade) teamMetadata.grade = grade
-    if (shift) teamMetadata.shift = shift
-    if (metadata) Object.assign(teamMetadata, metadata)
+    // Build metadata - ensure grade and shift are in both fields and metadata
+    const teamMetadata: any = metadata ? { ...metadata } : {}
+    if (grade) {
+      teamMetadata.grade = grade
+    }
+    if (shift) {
+      teamMetadata.shift = shift
+    }
 
-    // Create team
+    // Create team - ensure grade and shift are saved in both direct fields and metadata
     const team = await prisma.team.create({
       data: {
         schoolId,
         name,
         code,
-        grade,
-        shift,
-        metadata: teamMetadata,
+        grade: grade || teamMetadata.grade || null,
+        shift: shift || teamMetadata.shift || null,
+        metadata: Object.keys(teamMetadata).length > 0 ? teamMetadata : null,
         // Link to tournament if provided
         tournaments: tournamentId ? {
           create: {
@@ -298,18 +301,38 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Build metadata
-    const teamMetadata: any = team.metadata || {}
-    if (grade) teamMetadata.grade = grade
-    if (shift) teamMetadata.shift = shift
-    if (metadata) Object.assign(teamMetadata, metadata)
+    // Build metadata - ensure grade and shift are in both fields and metadata
+    const teamMetadata: any = team.metadata ? { ...(team.metadata as any) } : {}
+    if (grade !== undefined) {
+      teamMetadata.grade = grade
+    }
+    if (shift !== undefined) {
+      teamMetadata.shift = shift
+    }
+    if (metadata) {
+      Object.assign(teamMetadata, metadata)
+    }
 
     const updateData: any = {}
     if (name) updateData.name = name
     if (code !== undefined) updateData.code = code
-    if (grade) updateData.grade = grade
-    if (shift) updateData.shift = shift
-    if (metadata !== undefined) updateData.metadata = teamMetadata
+    
+    // Ensure grade and shift are saved in both direct fields and metadata
+    if (grade !== undefined) {
+      updateData.grade = grade
+      teamMetadata.grade = grade
+    }
+    if (shift !== undefined) {
+      updateData.shift = shift
+      teamMetadata.shift = shift
+    }
+    
+    // Always update metadata if we have any changes
+    if (Object.keys(teamMetadata).length > 0) {
+      updateData.metadata = teamMetadata
+    } else if (metadata !== undefined) {
+      updateData.metadata = metadata
+    }
 
     const updatedTeam = await prisma.team.update({
       where: { id },

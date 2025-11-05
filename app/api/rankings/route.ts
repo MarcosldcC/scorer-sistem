@@ -120,8 +120,21 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' }
     })
 
+    // Filter teams by grade/shift if needed (after fetch, to handle metadata properly)
+    let filteredTeams = teams
+    if (shift || grade) {
+      filteredTeams = teams.filter(team => {
+        const teamGrade = team.grade || (team.metadata as any)?.grade
+        const teamShift = team.shift || (team.metadata as any)?.shift
+        
+        if (shift && teamShift !== shift) return false
+        if (grade && teamGrade !== grade) return false
+        return true
+      })
+    }
+
     // Calculate rankings
-    const rankings = teams.map(team => {
+    const rankings = filteredTeams.map(team => {
       let totalScore = 0
       let maxPossibleScore = 0
       const areaScores: any = {}
@@ -193,13 +206,17 @@ export async function GET(request: NextRequest) {
           : 0
       }
 
+      // Get grade and shift from team fields or metadata
+      const teamGrade = team.grade || (team.metadata as any)?.grade || null
+      const teamShift = team.shift || (team.metadata as any)?.shift || null
+
       return {
         position: 0, // Will be set when sorting
         team: {
           id: team.id,
           name: team.name,
-          grade: team.grade,
-          shift: team.shift
+          grade: teamGrade,
+          shift: teamShift
         },
         totalScore,
         maxPossibleScore,

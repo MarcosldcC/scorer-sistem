@@ -15,6 +15,7 @@ export interface EvaluationData {
   comments?: string
   evaluationTime: number
   penalties?: Array<{ type: string; points: number; description?: string }>
+  tournamentId?: string
 }
 
 export interface Evaluation {
@@ -96,7 +97,8 @@ export function useEvaluations() {
           penalties: evaluationData.penalties || [],
           timestamp: Date.now(),
           isSynced: false,
-          syncAttempts: 0
+          syncAttempts: 0,
+          tournamentId: evaluationData.tournamentId
         }
         
         saveEvaluationOffline(offlineEval)
@@ -138,7 +140,8 @@ export function useEvaluations() {
             penalties: evaluationData.penalties || [],
             timestamp: Date.now(),
             isSynced: false,
-            syncAttempts: 0
+            syncAttempts: 0,
+            tournamentId: evaluationData.tournamentId
           }
           
           saveEvaluationOffline(offlineEval)
@@ -165,7 +168,8 @@ export function useEvaluations() {
           penalties: evaluationData.penalties || [],
           timestamp: Date.now(),
           isSynced: false,
-          syncAttempts: 0
+          syncAttempts: 0,
+          tournamentId: evaluationData.tournamentId
         }
         
         saveEvaluationOffline(offlineEval)

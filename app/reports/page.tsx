@@ -23,8 +23,10 @@ export default function ReportsPage() {
 
   // Use useMemo to stabilize the filters object and prevent infinite loops
   const reportFilters = useMemo(() => ({ 
-    tournamentId: selectedTournamentId || undefined 
-  }), [selectedTournamentId])
+    tournamentId: selectedTournamentId || undefined,
+    grade: selectedGrade !== "all" ? selectedGrade : undefined,
+    shift: selectedShift !== "all" ? selectedShift : undefined
+  }), [selectedTournamentId, selectedGrade, selectedShift])
   
   const { reportData, loading } = useReports(reportFilters)
 

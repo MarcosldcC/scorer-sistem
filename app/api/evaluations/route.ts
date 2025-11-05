@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { teamId, area, scores, comments, evaluationTime, penalties = [] } = await request.json()
+    const { teamId, area, scores, comments, evaluationTime, penalties = [], tournamentId } = await request.json()
 
     if (!teamId || !area || !scores || evaluationTime === undefined) {
       return NextResponse.json(
@@ -56,11 +56,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get team with tournament info
+    // Get team
     const team = await prisma.team.findUnique({
       where: { id: teamId },
       include: {
-        tournament: true
+        school: true,
+        tournaments: {
+          include: {
+            tournament: true
+          }
+        }
       }
     })
 
@@ -71,8 +76,50 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Determine tournament - use provided tournamentId or find first tournament the team belongs to
+    let tournament: any = null
+    if (tournamentId) {
+      tournament = await prisma.tournament.findUnique({
+        where: { id: tournamentId }
+      })
+      
+      // Verify team belongs to this tournament
+      const teamTournament = await prisma.tournamentTeam.findUnique({
+        where: {
+          tournamentId_teamId: {
+            tournamentId,
+            teamId
+          }
+        }
+      })
+      
+      if (!teamTournament) {
+        return NextResponse.json(
+          { error: 'Equipe não está associada a este torneio' },
+          { status: 400 }
+        )
+      }
+    } else {
+      // Try to find tournament from team's tournaments
+      if (team.tournaments.length > 0) {
+        tournament = team.tournaments[0].tournament
+      } else {
+        return NextResponse.json(
+          { error: 'Equipe não está associada a nenhum torneio. É necessário fornecer o tournamentId.' },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (!tournament) {
+      return NextResponse.json(
+        { error: 'Torneio não encontrado' },
+        { status: 404 }
+      )
+    }
+
     // Verify tournament access
-    if (team.tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
+    if (tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }
@@ -80,7 +127,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert legacy area code to areaId
-    const areaId = await getAreaIdFromCode(team.tournament.id, area)
+    const areaId = await getAreaIdFromCode(tournament.id, area)
     
     // Get area info
     const tournamentArea = await prisma.tournamentArea.findUnique({
@@ -105,7 +152,7 @@ export async function POST(request: NextRequest) {
       const assignment = await prisma.userTournamentArea.findFirst({
         where: {
           userId: user.id,
-          tournamentId: team.tournament.id,
+          tournamentId: tournament.id,
           areaId: areaId
         }
       })
@@ -158,7 +205,7 @@ export async function POST(request: NextRequest) {
     const evaluation = await prisma.evaluation.upsert({
       where: {
         tournamentId_teamId_areaId_evaluatedById_round: {
-          tournamentId: team.tournament.id,
+          tournamentId: tournament.id,
           teamId,
           areaId,
           evaluatedById: user.id,
@@ -173,7 +220,7 @@ export async function POST(request: NextRequest) {
         version: { increment: 1 }
       },
       create: {
-        tournamentId: team.tournament.id,
+        tournamentId: tournament.id,
         teamId,
         areaId,
         scores,

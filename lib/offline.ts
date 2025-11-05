@@ -11,6 +11,7 @@ export interface OfflineEvaluation {
   timestamp: number
   isSynced: boolean
   syncAttempts: number
+  tournamentId?: string
 }
 
 const OFFLINE_STORAGE_KEY = 'offline_evaluations'
@@ -162,7 +163,8 @@ export async function syncOfflineEvaluations(): Promise<number> {
           scores: evaluation.scores,
           comments: evaluation.comments,
           evaluationTime: evaluation.evaluationTime,
-          penalties: evaluation.penalties
+          penalties: evaluation.penalties,
+          tournamentId: evaluation.tournamentId
         })
       })
       
