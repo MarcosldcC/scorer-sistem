@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Users, Search, Edit, Trash2, Eye, AlertTriangle } from "lucide-react"
+import { Users, Search, Edit, Trash2, Eye, AlertTriangle, MessageCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { DashboardHeader } from "@/components/dashboard-header"
@@ -20,6 +20,7 @@ interface PlatformUser {
   name: string
   email: string
   role: string
+  phone?: string
   isActive: boolean
   school?: {
     id: string
@@ -248,6 +249,11 @@ export default function PlatformUsersManagement() {
                   <p className="text-sm text-muted-foreground">
                     <strong>Status:</strong> {platformUser.isActive ? 'Ativo' : 'Inativo'}
                   </p>
+                  {platformUser.phone && (
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Telefone:</strong> {platformUser.phone}
+                    </p>
+                  )}
                   {platformUser._count.evaluations > 0 && (
                     <p className="text-sm text-muted-foreground">
                       <strong>Avaliações:</strong> {platformUser._count.evaluations}
@@ -267,6 +273,19 @@ export default function PlatformUsersManagement() {
                     <Eye className="h-4 w-4 mr-1" />
                     Detalhes
                   </Button>
+                  {platformUser.phone && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const phoneNumber = platformUser.phone?.replace(/\D/g, '') || ''
+                        window.open(`https://wa.me/55${phoneNumber}`, '_blank')
+                      }}
+                      className="bg-green-500 hover:bg-green-600 text-white border-green-500"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -338,6 +357,12 @@ export default function PlatformUsersManagement() {
                     <span className="text-sm">{userToView.school.name}</span>
                   </div>
                 )}
+                {userToView.phone && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Telefone:</span>
+                    <span className="text-sm">{userToView.phone}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Avaliações:</span>
                   <span className="text-sm">{userToView._count.evaluations}</span>
@@ -346,6 +371,22 @@ export default function PlatformUsersManagement() {
                   <span className="text-sm font-medium">Criado em:</span>
                   <span className="text-sm">{new Date(userToView.createdAt).toLocaleString('pt-BR')}</span>
                 </div>
+                {userToView.phone && (
+                  <div className="pt-2 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const phoneNumber = userToView.phone?.replace(/\D/g, '') || ''
+                        window.open(`https://wa.me/55${phoneNumber}`, '_blank')
+                      }}
+                      className="w-full bg-green-500 hover:bg-green-600 text-white border-green-500"
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Enviar mensagem no WhatsApp
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}

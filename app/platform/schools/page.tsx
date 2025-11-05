@@ -49,6 +49,7 @@ export default function SchoolsManagement() {
     
     // Etapa 2: Dados de acesso
     adminEmail: "", // Gmail do admin de torneio
+    adminPhone: "", // Telefone/WhatsApp do admin
     tempPassword: "", // Senha temporária
   })
   const [currentStep, setCurrentStep] = useState(1)
@@ -131,6 +132,7 @@ export default function SchoolsManagement() {
           location: formData.location,
           email: formData.contact, // Email de contato da escola (opcional)
           adminEmail: formData.adminEmail, // Gmail do admin
+          adminPhone: formData.adminPhone || null, // Telefone/WhatsApp do admin
           tempPassword: formData.tempPassword // Senha temporária
         })
       })
@@ -145,6 +147,7 @@ export default function SchoolsManagement() {
           location: "", 
           contact: "",
           adminEmail: "",
+          adminPhone: "",
           tempPassword: ""
         })
         
@@ -176,6 +179,7 @@ export default function SchoolsManagement() {
       location: school.location || "",
       contact: school.email || "",
       adminEmail: "",
+      adminPhone: "",
       tempPassword: ""
     })
     setEditDialogOpen(true)
@@ -211,7 +215,7 @@ export default function SchoolsManagement() {
       if (response.ok) {
         setEditDialogOpen(false)
         setEditingSchool(null)
-        setFormData({ name: "", location: "", contact: "", adminEmail: "", tempPassword: "" })
+        setFormData({ name: "", location: "", contact: "", adminEmail: "", adminPhone: "", tempPassword: "" })
         
         toast({
           title: "Escola atualizada!",
@@ -325,6 +329,7 @@ export default function SchoolsManagement() {
                     location: "",
                     contact: "",
                     adminEmail: "",
+                    adminPhone: "",
                     tempPassword: ""
                   })
                   setError("")
@@ -431,6 +436,17 @@ export default function SchoolsManagement() {
                           required
                         />
                         <p className="text-xs text-muted-foreground">O email deve ser um Gmail válido</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="adminPhone">Telefone/WhatsApp do Admin</Label>
+                        <Input
+                          id="adminPhone"
+                          type="tel"
+                          value={formData.adminPhone}
+                          onChange={(e) => setFormData({ ...formData, adminPhone: e.target.value })}
+                          placeholder="(00) 00000-0000"
+                        />
+                        <p className="text-xs text-muted-foreground">Número de telefone ou WhatsApp para contato (opcional)</p>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="tempPassword">Senha Temporária *</Label>
@@ -590,7 +606,7 @@ export default function SchoolsManagement() {
               <Button type="button" variant="outline" className="flex-1" onClick={() => {
                 setEditDialogOpen(false)
                 setEditingSchool(null)
-                setFormData({ name: "", location: "", contact: "", adminEmail: "", tempPassword: "" })
+                setFormData({ name: "", location: "", contact: "", adminEmail: "", adminPhone: "", tempPassword: "" })
               }}>
                 Cancelar
               </Button>

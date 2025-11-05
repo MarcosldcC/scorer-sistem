@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, email, location, adminEmail, tempPassword } = await request.json()
+    const { name, email, location, adminEmail, tempPassword, adminPhone } = await request.json()
 
     if (!name || !location) {
       return NextResponse.json(
@@ -196,6 +196,7 @@ export async function POST(request: NextRequest) {
         code,
         password: null, // No longer needed
         location,
+        contactPhone: adminPhone || null,
         status: 'active' // Always active when created
       }
     })
@@ -225,6 +226,7 @@ export async function POST(request: NextRequest) {
         tempPassword: resetTokenData, // Store reset token instead of temp password
         role: 'school_admin',
         schoolId: school.id,
+        phone: adminPhone || null,
         isFirstLogin: true,
         isActive: true,
         areas: []

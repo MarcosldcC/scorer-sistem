@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Users, Search, Plus, Trash2, AlertTriangle, ArrowLeft } from "lucide-react"
+import { Users, Search, Plus, Trash2, AlertTriangle, ArrowLeft, MessageCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { DashboardHeader } from "@/components/dashboard-header"
@@ -20,6 +20,7 @@ interface User {
   name: string
   email: string
   role: string
+  phone?: string
   isActive: boolean
   createdAt: string
 }
@@ -47,7 +48,8 @@ export default function UsersManagement() {
   const [userForm, setUserForm] = useState({
     name: "",
     email: "",
-    role: "judge" as "judge" | "viewer"
+    role: "judge" as "judge" | "viewer",
+    phone: ""
   })
 
   useEffect(() => {
@@ -132,7 +134,8 @@ export default function UsersManagement() {
         body: JSON.stringify({
           name: userForm.name.trim(),
           email: userForm.email.trim(),
-          role: userForm.role
+          role: userForm.role,
+          phone: userForm.phone.trim() || null
         })
       })
 
@@ -161,7 +164,7 @@ export default function UsersManagement() {
           }, 500)
         }
         
-        setUserForm({ name: "", email: "", role: "judge" })
+        setUserForm({ name: "", email: "", role: "judge", phone: "" })
         setShowCreateDialog(false)
         fetchUsers()
       } else {
@@ -331,11 +334,30 @@ export default function UsersManagement() {
                     <p className="text-sm text-muted-foreground">
                       <strong>Status:</strong> {user.isActive ? 'Ativo' : 'Inativo'}
                     </p>
+                    {user.phone && (
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Telefone:</strong> {user.phone}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       Criado em: {new Date(user.createdAt).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
-                  <div className="flex justify-end">
+                  <div className="flex gap-2 justify-end">
+                    {user.phone && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const phoneNumber = user.phone?.replace(/\D/g, '') || ''
+                          window.open(`https://wa.me/55${phoneNumber}`, '_blank')
+                        }}
+                        className="bg-green-500 hover:bg-green-600 text-white border-green-500"
+                      >
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        WhatsApp
+                      </Button>
+                    )}
                     <Button
                       variant="destructive"
                       size="sm"
@@ -400,13 +422,26 @@ export default function UsersManagement() {
                 <option value="viewer">Visualizador</option>
               </select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="userPhone">Telefone/WhatsApp</Label>
+              <Input
+                id="userPhone"
+                type="tel"
+                value={userForm.phone}
+                onChange={(e) => setUserForm(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="(00) 00000-0000"
+              />
+              <p className="text-xs text-muted-foreground">
+                Número de telefone ou WhatsApp para contato (opcional)
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
                 setShowCreateDialog(false)
-                setUserForm({ name: "", email: "", role: "judge" })
+                setUserForm({ name: "", email: "", role: "judge", phone: "" })
               }}
             >
               Cancelar

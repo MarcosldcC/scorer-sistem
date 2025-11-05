@@ -128,7 +128,8 @@ export async function POST(request: NextRequest) {
       password,
       role,
       schoolId,
-      areas
+      areas,
+      phone
     } = body
 
     if (!name || !email || !role) {
@@ -257,6 +258,7 @@ export async function POST(request: NextRequest) {
         tempPassword: resetTokenData, // Store reset token instead of temp password
         role,
         schoolId: targetSchoolId,
+        phone: phone || null,
         isFirstLogin: true,
         isActive: true,
         areas: [] // Deprecated field, kept for compatibility
@@ -273,53 +275,27 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Send welcome email with password setup link
-    // TEMPORARY: Allow user creation even if email fails (domain not configured)
-    // TODO: Re-enable email validation when domain is properly configured
+    // Send welcome email with password setup link (same system as admin creation)
     let emailSent = false
-    let emailError: any = null
-    
     try {
       emailSent = await sendWelcomeEmail(normalizedEmail, name, resetToken, role)
       if (!emailSent) {
-        console.error('Email failed to send')
-        emailError = { message: 'Email service returned false' }
-        console.warn('⚠️ Email failed to send, but user will be created (temporary - domain not configured)')
+        console.warn('Email não foi enviado, mas o usuário foi criado com sucesso')
       }
-    } catch (err: any) {
-      console.error('Error sending welcome email:', err)
-      console.error('Email error details:', {
-        message: err.message,
-        code: err.code,
-        name: err.name
-      })
-      emailError = err
-      console.warn('⚠️ Email error occurred, but user will be created (temporary - domain not configured)')
-    }
-    
-    // TEMPORARY: Don't rollback if email fails
-    // User can still set password via "forgot password" flow
-    if (!emailSent) {
-      console.warn('⚠️ Email failed to send, but user was created')
-      console.warn('⚠️ User can use "forgot password" to set their password')
-      if (!process.env.RESEND_FROM_EMAIL) {
-        console.warn('⚠️ RESEND_FROM_EMAIL is not configured. Please configure it when domain is available.')
-      }
+    } catch (emailError) {
+      console.error('Error sending welcome email:', emailError)
+      // Continue even if email fails - user can still request password reset
     }
 
     // Remove password from response
     const { password: _, tempPassword: __, ...userResponse } = newUser
 
-    // Return success message (with warning if email failed)
-    const message = emailSent 
-      ? 'Usuário criado com sucesso. Um email foi enviado para configurar a senha.'
-      : 'Usuário criado com sucesso. O email de boas-vindas não foi enviado (serviço de email não configurado). O usuário pode usar "Esqueci minha senha" para configurar a senha.'
-
     return NextResponse.json({
       success: true,
       user: userResponse,
-      message,
-      warning: !emailSent ? 'Email não foi enviado. Configure o domínio no Resend para habilitar emails.' : undefined
+      message: emailSent 
+        ? 'Usuário criado com sucesso! Um email foi enviado para o usuário configurar a senha.'
+        : 'Usuário criado com sucesso! O admin pode solicitar redefinição de senha na tela de login.'
     })
 
   } catch (error: any) {
