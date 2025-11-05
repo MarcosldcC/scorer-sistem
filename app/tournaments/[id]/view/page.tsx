@@ -100,18 +100,21 @@ export default function TournamentViewPage() {
           .map((assignment: any) => {
             // Try multiple ways to get the area code
             const code = assignment.area?.code || assignment.areaCode || null
+            // Normalize: trim whitespace and ensure it's a string
+            const normalizedCode = code ? String(code).trim() : null
             console.log('Mapping assignment:', {
               assignmentId: assignment.id,
               userId: assignment.userId,
-              user: assignment.user,
-              area: assignment.area,
-              areaId: assignment.area?.id,
-              areaCode: assignment.area?.code,
+              user: assignment.user?.id,
+              area: assignment.area ? {
+                id: assignment.area.id,
+                code: assignment.area.code,
+                name: assignment.area.name
+              } : null,
               areaCodeFromAssignment: assignment.areaCode,
-              finalCode: code,
-              fullAssignment: assignment
+              finalCode: normalizedCode
             })
-            return code
+            return normalizedCode
           })
           .filter((code: string | null): code is string => !!code) // Remove null/undefined
         
@@ -255,6 +258,7 @@ export default function TournamentViewPage() {
   }
 
   // Map tournament areas to evaluation areas format
+  // SEMPRE mostrar TODAS as áreas do torneio (não filtrar)
   const evaluationAreas = tournamentAreas.map(area => ({
     id: area.code,
     name: area.code,
@@ -262,21 +266,26 @@ export default function TournamentViewPage() {
     description: area.description || `Avaliação da área ${area.name}`
   }))
 
-  // Use user's assigned areas for this tournament (fetched from API)
-  // If school_admin, show all areas
-  // For judges, use userAssignedAreas (from API) or fallback to user.areas
+  // Determinar quais áreas o usuário pode avaliar
+  // - school_admin: pode avaliar todas as áreas
+  // - judge: só pode avaliar áreas atribuídas a ele (via UserTournamentArea)
+  // - outros: nenhuma área
   const userAreas = user?.role === 'school_admin' 
     ? tournamentAreas.map((area: any) => area.code)
     : user?.role === 'judge'
-      ? (userAssignedAreas.length > 0 ? userAssignedAreas : (user?.areas || []))
-      : (user?.areas || [])
+      ? userAssignedAreas // Áreas atribuídas via API (UserTournamentArea)
+      : []
 
   console.log('User areas comparison:', {
     tournamentAreasCodes: tournamentAreas.map((a: any) => a.code),
+    tournamentAreasCount: tournamentAreas.length,
     userAssignedAreas,
+    userAssignedAreasCount: userAssignedAreas.length,
     userAreas,
+    userAreasCount: userAreas.length,
     userRole: user?.role,
-    evaluationAreasIds: evaluationAreas.map(a => a.id)
+    evaluationAreasIds: evaluationAreas.map(a => a.id),
+    evaluationAreasCount: evaluationAreas.length
   })
 
   console.log('Render check:', { 
@@ -374,18 +383,26 @@ export default function TournamentViewPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {evaluationAreas.map((area) => {
-                  // Compare area code with user's assigned area codes
-                  // Use exact match first, then try case-insensitive if needed
-                  const canEvaluate = userAreas.includes(area.id) || 
-                    userAreas.map(a => a?.toLowerCase()).includes(area.id?.toLowerCase())
+                  // Verificar se o usuário pode avaliar esta área
+                  // Para juízes: verifica se a área está na lista de áreas atribuídas (userAssignedAreas)
+                  // Para school_admin: sempre true (pode avaliar todas)
+                  const canEvaluate = user?.role === 'school_admin' 
+                    ? true 
+                    : user?.role === 'judge'
+                      ? userAssignedAreas.includes(area.id) || 
+                        userAssignedAreas.map(a => a?.toLowerCase().trim()).includes(area.id?.toLowerCase().trim())
+                      : false
                   
                   console.log('Area check:', {
                     areaId: area.id,
                     areaCode: area.id,
+                    areaDisplayName: area.displayName,
+                    userRole: user?.role,
+                    userAssignedAreas,
                     userAreas,
                     canEvaluate,
-                    exactMatch: userAreas.includes(area.id),
-                    caseInsensitiveMatch: userAreas.map(a => a?.toLowerCase()).includes(area.id?.toLowerCase())
+                    exactMatch: userAssignedAreas.includes(area.id),
+                    caseInsensitiveMatch: userAssignedAreas.map(a => a?.toLowerCase().trim()).includes(area.id?.toLowerCase().trim())
                   })
                   
                   // Filter teams that have evaluations for this area code
