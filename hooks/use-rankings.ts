@@ -60,7 +60,7 @@ export function useRankings(filters?: RankingFilters) {
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [filters?.tournamentId, filters?.shift, filters?.grade])
 
   useEffect(() => {
     fetchRankings()

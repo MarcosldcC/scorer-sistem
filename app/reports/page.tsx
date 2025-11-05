@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth-api"
 import { useReports } from "@/hooks/use-reports"
@@ -21,7 +21,12 @@ export default function ReportsPage() {
   const [selectedGrade, setSelectedGrade] = useState<string>("all")
   const [selectedShift, setSelectedShift] = useState<string>("all")
 
-  const { reportData, loading } = useReports({ tournamentId: selectedTournamentId || undefined })
+  // Use useMemo to stabilize the filters object and prevent infinite loops
+  const reportFilters = useMemo(() => ({ 
+    tournamentId: selectedTournamentId || undefined 
+  }), [selectedTournamentId])
+  
+  const { reportData, loading } = useReports(reportFilters)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
