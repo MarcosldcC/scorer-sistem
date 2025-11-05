@@ -31,32 +31,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Check permissions - only school_admin can list teams
-    if (user.role !== 'school_admin' && user.role !== 'platform_admin') {
-      return NextResponse.json(
-        { error: 'Acesso negado' },
-        { status: 403 }
-      )
-    }
-
     const { searchParams } = new URL(request.url)
     const tournamentId = searchParams.get('tournamentId')
     const schoolId = user.role === 'platform_admin' ? searchParams.get('schoolId') : user.schoolId
 
-    if (!schoolId) {
-      return NextResponse.json(
-        { error: 'ID da escola é obrigatório' },
-        { status: 400 }
-      )
-    }
+    let tournament: any = null
+    let effectiveSchoolId: string | null = schoolId
 
-    // If tournamentId is provided, get teams linked to that tournament
-    // Otherwise, get all teams from the school
-    let whereClause: any = { schoolId }
-    
+    // If tournamentId is provided, verify tournament access first
     if (tournamentId) {
-      // Verify tournament access
-      const tournament = await prisma.tournament.findUnique({
+      // Verify tournament exists
+      tournament = await prisma.tournament.findUnique({
         where: { id: tournamentId }
       })
 
@@ -67,17 +52,45 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      // Check permissions
+      // Check tournament access permissions
+      // - platform_admin: can access any tournament
+      // - school_admin: can access tournaments from their school
+      // - judge: can access tournaments from their school (to evaluate teams)
+      // - viewer: can access tournaments from their school (to view rankings)
       if (tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
         return NextResponse.json(
-          { error: 'Acesso negado' },
+          { error: 'Acesso negado ao torneio' },
           { status: 403 }
         )
       }
 
+      // Set schoolId from tournament if not provided
+      effectiveSchoolId = tournament.schoolId
+    } else {
+      // No tournamentId provided - only allow school_admin and platform_admin
+      if (user.role !== 'school_admin' && user.role !== 'platform_admin') {
+        return NextResponse.json(
+          { error: 'Acesso negado - apenas administradores podem listar todas as equipes' },
+          { status: 403 }
+        )
+      }
+
+      if (!schoolId) {
+        return NextResponse.json(
+          { error: 'ID da escola é obrigatório' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // If tournamentId is provided, get teams linked to that tournament
+    // Otherwise, get all teams from the school
+    let whereClause: any = { schoolId: effectiveSchoolId }
+    
+    if (tournamentId) {
       // Get teams linked to this tournament
       whereClause = {
-        schoolId,
+        schoolId: effectiveSchoolId,
         tournaments: {
           some: {
             tournamentId
