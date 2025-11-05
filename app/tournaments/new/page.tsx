@@ -136,17 +136,39 @@ export default function NewTournamentPage() {
       try {
         const data = JSON.parse(event.target?.result as string)
         
+        console.log('Importing template:', data)
+        
         // Validar estrutura do template
         if (!data.name || !data.areas || !Array.isArray(data.areas)) {
           toast({
             title: "Erro ao importar template",
-            description: "O arquivo JSON não possui a estrutura válida de um template.",
+            description: "O arquivo JSON não possui a estrutura válida de um template. Deve conter 'name' e 'areas' (array).",
             variant: "destructive",
           })
           return
         }
 
-        // Salvar template importado
+        // Validar que as áreas têm os dados necessários
+        const validAreas = data.areas.filter((area: any) => area.name && area.code)
+        if (validAreas.length === 0) {
+          toast({
+            title: "Erro ao importar template",
+            description: "O template não possui áreas válidas. Cada área deve ter 'name' e 'code'.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        console.log(`Template importado: ${validAreas.length} áreas válidas`)
+        console.log('Áreas:', validAreas.map((a: any) => ({
+          name: a.name,
+          code: a.code,
+          scoringType: a.scoringType,
+          hasRubric: !!(a.rubricCriteria || a.rubricConfig),
+          hasPerformance: !!(a.performanceMissions || a.performanceConfig)
+        })))
+
+        // Salvar template importado (preservar TODOS os dados)
         setImportedTemplate(data)
         
         // Preencher formulário com dados do template
@@ -163,14 +185,14 @@ export default function NewTournamentPage() {
 
         toast({
           title: "Template importado com sucesso!",
-          description: `Template "${data.name}" foi importado. Agora você pode criar o torneio baseado nele.`,
+          description: `Template "${data.name}" foi importado com ${validAreas.length} área(s). Todas as configurações (rubricas, missões, etc.) serão aplicadas ao criar o torneio.`,
           variant: "default",
         })
-      } catch (err) {
+      } catch (err: any) {
         console.error('Import template error:', err)
         toast({
           title: "Erro ao importar template",
-          description: "Verifique o formato do arquivo JSON.",
+          description: err.message || "Verifique o formato do arquivo JSON.",
           variant: "destructive",
         })
       }
@@ -207,26 +229,53 @@ export default function NewTournamentPage() {
       const finalCode = code.length > 0 ? code : `TORNEO_${timestamp}`
 
       // Se houver template importado, criar template customizado primeiro
+      // IMPORTANTE: Criar template para que as áreas sejam criadas automaticamente
       let customTemplateId = null
       if (importedTemplate && formData.templateId === "none") {
         try {
+          console.log('Creating template from imported JSON:', importedTemplate)
+          
           // Criar template customizado a partir do JSON importado
+          // IMPORTANTE: Garantir que TODOS os dados sejam preservados
           const config = {
             language: importedTemplate.language || 'pt-BR',
-            visibility: 'private',
+            visibility: importedTemplate.visibility || 'private',
             tags: importedTemplate.tags || [],
-            areas: importedTemplate.areas || [],
+            // IMPORTANTE: Importar TODAS as áreas com TODOS os dados
+            areas: (importedTemplate.areas || []).map((area: any) => ({
+              id: area.id || `area_${Date.now()}_${Math.random()}`,
+              name: area.name,
+              code: area.code,
+              description: area.description,
+              scoringType: area.scoringType || 'rubric',
+              weight: area.weight || 1.0,
+              timeLimit: area.timeLimit,
+              timeAction: area.timeAction || 'alert',
+              isActive: area.isActive !== undefined ? area.isActive : true,
+              order: area.order !== undefined ? area.order : 0,
+              // IMPORTANTE: Importar rubricas completas
+              rubricCriteria: area.rubricCriteria || area.rubricConfig || [],
+              // IMPORTANTE: Importar missões completas
+              performanceMissions: area.performanceMissions || area.performanceConfig || [],
+              // Importar outras configurações
+              penalties: area.penalties || [],
+              notes: area.notes,
+              price: area.price,
+              mixedAggregation: area.mixedAggregation
+            })),
             ranking: importedTemplate.ranking || {
               method: formData.rankingMethod,
-              weights: {},
-              tieBreak: [],
-              multiJudgeAggregation: 'average',
-              allowReevaluation: formData.allowReevaluation
+              weights: importedTemplate.ranking?.weights || {},
+              tieBreak: importedTemplate.ranking?.tieBreak || [],
+              multiJudgeAggregation: importedTemplate.ranking?.multiJudgeAggregation || 'average',
+              allowReevaluation: importedTemplate.ranking?.allowReevaluation !== undefined 
+                ? importedTemplate.ranking.allowReevaluation 
+                : formData.allowReevaluation
             },
             teams: importedTemplate.teams || {
-              metadata: [],
               uniqueName: true,
-              allowMixed: false
+              allowMixed: false,
+              metadata: []
             },
             offline: importedTemplate.offline || {
               enabled: false,
@@ -235,6 +284,17 @@ export default function NewTournamentPage() {
             },
             translations: importedTemplate.translations || {}
           }
+
+          console.log('Template config to create:', {
+            areasCount: config.areas.length,
+            areas: config.areas.map((a: any) => ({
+              name: a.name,
+              code: a.code,
+              scoringType: a.scoringType,
+              rubricCriteriaCount: a.rubricCriteria?.length || 0,
+              performanceMissionsCount: a.performanceMissions?.length || 0
+            }))
+          })
 
           const templateResponse = await fetch('/api/templates', {
             method: 'POST',
@@ -253,13 +313,21 @@ export default function NewTournamentPage() {
           const templateData = await templateResponse.json()
           if (templateResponse.ok && templateData.template) {
             customTemplateId = templateData.template.id
-            console.log('Template customizado criado:', customTemplateId)
+            console.log('Template customizado criado com sucesso:', customTemplateId)
           } else {
             console.error('Erro ao criar template customizado:', templateData)
+            throw new Error(templateData.error || 'Erro ao criar template customizado')
           }
-        } catch (templateErr) {
+        } catch (templateErr: any) {
           console.error('Erro ao criar template customizado:', templateErr)
-          // Continua criando o torneio sem template
+          setError(templateErr.message || 'Erro ao criar template a partir do JSON importado')
+          toast({
+            title: "Erro ao importar template",
+            description: templateErr.message || 'Não foi possível criar o template a partir do JSON importado.',
+            variant: "destructive",
+          })
+          setSaving(false)
+          return
         }
       }
 
