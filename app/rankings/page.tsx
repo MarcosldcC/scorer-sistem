@@ -45,6 +45,15 @@ export default function RankingsPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
+      // Check if tournamentId is in URL query params (from tournament view page)
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search)
+        const urlTournamentId = urlParams.get('tournamentId')
+        if (urlTournamentId) {
+          setSelectedTournamentId(urlTournamentId)
+          setFilters((prev) => ({ ...prev, tournamentId: urlTournamentId }))
+        }
+      }
       fetchTournaments()
     }
   }, [isAuthenticated, user])

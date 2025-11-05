@@ -178,11 +178,11 @@ export default function TournamentViewPage() {
   }
 
   const handleEvaluate = (areaCode: string) => {
-    // Store tournamentId in localStorage for the evaluate page to use
+    // Store tournamentId in localStorage and pass it in URL for the evaluate page
     if (typeof window !== 'undefined') {
       localStorage.setItem('selected-tournament-id', tournamentId)
     }
-    router.push(`/evaluate/${areaCode}`)
+    router.push(`/evaluate/${areaCode}?tournamentId=${tournamentId}`)
   }
 
   // Map tournament areas to evaluation areas format

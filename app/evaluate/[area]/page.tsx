@@ -30,13 +30,15 @@ export default function EvaluatePage() {
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Check URL query params first
+      // Check URL query params first, then localStorage
       const urlParams = new URLSearchParams(window.location.search)
       const urlTournamentId = urlParams.get('tournamentId')
       const storedTournamentId = localStorage.getItem('selected-tournament-id')
-      setTournamentId(urlTournamentId || storedTournamentId || undefined)
+      const finalTournamentId = urlTournamentId || storedTournamentId || undefined
+      setTournamentId(finalTournamentId)
+      console.log('Evaluate page - Tournament ID:', finalTournamentId, 'Area:', area)
     }
-  }, [])
+  }, [area])
   
   const { teams, loading: teamsLoading } = useTeams(tournamentId ? { tournamentId } : undefined)
   const { submitEvaluation, loading: evaluationLoading, offlineCount, syncOffline } = useEvaluations()
@@ -57,8 +59,11 @@ export default function EvaluatePage() {
   }, [isAuthenticated, loading, router])
 
   useEffect(() => {
-    if (user && (!user.areas || !Array.isArray(user.areas) || !user.areas.includes(area))) {
-      router.push("/dashboard")
+    // Allow school_admin to access any area, other users must have the area assigned
+    if (user && user.role !== 'school_admin') {
+      if (!user.areas || !Array.isArray(user.areas) || !user.areas.includes(area)) {
+        router.push("/dashboard")
+      }
     }
   }, [user, area, router])
 
@@ -187,8 +192,12 @@ export default function EvaluatePage() {
         setPenaltyCount(0)
 
         // Redirect after 3 seconds (longer for offline message)
+        // If we came from a tournament view, redirect back to it
+        const redirectUrl = tournamentId 
+          ? `/tournaments/${tournamentId}/view`
+          : "/dashboard"
         setTimeout(() => {
-          router.push("/dashboard")
+          router.push(redirectUrl)
         }, result.offline ? 3000 : 2000)
       } else {
         setError(result.error || "Erro ao salvar avaliação. Tente novamente.")
