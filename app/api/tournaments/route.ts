@@ -412,6 +412,11 @@ export async function DELETE(request: NextRequest) {
       where: { tournamentId: id }
     })
 
+    // Delete ranking snapshots
+    await prisma.rankingSnapshot.deleteMany({
+      where: { tournamentId: id }
+    })
+
     // Finally delete the tournament
     await prisma.tournament.delete({
       where: { id }
