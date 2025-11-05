@@ -340,23 +340,63 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Only can delete own templates or be platform admin
-    if (template.schoolId !== user.schoolId && user.role !== 'platform_admin') {
+    // Platform admins can delete any template, school admins can only delete their own
+    if (template.isOfficial && user.role !== 'platform_admin') {
+      return NextResponse.json(
+        { error: 'Apenas admin da plataforma pode excluir templates oficiais' },
+        { status: 403 }
+      )
+    }
+
+    if (!template.isOfficial && template.schoolId !== user.schoolId && user.role !== 'platform_admin') {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }
       )
     }
 
+    // Check if template is being used by tournaments
+    const tournamentsUsingTemplate = await prisma.tournament.count({
+      where: { templateId: id }
+    })
+
+    if (tournamentsUsingTemplate > 0) {
+      return NextResponse.json(
+        { error: `Não é possível excluir o template pois ele está sendo usado por ${tournamentsUsingTemplate} torneio(s). Remova os torneios primeiro ou desassocie o template.` },
+        { status: 400 }
+      )
+    }
+
+    // Delete template school assignments first (if any)
+    await prisma.templateSchoolAssignment.deleteMany({
+      where: { templateId: id }
+    })
+
+    // Finally delete the template
     await prisma.tournamentTemplate.delete({
       where: { id }
     })
 
     return NextResponse.json({ success: true })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete template error:', error)
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta
+    })
+    
+    // Return more specific error messages
+    if (error?.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Não é possível excluir o template pois há dados relacionados. Verifique se há torneios ou atribuições associadas.' },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { error: error?.message || 'Erro interno do servidor ao excluir template' },
       { status: 500 }
     )
   }
