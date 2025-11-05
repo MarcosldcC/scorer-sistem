@@ -159,12 +159,25 @@ export default function TournamentDetailPage() {
 
   useEffect(() => {
     if (isAuthenticated && user?.role === 'school_admin' && tournamentId) {
-      fetchTournament()
-      fetchAreas()
-      fetchTeams()
-      fetchJudges()
+      loadTournamentData()
     }
   }, [isAuthenticated, user, tournamentId])
+
+  const loadTournamentData = async () => {
+    setLoading(true)
+    try {
+      await Promise.all([
+        fetchTournament(),
+        fetchAreas(),
+        fetchTeams(),
+        fetchJudges()
+      ])
+    } catch (err) {
+      console.error('Error loading tournament data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchTournament = async () => {
     try {
@@ -188,16 +201,16 @@ export default function TournamentDetailPage() {
             rankingMethod: found.rankingMethod || "percentage",
             allowReevaluation: found.allowReevaluation !== undefined ? found.allowReevaluation : true
           })
+        } else {
+          console.error('Tournament not found:', tournamentId)
         }
       }
     } catch (err) {
       console.error('Error fetching tournament:', err)
-    } finally {
-      setLoading(false)
     }
   }
 
-    const fetchAreas = async () => {
+  const fetchAreas = async () => {
     try {
       const token = localStorage.getItem('robotics-token')
       if (!token) return
@@ -210,36 +223,38 @@ export default function TournamentDetailPage() {
       if (response.ok) {
         const areasList = data.areas || []
         
-        // Fetch assigned judges for each area
-        const areasWithJudges = await Promise.all(
-          areasList.map(async (area: TournamentArea) => {
-            try {
-              const judgeResponse = await fetch(`/api/user-areas?tournamentId=${tournamentId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-              })
-              const judgeData = await judgeResponse.json()
-              
-              const areaJudges = (judgeData.assignments || [])
-                .filter((a: any) => a.area?.id === area.id || a.areaId === area.id)
-                .map((a: any) => ({
-                  id: a.id,
-                  user: a.user || { id: a.userId, name: '', email: '' }
-                }))
-              
-              return {
-                ...area,
-                assignedJudges: areaJudges
-              }
-            } catch (err) {
-              console.error('Error fetching judges for area:', err)
-              return {
-                ...area,
-                assignedJudges: []
-              }
+        // Fetch all assigned judges once for all areas
+        try {
+          const judgeResponse = await fetch(`/api/user-areas?tournamentId=${tournamentId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          const judgeData = await judgeResponse.json()
+          const allAssignments = judgeData.assignments || []
+          
+          // Map areas with their assigned judges
+          const areasWithJudges = areasList.map((area: TournamentArea) => {
+            const areaJudges = allAssignments
+              .filter((a: any) => a.area?.id === area.id || a.areaId === area.id)
+              .map((a: any) => ({
+                id: a.id,
+                user: a.user || { id: a.userId, name: '', email: '' }
+              }))
+            
+            return {
+              ...area,
+              assignedJudges: areaJudges
             }
           })
-        )
-        setAreas(areasWithJudges)
+          
+          setAreas(areasWithJudges)
+        } catch (err) {
+          console.error('Error fetching judges:', err)
+          // Set areas without judges if fetch fails
+          setAreas(areasList.map((area: TournamentArea) => ({
+            ...area,
+            assignedJudges: []
+          })))
+        }
       }
     } catch (err) {
       console.error('Error fetching areas:', err)

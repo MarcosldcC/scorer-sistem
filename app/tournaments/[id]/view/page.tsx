@@ -20,6 +20,7 @@ export default function TournamentViewPage() {
   const [tournament, setTournament] = useState<any>(null)
   const [tournamentAreas, setTournamentAreas] = useState<any[]>([])
   const [userAssignedAreas, setUserAssignedAreas] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -29,10 +30,23 @@ export default function TournamentViewPage() {
 
   useEffect(() => {
     if (isAuthenticated && tournamentId) {
-      fetchTournament()
-      fetchTournamentAreas()
+      loadTournamentData()
     }
   }, [isAuthenticated, tournamentId])
+
+  const loadTournamentData = async () => {
+    setLoading(true)
+    try {
+      await Promise.all([
+        fetchTournament(),
+        fetchTournamentAreas()
+      ])
+    } catch (err) {
+      console.error('Error loading tournament data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (tournamentAreas.length > 0 && tournamentId && user) {
@@ -145,7 +159,7 @@ export default function TournamentViewPage() {
       ? userAssignedAreas 
       : (user?.areas || [])
 
-  if (authLoading || teamsLoading) {
+  if (authLoading || teamsLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -156,11 +170,24 @@ export default function TournamentViewPage() {
     )
   }
 
-  if (!isAuthenticated || !user || !tournament) {
+  if (!isAuthenticated || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!tournament) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Torneio não encontrado</p>
+          <Button onClick={() => router.push('/dashboard')}>
+            Voltar ao Dashboard
+          </Button>
         </div>
       </div>
     )
