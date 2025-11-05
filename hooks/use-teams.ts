@@ -58,7 +58,7 @@ export function useTeams(filters?: TeamFilters) {
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [filters?.tournamentId, filters?.shift, filters?.grade])
 
   const createTeam = useCallback(async (teamData: { name: string; grade: string; shift: string }) => {
     try {

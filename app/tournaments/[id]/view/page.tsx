@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth-api"
 import { useTeams } from "@/hooks/use-teams"
@@ -16,7 +16,9 @@ export default function TournamentViewPage() {
   const tournamentId = params.id as string
   const { isAuthenticated, user, loading: authLoading } = useAuth()
   const router = useRouter()
-  const { teams, loading: teamsLoading } = useTeams({ tournamentId })
+  // Use useMemo to stabilize the filters object and prevent infinite loops
+  const teamFilters = useMemo(() => ({ tournamentId }), [tournamentId])
+  const { teams, loading: teamsLoading } = useTeams(teamFilters)
   const [tournament, setTournament] = useState<any>(null)
   const [tournamentAreas, setTournamentAreas] = useState<any[]>([])
   const [userAssignedAreas, setUserAssignedAreas] = useState<string[]>([])
