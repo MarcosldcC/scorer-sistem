@@ -725,6 +725,516 @@ export default function NewTournamentPage() {
   }
 }
 
+// Component for individual Area Card
+function AreaCard({ 
+  area, 
+  index, 
+  onUpdate, 
+  onDelete 
+}: { 
+  area: Area
+  index: number
+  onUpdate: (updates: Partial<Area>) => void
+  onDelete: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <Card className={!area.isActive ? "opacity-60" : ""}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
+            <Input
+              value={area.name}
+              onChange={(e) => {
+                const name = e.target.value
+                const code = name.toLowerCase()
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[^a-z0-9]+/g, '_')
+                  .replace(/^_+|_+$/g, '')
+                onUpdate({ name, code: code || `area_${Date.now()}` })
+              }}
+              className="w-full font-semibold"
+              placeholder="Nome da área"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={area.isActive}
+              onCheckedChange={(checked) => onUpdate({ isActive: checked })}
+            />
+            <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onDelete} className="text-destructive">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      {expanded && (
+        <CardContent className="space-y-4 pt-0">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Tipo de Avaliação</Label>
+              <Select
+                value={area.scoringType}
+                onValueChange={(value: "rubric" | "performance" | "mixed") => 
+                  onUpdate({ scoringType: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rubric">Rubrica</SelectItem>
+                  <SelectItem value="performance">Desempenho</SelectItem>
+                  <SelectItem value="mixed">Misto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Peso no Ranking</Label>
+              <Input
+                type="number"
+                min="0.1"
+                max="2.0"
+                step="0.1"
+                value={area.weight}
+                onChange={(e) => onUpdate({ weight: parseFloat(e.target.value) || 1.0 })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tempo Limite (min)</Label>
+              <Input
+                type="number"
+                value={area.timeLimit ? area.timeLimit / 60 : ""}
+                onChange={(e) => onUpdate({ timeLimit: parseFloat(e.target.value) * 60 || undefined })}
+                placeholder="Opcional"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Ação ao Estourar Tempo</Label>
+            <Select
+              value={area.timeAction}
+              onValueChange={(value: "alert" | "block") => onUpdate({ timeAction: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alert">Alertar</SelectItem>
+                <SelectItem value="block">Bloquear</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Observações ao Juiz</Label>
+            <Textarea
+              value={area.notes || ""}
+              onChange={(e) => onUpdate({ notes: e.target.value })}
+              placeholder="Instruções que aparecerão na tela de avaliação"
+              rows={3}
+            />
+          </div>
+
+          {area.scoringType === "rubric" && (
+            <RubricAreaConfig area={area} onUpdate={onUpdate} />
+          )}
+          {area.scoringType === "performance" && (
+            <PerformanceAreaConfig area={area} onUpdate={onUpdate} />
+          )}
+          {area.scoringType === "mixed" && (
+            <MixedAreaConfig area={area} onUpdate={onUpdate} />
+          )}
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
+// Fully implemented Rubric Area Configuration
+function RubricAreaConfig({ area, onUpdate }: { area: Area; onUpdate: (updates: Partial<Area>) => void }) {
+  const addCriterion = () => {
+    const newCriterion = {
+      id: `criterion_${Date.now()}`,
+      name: "Novo Critério",
+      maxScore: 10,
+      weight: 1.0,
+      description: "",
+      options: [0, 2, 5, 8, 10],
+      anchors: []
+    }
+    const criteria = [...(area.rubricCriteria || []), newCriterion]
+    onUpdate({ rubricCriteria: criteria })
+  }
+
+  const updateCriterion = (criterionId: string, updates: any) => {
+    const criteria = (area.rubricCriteria || []).map(c =>
+      c.id === criterionId ? { ...c, ...updates } : c
+    )
+    onUpdate({ rubricCriteria: criteria })
+  }
+
+  const deleteCriterion = (criterionId: string) => {
+    const criteria = (area.rubricCriteria || []).filter(c => c.id !== criterionId)
+    onUpdate({ rubricCriteria: criteria })
+  }
+
+  return (
+    <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+      <div className="flex items-center justify-between">
+        <Label className="text-base font-semibold">Critérios de Rubrica</Label>
+        <Button size="sm" variant="outline" onClick={addCriterion}>
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar Critério
+        </Button>
+      </div>
+
+      {(area.rubricCriteria || []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nenhum critério configurado. Adicione critérios para definir como esta área será avaliada.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {(area.rubricCriteria || []).map((criterion, index) => (
+            <Card key={criterion.id} className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-muted-foreground">Critério #{index + 1}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => deleteCriterion(criterion.id)}
+                  className="text-destructive h-6 w-6 p-0"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-sm">Nome do Critério *</Label>
+                    <Input
+                      value={criterion.name}
+                      onChange={(e) => updateCriterion(criterion.id, { name: e.target.value })}
+                      placeholder="Ex: Clareza"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-sm">Pontuação Máxima</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={criterion.maxScore}
+                        onChange={(e) => updateCriterion(criterion.id, { maxScore: parseInt(e.target.value) || 10 })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-sm">Peso</Label>
+                      <Input
+                        type="number"
+                        min="0.1"
+                        max="5.0"
+                        step="0.1"
+                        value={criterion.weight}
+                        onChange={(e) => updateCriterion(criterion.id, { weight: parseFloat(e.target.value) || 1.0 })}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm">Descrição</Label>
+                  <Textarea
+                    value={criterion.description || ""}
+                    onChange={(e) => updateCriterion(criterion.id, { description: e.target.value })}
+                    placeholder="Descrição explicativa do critério"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm">Escala de Pontuação (separar por vírgula)</Label>
+                  <Input
+                    value={criterion.options?.join(", ") || ""}
+                    onChange={(e) => {
+                      const options = e.target.value.split(",")
+                        .map(v => parseFloat(v.trim()))
+                        .filter(v => !isNaN(v))
+                      updateCriterion(criterion.id, { options })
+                    }}
+                    placeholder="Ex: 0, 2, 5, 8, 10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Valores fixos de pontuação disponíveis para este critério
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Fully implemented Performance Area Configuration
+function PerformanceAreaConfig({ area, onUpdate }: { area: Area; onUpdate: (updates: Partial<Area>) => void }) {
+  const addMission = () => {
+    const newMission = {
+      id: `mission_${Date.now()}`,
+      name: "Nova Missão",
+      points: 10,
+      quantity: 1,
+      description: "",
+      dependencies: [],
+      penalties: []
+    }
+    const missions = [...(area.performanceMissions || []), newMission]
+    onUpdate({ performanceMissions: missions })
+  }
+
+  const updateMission = (missionId: string, updates: any) => {
+    const missions = (area.performanceMissions || []).map(m =>
+      m.id === missionId ? { ...m, ...updates } : m
+    )
+    onUpdate({ performanceMissions: missions })
+  }
+
+  const deleteMission = (missionId: string) => {
+    const missions = (area.performanceMissions || []).filter(m => m.id !== missionId)
+    onUpdate({ performanceMissions: missions })
+  }
+
+  const addPenalty = () => {
+    const newPenalty = {
+      type: "robot_touch",
+      points: -5,
+      description: ""
+    }
+    const penalties = [...(area.penalties || []), newPenalty]
+    onUpdate({ penalties })
+  }
+
+  const updatePenalty = (index: number, updates: any) => {
+    const penalties = [...(area.penalties || [])]
+    penalties[index] = { ...penalties[index], ...updates }
+    onUpdate({ penalties })
+  }
+
+  const deletePenalty = (index: number) => {
+    const penalties = (area.penalties || []).filter((_, i) => i !== index)
+    onUpdate({ penalties })
+  }
+
+  return (
+    <div className="space-y-6 p-4 border rounded-lg bg-muted/50">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold">Missões de Desempenho</Label>
+          <Button size="sm" variant="outline" onClick={addMission}>
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Missão
+          </Button>
+        </div>
+
+        {(area.performanceMissions || []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma missão configurada. Adicione missões para definir tarefas práticas desta área.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {(area.performanceMissions || []).map((mission, index) => (
+              <Card key={mission.id} className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-muted-foreground">Missão #{index + 1}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => deleteMission(mission.id)}
+                    className="text-destructive h-6 w-6 p-0"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm">Nome da Missão *</Label>
+                      <Input
+                        value={mission.name}
+                        onChange={(e) => updateMission(mission.id, { name: e.target.value })}
+                        placeholder="Ex: Levantar lixo"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-sm">Pontos</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={mission.points}
+                          onChange={(e) => updateMission(mission.id, { points: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm">Quantidade Máx</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={mission.quantity}
+                          onChange={(e) => updateMission(mission.id, { quantity: parseInt(e.target.value) || 1 })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm">Descrição</Label>
+                    <Textarea
+                      value={mission.description || ""}
+                      onChange={(e) => updateMission(mission.id, { description: e.target.value })}
+                      placeholder="Descrição da missão"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm">Dependências (IDs das missões separadas por vírgula)</Label>
+                    <Input
+                      value={mission.dependencies?.join(", ") || ""}
+                      onChange={(e) => {
+                        const deps = e.target.value.split(",").map(d => d.trim()).filter(d => d)
+                        updateMission(mission.id, { dependencies: deps })
+                      }}
+                      placeholder="Ex: mission_1, mission_2"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Só conta se estas missões foram concluídas
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Separator />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-semibold">Penalidades Globais</Label>
+          <Button size="sm" variant="outline" onClick={addPenalty}>
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Penalidade
+          </Button>
+        </div>
+        {(area.penalties || []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma penalidade global configurada.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {(area.penalties || []).map((penalty, index) => (
+              <Card key={index} className="p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 grid grid-cols-3 gap-2">
+                    <Input
+                      value={penalty.type}
+                      onChange={(e) => updatePenalty(index, { type: e.target.value })}
+                      placeholder="Tipo (ex: robot_touch)"
+                    />
+                    <Input
+                      type="number"
+                      value={penalty.points}
+                      onChange={(e) => updatePenalty(index, { points: parseInt(e.target.value) || 0 })}
+                      placeholder="Pontos negativos"
+                    />
+                    <Input
+                      value={penalty.description || ""}
+                      onChange={(e) => updatePenalty(index, { description: e.target.value })}
+                      placeholder="Descrição"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => deletePenalty(index)}
+                    className="text-destructive h-8 w-8 p-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Fully implemented Mixed Area Configuration
+function MixedAreaConfig({ area, onUpdate }: { area: Area; onUpdate: (updates: Partial<Area>) => void }) {
+  const [activeTab, setActiveTab] = useState<"rubric" | "performance">("rubric")
+
+  return (
+    <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+      <div className="flex items-center justify-between mb-4">
+        <Label className="text-base font-semibold">Área Mista - Configuração Combinada</Label>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant={activeTab === "rubric" ? "default" : "outline"}
+            onClick={() => setActiveTab("rubric")}
+          >
+            Rubrica
+          </Button>
+          <Button
+            size="sm"
+            variant={activeTab === "performance" ? "default" : "outline"}
+            onClick={() => setActiveTab("performance")}
+          >
+            Desempenho
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <Label className="text-sm font-medium mb-2 block">Forma de Agregação</Label>
+        <Select
+          value={area.mixedAggregation || "sum"}
+          onValueChange={(value: "sum" | "weighted_average" | "percentage") => 
+            onUpdate({ mixedAggregation: value })
+          }
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="sum">Soma Direta</SelectItem>
+            <SelectItem value="weighted_average">Média Ponderada</SelectItem>
+            <SelectItem value="percentage">Percentual Combinado</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          Como as pontuações de rubrica e desempenho serão combinadas
+        </p>
+      </div>
+
+      {activeTab === "rubric" && (
+        <RubricAreaConfig area={area} onUpdate={onUpdate} />
+      )}
+      {activeTab === "performance" && (
+        <PerformanceAreaConfig area={area} onUpdate={onUpdate} />
+      )}
+    </div>
+  )
+}
+
 // Fully implemented Ranking Section
 function RankingSection({ ranking, areas, onChange }: { ranking: any; areas: Area[]; onChange: (ranking: any) => void }) {
   const addTieBreak = () => {
