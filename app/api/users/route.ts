@@ -129,7 +129,8 @@ export async function POST(request: NextRequest) {
       role,
       schoolId,
       areas,
-      phone
+      phone,
+      tempPassword
     } = body
 
     if (!name || !email || !role) {
@@ -246,9 +247,9 @@ export async function POST(request: NextRequest) {
     const expiryTimestamp = Date.now() + (60 * 60 * 1000) // 1 hour
     const resetTokenData = `RESET_TOKEN:${resetToken}:${expiryTimestamp}`
 
-    // Generate a temporary password (won't be used - user will set via email link)
-    const tempPassword = crypto.randomBytes(16).toString('hex')
-    const hashedPassword = await bcrypt.hash(tempPassword, 10)
+    // Use provided temporary password or generate one automatically
+    const finalTempPassword = tempPassword || crypto.randomBytes(16).toString('hex')
+    const hashedPassword = await bcrypt.hash(finalTempPassword, 10)
 
     const newUser = await prisma.user.create({
       data: {
@@ -290,12 +291,18 @@ export async function POST(request: NextRequest) {
     // Remove password from response
     const { password: _, tempPassword: __, ...userResponse } = newUser
 
+    const message = tempPassword
+      ? emailSent 
+        ? 'Usuário criado com sucesso! Senha temporária definida. Um email foi enviado para o usuário redefinir a senha.'
+        : 'Usuário criado com sucesso! Senha temporária definida. O usuário pode usar essa senha para fazer login ou solicitar redefinição de senha na tela de login.'
+      : emailSent 
+        ? 'Usuário criado com sucesso! Uma senha temporária foi gerada automaticamente. Um email foi enviado para o usuário redefinir a senha.'
+        : 'Usuário criado com sucesso! Uma senha temporária foi gerada automaticamente. O usuário pode solicitar redefinição de senha na tela de login.'
+
     return NextResponse.json({
       success: true,
       user: userResponse,
-      message: emailSent 
-        ? 'Usuário criado com sucesso! Um email foi enviado para o usuário configurar a senha.'
-        : 'Usuário criado com sucesso! O admin pode solicitar redefinição de senha na tela de login.'
+      message
     })
 
   } catch (error: any) {

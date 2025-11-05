@@ -49,7 +49,8 @@ export default function UsersManagement() {
     name: "",
     email: "",
     role: "judge" as "judge" | "viewer",
-    phone: ""
+    phone: "",
+    tempPassword: ""
   })
 
   useEffect(() => {
@@ -135,7 +136,8 @@ export default function UsersManagement() {
           name: userForm.name.trim(),
           email: userForm.email.trim(),
           role: userForm.role,
-          phone: userForm.phone.trim() || null
+          phone: userForm.phone.trim() || null,
+          tempPassword: userForm.tempPassword.trim() || null
         })
       })
 
@@ -164,7 +166,7 @@ export default function UsersManagement() {
           }, 500)
         }
         
-        setUserForm({ name: "", email: "", role: "judge", phone: "" })
+        setUserForm({ name: "", email: "", role: "judge", phone: "", tempPassword: "" })
         setShowCreateDialog(false)
         fetchUsers()
       } else {
@@ -384,7 +386,7 @@ export default function UsersManagement() {
           <DialogHeader>
             <DialogTitle>Criar Novo Usuário</DialogTitle>
             <DialogDescription>
-              Crie um novo juiz ou visualizador. Um email será enviado para configurar a senha.
+              Crie um novo juiz ou visualizador. Um email será enviado para que o usuário possa redefinir a senha.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -435,13 +437,26 @@ export default function UsersManagement() {
                 Número de telefone ou WhatsApp para contato (opcional)
               </p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="userTempPassword">Senha Temporária</Label>
+              <Input
+                id="userTempPassword"
+                type="password"
+                value={userForm.tempPassword}
+                onChange={(e) => setUserForm(prev => ({ ...prev, tempPassword: e.target.value }))}
+                placeholder="Senha temporária para acesso inicial (opcional)"
+              />
+              <p className="text-xs text-muted-foreground">
+                Se não informada, uma senha será gerada automaticamente. O usuário receberá um email para redefinir a senha.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
                 setShowCreateDialog(false)
-                setUserForm({ name: "", email: "", role: "judge", phone: "" })
+                setUserForm({ name: "", email: "", role: "judge", phone: "", tempPassword: "" })
               }}
             >
               Cancelar
