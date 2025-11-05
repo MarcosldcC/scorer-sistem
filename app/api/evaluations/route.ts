@@ -102,13 +102,11 @@ export async function POST(request: NextRequest) {
     
     if (!hasAccess && user.role === 'judge') {
       // Check if judge is assigned to this area in this tournament
-      const assignment = await prisma.userTournamentArea.findUnique({
+      const assignment = await prisma.userTournamentArea.findFirst({
         where: {
-          userId_tournamentId_areaId: {
-            userId: user.id,
-            tournamentId: team.tournament.id,
-            areaId: areaId
-          }
+          userId: user.id,
+          tournamentId: team.tournament.id,
+          areaId: areaId
         }
       })
       hasAccess = !!assignment
