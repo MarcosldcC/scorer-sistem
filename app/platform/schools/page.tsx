@@ -457,7 +457,6 @@ export default function SchoolsManagement() {
                   )}
                 </DialogContent>
               </Dialog>
-        </div>
 
         {/* Search */}
         <div className="mb-6">
