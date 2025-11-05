@@ -61,10 +61,12 @@ export default function TournamentViewPage() {
 
   useEffect(() => {
     if (tournamentAreas.length > 0 && tournamentId && user) {
-      fetchUserAssignedAreas()
       // For school_admin, set all areas when tournamentAreas are loaded
       if (user.role === 'school_admin') {
         setUserAssignedAreas(tournamentAreas.map((area: any) => area.code))
+      } else {
+        // For judges, fetch assigned areas
+        fetchUserAssignedAreas()
       }
     }
   }, [tournamentAreas, tournamentId, user])
@@ -144,34 +146,42 @@ export default function TournamentViewPage() {
       const token = localStorage.getItem('robotics-token')
       if (!token || !user) return
 
+      console.log('Fetching user assigned areas for user:', user.id, 'tournament:', tournamentId)
       const response = await fetch(`/api/user-areas?tournamentId=${tournamentId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await response.json()
 
+      console.log('User areas response:', data)
+
       if (response.ok) {
         // Get areas assigned to current user
         const assignments = data.assignments || []
+        console.log('All assignments:', assignments)
+        
         const userAreas = assignments
-          .filter((assignment: any) => assignment.userId === user.id || assignment.user?.id === user.id)
-          .map((assignment: any) => assignment.area?.code || assignment.areaCode)
+          .filter((assignment: any) => {
+            const matches = assignment.userId === user.id || assignment.user?.id === user.id
+            console.log('Checking assignment:', assignment, 'matches:', matches, 'user.id:', user.id)
+            return matches
+          })
+          .map((assignment: any) => {
+            const code = assignment.area?.code || assignment.areaCode
+            console.log('Mapping assignment to code:', code, 'assignment:', assignment)
+            return code
+          })
           .filter((code: string) => code) // Remove undefined/null
         
-        // For school_admin, allow all areas (they can see all)
-        // We'll use tournamentAreas from state when available
-        if (user.role === 'school_admin') {
-          // Use tournamentAreas from state if available, otherwise will be set later
-          if (tournamentAreas.length > 0) {
-            setUserAssignedAreas(tournamentAreas.map((area: any) => area.code))
-          }
-        } else {
-          setUserAssignedAreas(userAreas)
-        }
+        console.log('Final userAreas:', userAreas)
+        setUserAssignedAreas(userAreas)
+      } else {
+        console.error('Failed to fetch user areas:', data)
       }
     } catch (err) {
       console.error('Error fetching user assigned areas:', err)
       // Fallback: use user.areas if available
       if (user?.areas) {
+        console.log('Using fallback user.areas:', user.areas)
         setUserAssignedAreas(user.areas)
       }
     }
@@ -195,10 +205,11 @@ export default function TournamentViewPage() {
 
   // Use user's assigned areas for this tournament (fetched from API)
   // If school_admin, show all areas
+  // For judges, use userAssignedAreas (from API) or fallback to user.areas
   const userAreas = user?.role === 'school_admin' 
     ? tournamentAreas.map((area: any) => area.code)
-    : userAssignedAreas.length > 0 
-      ? userAssignedAreas 
+    : user?.role === 'judge'
+      ? (userAssignedAreas.length > 0 ? userAssignedAreas : (user?.areas || []))
       : (user?.areas || [])
 
   console.log('Render check:', { 
@@ -206,9 +217,14 @@ export default function TournamentViewPage() {
     teamsLoading, 
     loading, 
     isAuthenticated, 
-    user: !!user, 
+    user: !!user,
+    userRole: user?.role,
     tournament: !!tournament,
-    tournamentId 
+    tournamentId,
+    tournamentAreas: tournamentAreas.length,
+    userAssignedAreas,
+    userAreas,
+    teams: teams.length
   })
 
   if (authLoading || teamsLoading || loading) {
@@ -274,7 +290,7 @@ export default function TournamentViewPage() {
           </div>
         </div>
 
-        <DashboardStats teams={teams} judgeAreas={userAreas} />
+        <DashboardStats teams={teams} judgeAreas={userAreas} currentUserId={user?.id} />
 
         <div className="space-y-8">
           <div>

@@ -7,18 +7,26 @@ import type { Team } from "@/hooks/use-teams"
 interface DashboardStatsProps {
   teams: Team[]
   judgeAreas: string[]
+  currentUserId?: string
 }
 
-export function DashboardStats({ teams, judgeAreas }: DashboardStatsProps) {
+export function DashboardStats({ teams, judgeAreas, currentUserId }: DashboardStatsProps) {
   const totalTeams = teams.length
 
   // Calculate stats for judge's areas only
   // judgeAreas contains area codes (e.g., "programming", "research", "identity")
+  // Only count evaluations made by the current user (judge)
   const judgeStats = judgeAreas.reduce(
     (acc, areaCode) => {
-      // Check if team has evaluation for this area code
+      // Check if team has evaluation for this area code made by the current user
       const evaluated = teams.filter((team) => {
-        return team.evaluations && team.evaluations[areaCode] !== undefined
+        if (!team.evaluations || !team.evaluations[areaCode]) return false
+        // If currentUserId is provided, check if this evaluation was made by the current user
+        if (currentUserId && team.evaluatedById && team.evaluatedById[areaCode]) {
+          return team.evaluatedById[areaCode] === currentUserId
+        }
+        // If no currentUserId, count all evaluations (for admin view)
+        return true
       }).length
       acc.evaluated += evaluated
       acc.pending += totalTeams - evaluated

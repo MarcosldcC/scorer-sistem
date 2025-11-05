@@ -120,22 +120,25 @@ export async function GET(request: NextRequest) {
     const transformedTeams = teams.map(team => {
       const evaluations: any = {}
       const evaluatedBy: any = {}
+      const evaluatedById: any = {}
 
       team.evaluations.forEach(evaluation => {
         const areaCode = evaluation.area.code
         evaluations[areaCode] = evaluation.scores
         evaluatedBy[areaCode] = evaluation.evaluatedBy.name
+        evaluatedById[areaCode] = evaluation.evaluatedBy.id
       })
 
       return {
         id: team.id,
         name: team.name,
         code: team.code,
-        grade: team.grade,
-        shift: team.shift,
+        grade: team.grade || (team.metadata as any)?.grade || null,
+        shift: team.shift || (team.metadata as any)?.shift || null,
         metadata: team.metadata,
         evaluations,
-        evaluatedBy
+        evaluatedBy,
+        evaluatedById
       }
     })
 
