@@ -194,6 +194,43 @@ export default function DashboardPage() {
     }
   }
 
+  // Judge/Viewer Dashboard - Calculate tournaments (must be before any returns)
+  const judgeTournaments = useMemo(() => {
+    if (!user?.assignedAreas) return []
+    const tournamentAssignments = user.assignedAreas.reduce((acc, assignment) => {
+      const tournamentId = assignment.tournamentId
+      if (!acc[tournamentId]) {
+        acc[tournamentId] = {
+          tournamentId,
+          tournamentName: assignment.tournamentName,
+          areas: []
+        }
+      }
+      acc[tournamentId].areas.push(assignment)
+      return acc
+    }, {} as Record<string, { tournamentId: string; tournamentName: string; areas: typeof user.assignedAreas }>)
+    
+    return Object.values(tournamentAssignments)
+  }, [user?.assignedAreas])
+  
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null)
+
+  // Initialize selected tournament from localStorage or first tournament
+  useEffect(() => {
+    if (typeof window !== 'undefined' && judgeTournaments.length > 0) {
+      const storedTournamentId = localStorage.getItem('selected-tournament-id')
+      const initialTournamentId = storedTournamentId && judgeTournaments.find(t => t.tournamentId === storedTournamentId)
+        ? storedTournamentId
+        : judgeTournaments[0].tournamentId
+      setSelectedTournamentId(initialTournamentId)
+      localStorage.setItem('selected-tournament-id', initialTournamentId)
+    }
+  }, [judgeTournaments])
+
+  // Filter teams for selected tournament (for judges)
+  const tournamentTeams = useTeams(selectedTournamentId ? { tournamentId: selectedTournamentId } : undefined)
+  const judgeTeams = tournamentTeams.teams || []
+
   if (authLoading || (user?.role !== 'school_admin' && teamsLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -570,37 +607,6 @@ export default function DashboardPage() {
   }
 
   // Judge/Viewer Dashboard (original)
-  // Group assignments by tournament
-  const judgeTournaments = useMemo(() => {
-    const tournamentAssignments = user.assignedAreas?.reduce((acc, assignment) => {
-      const tournamentId = assignment.tournamentId
-      if (!acc[tournamentId]) {
-        acc[tournamentId] = {
-          tournamentId,
-          tournamentName: assignment.tournamentName,
-          areas: []
-        }
-      }
-      acc[tournamentId].areas.push(assignment)
-      return acc
-    }, {} as Record<string, { tournamentId: string; tournamentName: string; areas: typeof user.assignedAreas }>) || {}
-    
-    return Object.values(tournamentAssignments)
-  }, [user.assignedAreas])
-  const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null)
-
-  // Initialize selected tournament from localStorage or first tournament
-  useEffect(() => {
-    if (typeof window !== 'undefined' && judgeTournaments.length > 0) {
-      const storedTournamentId = localStorage.getItem('selected-tournament-id')
-      const initialTournamentId = storedTournamentId && judgeTournaments.find(t => t.tournamentId === storedTournamentId)
-        ? storedTournamentId
-        : judgeTournaments[0].tournamentId
-      setSelectedTournamentId(initialTournamentId)
-      localStorage.setItem('selected-tournament-id', initialTournamentId)
-    }
-  }, [judgeTournaments])
-
   // Get areas for selected tournament
   const selectedTournament = judgeTournaments.find(t => t.tournamentId === selectedTournamentId)
   const assignedAreaCodes = selectedTournament?.areas.map(a => a.areaCode) || []
@@ -620,10 +626,6 @@ export default function DashboardPage() {
       localStorage.setItem('selected-tournament-id', tournamentId)
     }
   }
-
-  // Filter teams for selected tournament
-  const tournamentTeams = useTeams(selectedTournamentId ? { tournamentId: selectedTournamentId } : undefined)
-  const judgeTeams = tournamentTeams.teams || []
 
   return (
     <div className="min-h-screen bg-[#F7F9FB]">
