@@ -75,6 +75,7 @@ export default function TournamentViewPage() {
         return
       }
 
+      console.log('Fetching tournaments for ID:', tournamentId)
       const response = await fetch('/api/tournaments', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -85,14 +86,20 @@ export default function TournamentViewPage() {
       }
 
       const data = await response.json()
+      console.log('Tournaments response:', data)
 
       if (response.ok && data.tournaments) {
+        console.log('Looking for tournament ID:', tournamentId, 'in', data.tournaments.length, 'tournaments')
         const found = data.tournaments.find((t: any) => t.id === tournamentId)
+        console.log('Found tournament:', found)
         if (found) {
           setTournament(found)
+          console.log('Tournament state set:', found)
         } else {
-          console.warn('Tournament not found:', tournamentId)
+          console.warn('Tournament not found in list. Available IDs:', data.tournaments.map((t: any) => t.id))
         }
+      } else {
+        console.warn('No tournaments in response or response not ok')
       }
     } catch (err) {
       console.error('Error fetching tournament:', err)
@@ -107,6 +114,7 @@ export default function TournamentViewPage() {
         return
       }
 
+      console.log('Fetching tournament areas for tournament ID:', tournamentId)
       const response = await fetch(`/api/tournament-areas?tournamentId=${tournamentId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -117,9 +125,12 @@ export default function TournamentViewPage() {
       }
 
       const data = await response.json()
+      console.log('Tournament areas response:', data)
 
       if (response.ok) {
-        setTournamentAreas(data.areas || [])
+        const areas = data.areas || []
+        console.log('Setting tournament areas:', areas.length, 'areas')
+        setTournamentAreas(areas)
       }
     } catch (err) {
       console.error('Error fetching tournament areas:', err)
@@ -188,7 +199,18 @@ export default function TournamentViewPage() {
       ? userAssignedAreas 
       : (user?.areas || [])
 
+  console.log('Render check:', { 
+    authLoading, 
+    teamsLoading, 
+    loading, 
+    isAuthenticated, 
+    user: !!user, 
+    tournament: !!tournament,
+    tournamentId 
+  })
+
   if (authLoading || teamsLoading || loading) {
+    console.log('Showing loading screen')
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -200,6 +222,7 @@ export default function TournamentViewPage() {
   }
 
   if (!isAuthenticated || !user) {
+    console.log('Not authenticated or no user')
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -210,6 +233,7 @@ export default function TournamentViewPage() {
   }
 
   if (!tournament) {
+    console.log('Tournament not found, showing error message')
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -221,6 +245,8 @@ export default function TournamentViewPage() {
       </div>
     )
   }
+
+  console.log('Rendering tournament view:', tournament.name)
 
   return (
     <div className="min-h-screen bg-[#F7F9FB]">
