@@ -842,9 +842,39 @@ export default function TournamentDetailPage() {
         }
 
         // Create new areas from template
+        // IMPORTANTE: Importar TUDO (rubricas, missões, etc.)
         const createdAreas = []
         for (const areaData of data.areas) {
           try {
+            console.log('Creating area from template:', {
+              name: areaData.name,
+              code: areaData.code,
+              scoringType: areaData.scoringType,
+              hasRubric: !!(areaData.rubricCriteria || areaData.rubricConfig),
+              hasPerformance: !!(areaData.performanceMissions || areaData.performanceConfig),
+              rubricCriteria: areaData.rubricCriteria || areaData.rubricConfig,
+              performanceMissions: areaData.performanceMissions || areaData.performanceConfig
+            })
+
+            // Preparar configurações de rubrica e performance
+            let rubricConfig = null
+            if (areaData.rubricCriteria) {
+              // Se vem como rubricCriteria, usar diretamente
+              rubricConfig = areaData.rubricCriteria
+            } else if (areaData.rubricConfig) {
+              // Se vem como rubricConfig, usar diretamente
+              rubricConfig = areaData.rubricConfig
+            }
+
+            let performanceConfig = null
+            if (areaData.performanceMissions) {
+              // Se vem como performanceMissions, usar diretamente
+              performanceConfig = areaData.performanceMissions
+            } else if (areaData.performanceConfig) {
+              // Se vem como performanceConfig, usar diretamente
+              performanceConfig = areaData.performanceConfig
+            }
+
             const response = await fetch('/api/tournament-areas', {
               method: 'POST',
               headers: {
@@ -857,19 +887,29 @@ export default function TournamentDetailPage() {
                 code: areaData.code,
                 description: areaData.description || "",
                 scoringType: areaData.scoringType || "rubric",
-                rubricConfig: areaData.rubricCriteria || areaData.rubricConfig || null,
-                performanceConfig: areaData.performanceMissions || areaData.performanceConfig || null,
+                // IMPORTANTE: Passar as configurações completas
+                rubricConfig: rubricConfig,
+                performanceConfig: performanceConfig,
                 weight: areaData.weight || 1.0,
                 timeLimit: areaData.timeLimit ? (typeof areaData.timeLimit === 'number' ? areaData.timeLimit : areaData.timeLimit * 60) : null,
                 timeAction: areaData.timeAction || "alert",
-                aggregationMethod: "average",
-                order: areaData.order || 0
+                aggregationMethod: areaData.aggregationMethod || "last",
+                allowRounds: areaData.allowRounds || false,
+                maxRounds: areaData.maxRounds || 1,
+                roundsAggregation: areaData.roundsAggregation || null,
+                penaltyLimits: areaData.penaltyLimits || null,
+                hasPrice: areaData.hasPrice || false,
+                priceConfig: areaData.priceConfig || null,
+                order: areaData.order !== undefined ? areaData.order : createdAreas.length
               })
             })
             
             const result = await response.json()
             if (response.ok && result.area) {
               createdAreas.push(result.area)
+              console.log('Area created successfully:', result.area.id)
+            } else {
+              console.error('Error creating area:', result)
             }
           } catch (err) {
             console.error('Error creating area:', err)
