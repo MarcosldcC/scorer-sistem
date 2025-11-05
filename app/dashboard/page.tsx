@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth-api"
 import { useTeams } from "@/hooks/use-teams"
@@ -571,20 +571,22 @@ export default function DashboardPage() {
 
   // Judge/Viewer Dashboard (original)
   // Group assignments by tournament
-  const tournamentAssignments = user.assignedAreas?.reduce((acc, assignment) => {
-    const tournamentId = assignment.tournamentId
-    if (!acc[tournamentId]) {
-      acc[tournamentId] = {
-        tournamentId,
-        tournamentName: assignment.tournamentName,
-        areas: []
+  const judgeTournaments = useMemo(() => {
+    const tournamentAssignments = user.assignedAreas?.reduce((acc, assignment) => {
+      const tournamentId = assignment.tournamentId
+      if (!acc[tournamentId]) {
+        acc[tournamentId] = {
+          tournamentId,
+          tournamentName: assignment.tournamentName,
+          areas: []
+        }
       }
-    }
-    acc[tournamentId].areas.push(assignment)
-    return acc
-  }, {} as Record<string, { tournamentId: string; tournamentName: string; areas: typeof user.assignedAreas }>) || {}
-
-  const judgeTournaments = Object.values(tournamentAssignments)
+      acc[tournamentId].areas.push(assignment)
+      return acc
+    }, {} as Record<string, { tournamentId: string; tournamentName: string; areas: typeof user.assignedAreas }>) || {}
+    
+    return Object.values(tournamentAssignments)
+  }, [user.assignedAreas])
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null)
 
   // Initialize selected tournament from localStorage or first tournament
@@ -597,7 +599,7 @@ export default function DashboardPage() {
       setSelectedTournamentId(initialTournamentId)
       localStorage.setItem('selected-tournament-id', initialTournamentId)
     }
-  }, [user.assignedAreas])
+  }, [judgeTournaments])
 
   // Get areas for selected tournament
   const selectedTournament = judgeTournaments.find(t => t.tournamentId === selectedTournamentId)
