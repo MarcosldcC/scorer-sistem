@@ -177,6 +177,51 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // If template is provided, create tournament areas from template
+    if (templateId) {
+      const template = await prisma.tournamentTemplate.findUnique({
+        where: { id: templateId },
+        select: { config: true }
+      })
+
+      if (template && template.config) {
+        const config = template.config as any
+        const templateAreas = config.areas || []
+
+        console.log(`[Create Tournament] Creating ${templateAreas.length} areas from template`)
+
+        // Create tournament areas from template
+        if (templateAreas.length > 0) {
+          const areasToCreate = templateAreas.map((area: any, index: number) => ({
+            tournamentId: tournament.id,
+            name: area.name || `Área ${index + 1}`,
+            code: area.code || `area_${index + 1}`,
+            description: area.description || null,
+            scoringType: area.scoringType || 'rubric',
+            rubricConfig: area.rubricCriteria || area.rubricConfig || null,
+            performanceConfig: area.performanceMissions || area.performanceConfig || null,
+            weight: area.weight || 1.0,
+            order: area.order !== undefined ? area.order : index,
+            timeLimit: area.timeLimit || null,
+            timeAction: area.timeAction || 'alert',
+            aggregationMethod: area.aggregationMethod || 'last',
+            allowRounds: area.allowRounds || false,
+            maxRounds: area.maxRounds || 1,
+            roundsAggregation: area.roundsAggregation || null,
+            penaltyLimits: area.penaltyLimits || null,
+            hasPrice: area.hasPrice || false,
+            priceConfig: area.priceConfig || null
+          }))
+
+          await prisma.tournamentArea.createMany({
+            data: areasToCreate
+          })
+
+          console.log(`[Create Tournament] Created ${areasToCreate.length} areas from template`)
+        }
+      }
+    }
+
     // Link teams if provided (create TournamentTeam entries separately)
     if (teamIds && Array.isArray(teamIds) && teamIds.length > 0) {
       // Verify that all team IDs exist and belong to the same school
