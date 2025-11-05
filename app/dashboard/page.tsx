@@ -584,23 +584,23 @@ export default function DashboardPage() {
     return acc
   }, {} as Record<string, { tournamentId: string; tournamentName: string; areas: typeof user.assignedAreas }>) || {}
 
-  const tournaments = Object.values(tournamentAssignments)
+  const judgeTournaments = Object.values(tournamentAssignments)
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null)
 
   // Initialize selected tournament from localStorage or first tournament
   useEffect(() => {
-    if (typeof window !== 'undefined' && tournaments.length > 0) {
+    if (typeof window !== 'undefined' && judgeTournaments.length > 0) {
       const storedTournamentId = localStorage.getItem('selected-tournament-id')
-      const initialTournamentId = storedTournamentId && tournaments.find(t => t.tournamentId === storedTournamentId)
+      const initialTournamentId = storedTournamentId && judgeTournaments.find(t => t.tournamentId === storedTournamentId)
         ? storedTournamentId
-        : tournaments[0].tournamentId
+        : judgeTournaments[0].tournamentId
       setSelectedTournamentId(initialTournamentId)
       localStorage.setItem('selected-tournament-id', initialTournamentId)
     }
-  }, [tournaments.length])
+  }, [user.assignedAreas])
 
   // Get areas for selected tournament
-  const selectedTournament = tournaments.find(t => t.tournamentId === selectedTournamentId)
+  const selectedTournament = judgeTournaments.find(t => t.tournamentId === selectedTournamentId)
   const assignedAreaCodes = selectedTournament?.areas.map(a => a.areaCode) || []
   const assignedAreaIds = selectedTournament?.areas.map(a => a.areaId) || []
 
@@ -629,7 +629,7 @@ export default function DashboardPage() {
 
       <main className="container mx-auto px-4 py-8 bg-[#F7F9FB] min-h-screen">
         {/* Tournament Selector */}
-        {tournaments.length > 1 && (
+        {judgeTournaments.length > 1 && (
           <div className="mb-6">
             <Card>
               <CardHeader>
@@ -641,7 +641,7 @@ export default function DashboardPage() {
                     <SelectValue placeholder="Selecione um torneio" />
                   </SelectTrigger>
                   <SelectContent>
-                    {tournaments.map((tournament) => (
+                    {judgeTournaments.map((tournament) => (
                       <SelectItem key={tournament.tournamentId} value={tournament.tournamentId}>
                         {tournament.tournamentName}
                       </SelectItem>
@@ -699,7 +699,7 @@ export default function DashboardPage() {
                 <CardContent className="flex flex-col items-center justify-center py-8">
                   <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">
-                    {tournaments.length === 0 
+                    {judgeTournaments.length === 0 
                       ? 'Você ainda não foi atribuído a nenhuma área de torneio.'
                       : 'Nenhuma área atribuída para este torneio.'}
                   </p>
