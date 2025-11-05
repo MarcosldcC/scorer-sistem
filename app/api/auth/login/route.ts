@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { prisma } from '@/lib/prisma'
 import { config } from '@/lib/config'
+import { normalizeGmail } from '@/lib/email-validation'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -28,10 +29,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Normalize email if provided (same as creation)
+    const normalizedEmail = email ? normalizeGmail(email) : null
+
     // Find user by email or name
     let user
     try {
-      const where: any = email ? { email } : { name }
+      const where: any = normalizedEmail ? { email: normalizedEmail } : { name }
       
       user = await prisma.user.findFirst({
         where,
