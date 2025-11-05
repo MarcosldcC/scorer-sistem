@@ -359,26 +359,33 @@ export async function DELETE(request: NextRequest) {
       assignmentsCount: template._count.assignedSchools
     })
 
-    // Only can delete own templates or be platform admin
-    // Platform admins can delete any template, school admins can only delete their own
-    if (template.isOfficial && user.role !== 'platform_admin') {
-      console.log(`[DELETE Template] Permission denied: Official template can only be deleted by platform admin`)
-      return NextResponse.json(
-        { error: 'Apenas admin da plataforma pode excluir templates oficiais' },
-        { status: 403 }
-      )
-    }
+    // Permission check:
+    // - Platform admins can delete ANY template (official or not, regardless of schoolId)
+    // - School admins can only delete their own templates (non-official, matching schoolId)
+    if (user.role === 'platform_admin') {
+      // Platform admin can delete any template - no restrictions
+      console.log(`[DELETE Template] Platform admin deleting template: ${id}`)
+    } else {
+      // School admin restrictions
+      if (template.isOfficial) {
+        console.log(`[DELETE Template] Permission denied: Official template can only be deleted by platform admin`)
+        return NextResponse.json(
+          { error: 'Apenas admin da plataforma pode excluir templates oficiais' },
+          { status: 403 }
+        )
+      }
 
-    if (!template.isOfficial && template.schoolId !== user.schoolId && user.role !== 'platform_admin') {
-      console.log(`[DELETE Template] Permission denied:`, {
-        templateSchoolId: template.schoolId,
-        userSchoolId: user.schoolId,
-        userRole: user.role
-      })
-      return NextResponse.json(
-        { error: 'Acesso negado' },
-        { status: 403 }
-      )
+      if (template.schoolId !== user.schoolId) {
+        console.log(`[DELETE Template] Permission denied:`, {
+          templateSchoolId: template.schoolId,
+          userSchoolId: user.schoolId,
+          userRole: user.role
+        })
+        return NextResponse.json(
+          { error: 'Acesso negado - você só pode excluir templates da sua escola' },
+          { status: 403 }
+        )
+      }
     }
 
     // Check if template is being used by tournaments
