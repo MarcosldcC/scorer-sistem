@@ -157,11 +157,17 @@ export async function GET(request: NextRequest) {
       
       if (shift) {
         // Normalizar o filtro de turno
-        const normalized = normalizeShift(shift)
-        normalizedFilterShift = normalized ? shiftToSystemFormat(normalized) : null
+        // O filtro vem como "morning" ou "afternoon" do frontend
+        // Se já está no formato do sistema, usar diretamente
+        if (shift === 'morning' || shift === 'afternoon') {
+          normalizedFilterShift = shift
+        } else {
+          // Se não está no formato do sistema, normalizar
+          const normalized = normalizeShift(shift)
+          normalizedFilterShift = normalized ? shiftToSystemFormat(normalized) : shift
+        }
         console.log('Filter Shift Debug:', {
           originalShift: shift,
-          normalized,
           normalizedFilterShift
         })
       }
@@ -198,19 +204,35 @@ export async function GET(request: NextRequest) {
             normalizedTeamShift = rawShift
           } else {
             // Normalizar e converter - SEMPRE converter para formato do sistema
+            // Primeiro tentar normalizar diretamente
             const normalized = normalizeShift(rawShift)
             if (normalized) {
               normalizedTeamShift = shiftToSystemFormat(normalized)
             } else {
-              // Se não conseguiu normalizar, tentar normalizar o texto e verificar novamente
+              // Se não conseguiu normalizar, tentar normalizar o texto e verificar
               const normalizedText = normalizeText(rawShift)
-              if (normalizedText === 'morning' || normalizedText === 'manha') {
+              
+              // Verificar se contém palavras-chave de manhã
+              if (normalizedText.includes('manha') || normalizedText.includes('morning') || 
+                  normalizedText === 'manha' || normalizedText === 'morning') {
                 normalizedTeamShift = 'morning'
-              } else if (normalizedText === 'afternoon' || normalizedText === 'tarde') {
+              } 
+              // Verificar se contém palavras-chave de tarde
+              else if (normalizedText.includes('tarde') || normalizedText.includes('afternoon') || 
+                       normalizedText === 'tarde' || normalizedText === 'afternoon') {
                 normalizedTeamShift = 'afternoon'
-              } else {
-                // Se ainda não conseguiu, usar null (não corresponde)
-                normalizedTeamShift = null
+              } 
+              // Se ainda não conseguiu, tentar verificar o valor original
+              else {
+                const lowerRawShift = rawShift.toLowerCase().trim()
+                if (lowerRawShift === 'manhã' || lowerRawShift === 'manha' || lowerRawShift === 'morning') {
+                  normalizedTeamShift = 'morning'
+                } else if (lowerRawShift === 'tarde' || lowerRawShift === 'afternoon') {
+                  normalizedTeamShift = 'afternoon'
+                } else {
+                  // Se ainda não conseguiu, usar null (não corresponde)
+                  normalizedTeamShift = null
+                }
               }
             }
           }
