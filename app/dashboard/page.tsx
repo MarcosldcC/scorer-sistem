@@ -463,7 +463,7 @@ export default function DashboardPage() {
                             size="sm" 
                             variant="outline" 
                             className="rounded-full flex-1"
-                            onClick={() => router.push(`/tournaments/${tournament.id}`)}
+                            onClick={() => router.push(`/tournaments/${tournament.id}/edit`)}
                           >
                             <Edit className="h-4 w-4 mr-2" />
                             Editar
