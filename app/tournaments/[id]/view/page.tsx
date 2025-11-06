@@ -297,19 +297,10 @@ export default function TournamentViewPage() {
     window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
     window.addEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
 
-    // Também atualizar quando a página volta ao foco (usuário volta de outra aba)
-    const handleFocus = () => {
-      console.log('🟢 Page focused, refetching teams...')
-      refetchTeams()
-      loadTournamentData()
-    }
-    window.addEventListener('focus', handleFocus)
-
     return () => {
       window.removeEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
       window.removeEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
       window.removeEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
-      window.removeEventListener('focus', handleFocus)
     }
   }, [tournamentId, refetchTeams, loadTournamentData])
 

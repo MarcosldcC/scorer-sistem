@@ -78,18 +78,10 @@ export default function RankingsPage() {
     window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
     window.addEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
 
-    // Também atualizar quando a página volta ao foco
-    const handleFocus = () => {
-      console.log('🟢 Rankings - Page focused, refetching rankings...')
-      refetch()
-    }
-    window.addEventListener('focus', handleFocus)
-
     return () => {
       window.removeEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
       window.removeEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
       window.removeEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
-      window.removeEventListener('focus', handleFocus)
     }
   }, [selectedTournamentId, filters.tournamentId, refetch])
   

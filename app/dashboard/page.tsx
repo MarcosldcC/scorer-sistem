@@ -337,21 +337,10 @@ export default function DashboardPage() {
     window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
     window.addEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
 
-    // Também atualizar quando a página volta ao foco
-    const handleFocus = () => {
-      console.log('🟢 Dashboard - Page focused, refetching teams...')
-      refetchJudgeTeams()
-      if (selectedTournamentId) {
-        fetchAssignedAreas(selectedTournamentId)
-      }
-    }
-    window.addEventListener('focus', handleFocus)
-
     return () => {
       window.removeEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
       window.removeEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
       window.removeEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
-      window.removeEventListener('focus', handleFocus)
     }
   }, [selectedTournamentId, user?.role, refetchJudgeTeams, fetchAssignedAreas])
 
