@@ -247,6 +247,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user can evaluate this area
+    // Viewers cannot evaluate - they can only view rankings
+    if (user.role === 'viewer') {
+      return NextResponse.json(
+        { error: 'Visualizadores não podem avaliar equipes. Apenas visualização de rankings é permitida.' },
+        { status: 403 }
+      )
+    }
+    
     // For judges, check if they are assigned to this area in this tournament
     let hasAccess = user.isAdmin || 
                     user.role === 'platform_admin' || 

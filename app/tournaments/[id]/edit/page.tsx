@@ -351,13 +351,17 @@ export default function EditTournamentPage() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-8 mb-6">
+          <TabsList className="grid w-full grid-cols-9 mb-6">
             <TabsTrigger value="general">Informações</TabsTrigger>
             <TabsTrigger value="template">Template</TabsTrigger>
             <TabsTrigger value="areas">Áreas</TabsTrigger>
             <TabsTrigger value="judges">
               <Gavel className="h-4 w-4 mr-1" />
               Juízes
+            </TabsTrigger>
+            <TabsTrigger value="viewers">
+              <Eye className="h-4 w-4 mr-1" />
+              Visualizadores
             </TabsTrigger>
             <TabsTrigger value="ranking">Ranking</TabsTrigger>
             <TabsTrigger value="teams">Equipes</TabsTrigger>
@@ -487,6 +491,11 @@ export default function EditTournamentPage() {
           {/* Juízes */}
           <TabsContent value="judges" className="space-y-6">
             <JudgesSection tournamentId={tournamentId} areas={tournamentData.areas} />
+          </TabsContent>
+
+          {/* Visualizadores */}
+          <TabsContent value="viewers" className="space-y-6">
+            <ViewersSection tournamentId={tournamentId} />
           </TabsContent>
 
           {/* Ranking */}
@@ -2794,6 +2803,388 @@ function JudgesSection({ tournamentId, areas }: { tournamentId: string; areas: A
               Cancelar
             </Button>
             <Button onClick={handleAssignJudge} disabled={assigning || !selectedArea || !selectedJudge}>
+              {assigning ? "Atribuindo..." : "Atribuir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// Viewers Section Component
+function ViewersSection({ tournamentId }: { tournamentId: string }) {
+  const { toast } = useToast()
+  const [viewers, setViewers] = useState<any[]>([])
+  const [availableViewers, setAvailableViewers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showAssignDialog, setShowAssignDialog] = useState(false)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [selectedViewer, setSelectedViewer] = useState("")
+  const [assigning, setAssigning] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [viewerForm, setViewerForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    tempPassword: ""
+  })
+
+  useEffect(() => {
+    fetchViewers()
+  }, [tournamentId])
+
+  const fetchViewers = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch(`/api/tournaments/${tournamentId}/viewers?available=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+
+      if (response.ok) {
+        setViewers(data.assigned || [])
+        setAvailableViewers(data.available || [])
+      }
+    } catch (err) {
+      console.error('Error fetching viewers:', err)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os visualizadores.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateViewer = async () => {
+    if (!viewerForm.name.trim() || !viewerForm.email.trim() || !viewerForm.tempPassword.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Nome, email e senha temporária são obrigatórios.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setCreating(true)
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: viewerForm.name.trim(),
+          email: viewerForm.email.trim(),
+          role: 'viewer',
+          phone: viewerForm.phone.trim() || null,
+          tempPassword: viewerForm.tempPassword.trim()
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Visualizador criado!",
+          description: `O visualizador "${viewerForm.name}" foi criado com sucesso.`,
+          variant: "default",
+        })
+        setShowCreateDialog(false)
+        setViewerForm({ name: "", email: "", phone: "", tempPassword: "" })
+        fetchViewers()
+      } else {
+        toast({
+          title: "Erro ao criar visualizador",
+          description: data.error || 'Erro desconhecido',
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error('Error creating viewer:', err)
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar o visualizador.",
+        variant: "destructive",
+      })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleAssignViewer = async () => {
+    if (!selectedViewer) return
+
+    try {
+      setAssigning(true)
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch(`/api/tournaments/${tournamentId}/viewers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId: selectedViewer })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Visualizador atribuído!",
+          description: "O visualizador foi atribuído ao torneio com sucesso.",
+          variant: "default",
+        })
+        setShowAssignDialog(false)
+        setSelectedViewer("")
+        fetchViewers()
+      } else {
+        toast({
+          title: "Erro ao atribuir visualizador",
+          description: data.error || 'Erro desconhecido',
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error('Error assigning viewer:', err)
+      toast({
+        title: "Erro",
+        description: "Não foi possível atribuir o visualizador.",
+        variant: "destructive",
+      })
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const handleUnassignViewer = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch(`/api/tournaments/${tournamentId}/viewers?userId=${userId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Visualizador removido!",
+          description: "O visualizador foi removido do torneio.",
+          variant: "default",
+        })
+        fetchViewers()
+      } else {
+        toast({
+          title: "Erro ao remover visualizador",
+          description: data.error || 'Erro desconhecido',
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error('Error unassigning viewer:', err)
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover o visualizador.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Visualizadores do Torneio</CardTitle>
+            <CardDescription>
+              Visualizadores podem ver os rankings do torneio, mas não podem avaliar ou fazer alterações.
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Criar Visualizador
+            </Button>
+            <Button onClick={() => setShowAssignDialog(true)} disabled={availableViewers.length === 0}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Atribuir Visualizador
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {viewers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Eye className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum visualizador atribuído a este torneio.</p>
+              <p className="text-sm mt-2">
+                Crie ou atribua visualizadores para permitir que vejam os rankings.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {viewers.map((viewer) => (
+                <div
+                  key={viewer.id}
+                  className="flex items-center justify-between p-3 border rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Eye className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{viewer.name}</p>
+                      <p className="text-sm text-muted-foreground">{viewer.email}</p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleUnassignViewer(viewer.id)}
+                    className="text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create Viewer Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Visualizador</DialogTitle>
+            <DialogDescription>
+              Crie uma nova conta de visualizador. O visualizador poderá ver os rankings dos torneios aos quais for atribuído.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input
+                value={viewerForm.name}
+                onChange={(e) => setViewerForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome do visualizador"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email (Gmail) *</Label>
+              <Input
+                type="email"
+                value={viewerForm.email}
+                onChange={(e) => setViewerForm(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="visualizador@gmail.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone/WhatsApp</Label>
+              <Input
+                type="tel"
+                value={viewerForm.phone}
+                onChange={(e) => setViewerForm(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Senha Temporária *</Label>
+              <Input
+                type="password"
+                value={viewerForm.tempPassword}
+                onChange={(e) => setViewerForm(prev => ({ ...prev, tempPassword: e.target.value }))}
+                placeholder="Senha temporária para acesso inicial"
+              />
+              <p className="text-xs text-muted-foreground">
+                O visualizador receberá um email para redefinir a senha
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCreateDialog(false)
+              setViewerForm({ name: "", email: "", phone: "", tempPassword: "" })
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateViewer} disabled={creating}>
+              {creating ? "Criando..." : "Criar Visualizador"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Viewer Dialog */}
+      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Atribuir Visualizador ao Torneio</DialogTitle>
+            <DialogDescription>
+              Selecione um visualizador para atribuir a este torneio.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {availableViewers.length === 0 ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Não há visualizadores disponíveis. Crie um novo visualizador primeiro.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-2">
+                <Label>Visualizador</Label>
+                <Select value={selectedViewer} onValueChange={setSelectedViewer}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um visualizador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableViewers.map((viewer) => (
+                      <SelectItem key={viewer.id} value={viewer.id}>
+                        {viewer.name} ({viewer.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAssignDialog(false)
+              setSelectedViewer("")
+            }}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleAssignViewer} 
+              disabled={assigning || !selectedViewer || availableViewers.length === 0}
+            >
               {assigning ? "Atribuindo..." : "Atribuir"}
             </Button>
           </DialogFooter>

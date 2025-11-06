@@ -89,6 +89,7 @@ model Tournament {
   school            School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   template          TournamentTemplate?  @relation(fields: [templateId], references: [id])
   userAreas         UserTournamentArea[]
+  viewerAssignments TournamentViewer[]
 
   @@map("tournaments")
 }
@@ -141,6 +142,7 @@ model User {
   updatedAt        DateTime             @updatedAt
   evaluations      Evaluation[]
   assignedAreas    UserTournamentArea[]
+  viewerTournaments TournamentViewer[]
   school           School?              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@map("users")
@@ -267,4 +269,18 @@ model RankingSnapshot {
 
   @@index([tournamentId])
   @@map("ranking_snapshots")
+}
+
+model TournamentViewer {
+  id           String     @id @default(cuid())
+  userId       String
+  tournamentId String
+  createdAt    DateTime   @default(now())
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tournamentId])
+  @@index([userId])
+  @@index([tournamentId])
+  @@map("tournament_viewers")
 }

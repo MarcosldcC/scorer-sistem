@@ -15,7 +15,15 @@ async function verifyToken(request: NextRequest) {
 
   const token = authHeader.substring(7)
   try {
-    return jwt.verify(token, config.jwt.secret) as any
+    const decoded = jwt.verify(token, config.jwt.secret) as any
+    // Map userId to id for consistency
+    if (decoded && decoded.userId) {
+      return {
+        ...decoded,
+        id: decoded.userId
+      }
+    }
+    return decoded
   } catch {
     return null
   }
@@ -66,7 +74,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify tournament access
-    if (tournament.schoolId !== user.schoolId && user.role !== 'platform_admin') {
+    // Allow access if:
+    // 1. User is platform admin
+    // 2. User belongs to the tournament's school
+    // 3. User is a viewer assigned to this tournament
+    const isPlatformAdmin = user.role === 'platform_admin'
+    const isSchoolMember = tournament.schoolId === user.schoolId
+    
+    // Check if user is a viewer
+    const isViewer = await prisma.tournamentViewer.findUnique({
+      where: {
+        userId_tournamentId: {
+          userId: user.id,
+          tournamentId
+        }
+      }
+    })
+    
+    if (!isPlatformAdmin && !isSchoolMember && !isViewer) {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }
