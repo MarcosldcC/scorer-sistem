@@ -249,6 +249,19 @@ export async function POST(request: NextRequest) {
     // Ensure score is not negative
     finalScore = Math.max(0, finalScore)
 
+    // Check if evaluation already exists to get current version
+    const existingEvaluation = await prisma.evaluation.findUnique({
+      where: {
+        tournamentId_teamId_areaId_evaluatedById_round: {
+          tournamentId: tournament.id,
+          teamId,
+          areaId,
+          evaluatedById: user.id,
+          round: 1 // Default to round 1 for backward compatibility
+        }
+      }
+    })
+
     // Create or update evaluation
     const evaluation = await prisma.evaluation.upsert({
       where: {
@@ -265,7 +278,7 @@ export async function POST(request: NextRequest) {
         comments,
         evaluationTime,
         updatedAt: new Date(),
-        version: { increment: 1 }
+        version: existingEvaluation ? existingEvaluation.version + 1 : 1
       },
       create: {
         tournamentId: tournament.id,
@@ -275,7 +288,8 @@ export async function POST(request: NextRequest) {
         comments,
         evaluationTime,
         evaluatedById: user.id,
-        round: 1
+        round: 1,
+        version: 1
       }
     })
 
