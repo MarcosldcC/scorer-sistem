@@ -370,19 +370,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Create penalties if any
-    if (penalties.length > 0) {
-      await prisma.penalty.deleteMany({
-        where: { evaluationId: evaluation.id }
-      })
+    if (penalties && Array.isArray(penalties) && penalties.length > 0) {
+      try {
+        await prisma.penalty.deleteMany({
+          where: { evaluationId: evaluation.id }
+        })
 
-      await prisma.penalty.createMany({
-        data: penalties.map((penalty: any) => ({
-          evaluationId: evaluation.id,
-          type: penalty.type,
-          points: penalty.points,
-          description: penalty.description
-        }))
-      })
+        await prisma.penalty.createMany({
+          data: penalties.map((penalty: any) => ({
+            evaluationId: evaluation.id,
+            type: penalty.type || 'unknown',
+            points: penalty.points || 0,
+            description: penalty.description || null
+          }))
+        })
+        console.log('Penalties created successfully:', penalties.length)
+      } catch (error) {
+        console.error('Error creating penalties:', error)
+        // Don't fail the whole request if penalties fail
+      }
     }
 
     // Return evaluation with area code for backward compatibility
