@@ -14,7 +14,15 @@ async function verifyToken(request: NextRequest) {
 
   const token = authHeader.substring(7)
   try {
-    return jwt.verify(token, config.jwt.secret) as any
+    const decoded = jwt.verify(token, config.jwt.secret) as any
+    // Map userId to id for consistency
+    if (decoded && decoded.userId) {
+      return {
+        ...decoded,
+        id: decoded.userId
+      }
+    }
+    return decoded
   } catch {
     return null
   }
@@ -79,9 +87,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate evaluationTime is a valid number
-    if (typeof evaluationTime !== 'number' || isNaN(evaluationTime) || evaluationTime < 0) {
-      console.error('Invalid evaluationTime:', evaluationTime)
+    // Validate and convert evaluationTime to number if needed
+    let evaluationTimeNum: number
+    if (typeof evaluationTime === 'string') {
+      evaluationTimeNum = parseInt(evaluationTime, 10)
+      if (isNaN(evaluationTimeNum)) {
+        console.error('Invalid evaluationTime (string):', evaluationTime)
+        return NextResponse.json(
+          { error: 'Tempo de avaliação deve ser um número válido' },
+          { status: 400 }
+        )
+      }
+    } else if (typeof evaluationTime === 'number') {
+      evaluationTimeNum = evaluationTime
+    } else {
+      console.error('Invalid evaluationTime type:', typeof evaluationTime, evaluationTime)
+      return NextResponse.json(
+        { error: 'Tempo de avaliação deve ser um número válido' },
+        { status: 400 }
+      )
+    }
+
+    if (isNaN(evaluationTimeNum) || evaluationTimeNum < 0) {
+      console.error('Invalid evaluationTime value:', evaluationTimeNum)
       return NextResponse.json(
         { error: 'Tempo de avaliação deve ser um número válido maior ou igual a zero' },
         { status: 400 }
@@ -96,23 +124,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate scores array is not empty and has valid structure
-    if (scores.length === 0) {
-      console.error('Scores array is empty')
-      return NextResponse.json(
-        { error: 'Scores não pode estar vazio' },
-        { status: 400 }
-      )
-    }
-
-    // Validate each score has required fields
-    for (const score of scores) {
-      if (!score || typeof score !== 'object') {
-        console.error('Invalid score entry:', score)
-        return NextResponse.json(
-          { error: 'Cada score deve ser um objeto válido' },
-          { status: 400 }
-        )
+    // Validate scores array structure (allow empty arrays for some scoring types)
+    // Validate each score has valid structure if array is not empty
+    if (scores.length > 0) {
+      for (const score of scores) {
+        if (!score || typeof score !== 'object') {
+          console.error('Invalid score entry:', score)
+          return NextResponse.json(
+            { error: 'Cada score deve ser um objeto válido' },
+            { status: 400 }
+          )
+        }
       }
     }
 
@@ -395,7 +417,7 @@ export async function POST(request: NextRequest) {
         update: {
           scores,
           comments: comments || null,
-          evaluationTime,
+          evaluationTime: evaluationTimeNum,
           version: newVersion
         },
         create: {
@@ -404,7 +426,7 @@ export async function POST(request: NextRequest) {
           areaId,
           scores,
           comments: comments || null,
-          evaluationTime,
+          evaluationTime: evaluationTimeNum,
           evaluatedById: user.id,
           round: 1,
           version: 1
