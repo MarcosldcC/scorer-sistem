@@ -47,11 +47,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { teamId, area, scores, comments, evaluationTime, penalties = [], tournamentId } = await request.json()
+    let body
+    try {
+      body = await request.json()
+    } catch (error) {
+      console.error('Error parsing request body:', error)
+      return NextResponse.json(
+        { error: 'Erro ao processar dados da requisição' },
+        { status: 400 }
+      )
+    }
+
+    const { teamId, area, scores, comments, evaluationTime, penalties = [], tournamentId } = body
+
+    console.log('Evaluation request data:', {
+      teamId,
+      area,
+      scoresCount: Array.isArray(scores) ? scores.length : 'not array',
+      evaluationTime,
+      penaltiesCount: Array.isArray(penalties) ? penalties.length : 'not array',
+      tournamentId,
+      userId: user.id,
+      userRole: user.role
+    })
 
     if (!teamId || !area || !scores || evaluationTime === undefined) {
+      console.error('Missing required fields:', { teamId: !!teamId, area: !!area, scores: !!scores, evaluationTime: evaluationTime !== undefined })
       return NextResponse.json(
         { error: 'Dados obrigatórios não fornecidos' },
+        { status: 400 }
+      )
+    }
+
+    if (!Array.isArray(scores)) {
+      console.error('Scores is not an array:', scores)
+      return NextResponse.json(
+        { error: 'Scores deve ser um array' },
         { status: 400 }
       )
     }
@@ -261,49 +292,82 @@ export async function POST(request: NextRequest) {
 
     // Create or update evaluation
     // First, try to find existing evaluation to get current version
-    const existingEvaluation = await prisma.evaluation.findUnique({
-      where: {
-        tournamentId_teamId_areaId_evaluatedById_round: {
-          tournamentId: tournament.id,
-          teamId,
-          areaId,
-          evaluatedById: user.id,
-          round: 1 // Default to round 1 for backward compatibility
-        }
-      },
-      select: { version: true }
-    })
+    let existingEvaluation
+    try {
+      existingEvaluation = await prisma.evaluation.findUnique({
+        where: {
+          tournamentId_teamId_areaId_evaluatedById_round: {
+            tournamentId: tournament.id,
+            teamId,
+            areaId,
+            evaluatedById: user.id,
+            round: 1 // Default to round 1 for backward compatibility
+          }
+        },
+        select: { version: true }
+      })
+    } catch (error) {
+      console.error('Error finding existing evaluation:', error)
+      // Continue anyway, will create new evaluation
+      existingEvaluation = null
+    }
 
     const newVersion = existingEvaluation ? existingEvaluation.version + 1 : 1
 
-    const evaluation = await prisma.evaluation.upsert({
-      where: {
-        tournamentId_teamId_areaId_evaluatedById_round: {
+    console.log('Creating/updating evaluation:', {
+      tournamentId: tournament.id,
+      teamId,
+      areaId,
+      evaluatedById: user.id,
+      round: 1,
+      newVersion,
+      isUpdate: !!existingEvaluation
+    })
+
+    let evaluation
+    try {
+      evaluation = await prisma.evaluation.upsert({
+        where: {
+          tournamentId_teamId_areaId_evaluatedById_round: {
+            tournamentId: tournament.id,
+            teamId,
+            areaId,
+            evaluatedById: user.id,
+            round: 1 // Default to round 1 for backward compatibility
+          }
+        },
+        update: {
+          scores,
+          comments: comments || null,
+          evaluationTime,
+          version: newVersion
+        },
+        create: {
           tournamentId: tournament.id,
           teamId,
           areaId,
+          scores,
+          comments: comments || null,
+          evaluationTime,
           evaluatedById: user.id,
-          round: 1 // Default to round 1 for backward compatibility
+          round: 1,
+          version: 1
         }
-      },
-      update: {
-        scores,
-        comments,
-        evaluationTime,
-        version: newVersion
-      },
-      create: {
+      })
+      console.log('Evaluation created/updated successfully:', evaluation.id)
+    } catch (error) {
+      console.error('Error upserting evaluation:', error)
+      console.error('Upsert error details:', {
         tournamentId: tournament.id,
         teamId,
         areaId,
-        scores,
-        comments,
-        evaluationTime,
         evaluatedById: user.id,
         round: 1,
-        version: 1
-      }
-    })
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorName: error instanceof Error ? error.name : 'Unknown'
+      })
+      throw error // Re-throw to be caught by outer try-catch
+    }
 
     // Create penalties if any
     if (penalties.length > 0) {
