@@ -53,8 +53,18 @@ export default function RankingsPage() {
       }
     }
 
+    const handleEvaluationDeleted = (event: CustomEvent) => {
+      const detail = event.detail as { teamId?: string; area?: string; tournamentId?: string }
+      // Se o evento é para o torneio atual, atualizar rankings
+      if (!detail.tournamentId || detail.tournamentId === selectedTournamentId || detail.tournamentId === filters.tournamentId) {
+        console.log('🟢 Rankings - Evaluation deleted event received, refetching rankings...', detail)
+        refetch()
+      }
+    }
+
     window.addEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
     window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+    window.addEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
 
     // Também atualizar quando a página volta ao foco
     const handleFocus = () => {
