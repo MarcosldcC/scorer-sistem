@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth-api"
 import { useTeams } from "@/hooks/use-teams"
@@ -607,10 +607,84 @@ export default function DashboardPage() {
   }
 
   // Judge/Viewer Dashboard (original)
+  // Fetch assigned areas from API for selected tournament (more reliable than user.assignedAreas)
+  const [fetchedAssignedAreas, setFetchedAssignedAreas] = useState<any[]>([])
+  const [fetchingAreas, setFetchingAreas] = useState(false)
+
+  const fetchAssignedAreas = useCallback(async (tournamentId: string) => {
+    if (!tournamentId || !user) return
+    
+    console.log('🔵 Dashboard - Fetching assigned areas for tournament:', tournamentId, 'user:', user.id)
+    setFetchingAreas(true)
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) {
+        setFetchingAreas(false)
+        return
+      }
+
+      const response = await fetch(`/api/user-areas?tournamentId=${tournamentId}&userId=${user.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+
+      console.log('🔵 Dashboard - Assigned areas response:', {
+        status: response.status,
+        ok: response.ok,
+        assignmentsCount: data.assignments?.length || 0,
+        assignments: data.assignments
+      })
+
+      if (response.ok) {
+        const assignments = data.assignments || []
+        setFetchedAssignedAreas(assignments)
+        console.log('🔵 Dashboard - Set fetched assigned areas:', assignments.map((a: any) => ({
+          areaCode: a.area?.code,
+          areaName: a.area?.name,
+          areaId: a.areaId
+        })))
+      } else {
+        console.error('🔴 Dashboard - Failed to fetch assigned areas:', data)
+        setFetchedAssignedAreas([])
+      }
+    } catch (error) {
+      console.error('🔴 Dashboard - Error fetching assigned areas:', error)
+      setFetchedAssignedAreas([])
+    } finally {
+      setFetchingAreas(false)
+    }
+  }, [user])
+
+  // Fetch assigned areas when tournament is selected
+  useEffect(() => {
+    if (selectedTournamentId && user?.role === 'judge') {
+      console.log('🔵 Dashboard - Tournament selected, fetching areas:', selectedTournamentId)
+      fetchAssignedAreas(selectedTournamentId)
+    } else {
+      setFetchedAssignedAreas([])
+    }
+  }, [selectedTournamentId, user, fetchAssignedAreas])
+
   // Get areas for selected tournament
+  // Use fetched areas from API if available, otherwise fallback to user.assignedAreas
   const selectedTournament = judgeTournaments.find(t => t.tournamentId === selectedTournamentId)
-  const assignedAreaCodes = selectedTournament?.areas.map(a => a.areaCode) || []
-  const assignedAreaIds = selectedTournament?.areas.map(a => a.areaId) || []
+  
+  // Use fetched areas from API (more up-to-date) or fallback to user.assignedAreas
+  const assignedAreas = fetchedAssignedAreas.length > 0 
+    ? fetchedAssignedAreas 
+    : selectedTournament?.areas || []
+  
+  const assignedAreaCodes = assignedAreas.map((a: any) => a.area?.code || a.areaCode).filter(Boolean)
+  const assignedAreaIds = assignedAreas.map((a: any) => a.areaId || a.area?.id).filter(Boolean)
+
+  console.log('🔵 Dashboard - Assigned areas for display:', {
+    selectedTournamentId,
+    usingFetchedAreas: fetchedAssignedAreas.length > 0,
+    fetchedAreasCount: fetchedAssignedAreas.length,
+    userAssignedAreasCount: selectedTournament?.areas.length || 0,
+    assignedAreaCodes,
+    assignedAreaIds
+  })
 
   const handleEvaluate = (areaId: string) => {
     if (selectedTournamentId) {
@@ -663,29 +737,61 @@ export default function DashboardPage() {
               {selectedTournament.tournamentName}
             </h1>
             <p className="text-muted-foreground">
-              {selectedTournament.areas.length} área{selectedTournament.areas.length !== 1 ? 's' : ''} atribuída{selectedTournament.areas.length !== 1 ? 's' : ''}
+              {assignedAreaCodes.length} área{assignedAreaCodes.length !== 1 ? 's' : ''} atribuída{assignedAreaCodes.length !== 1 ? 's' : ''}
             </p>
           </div>
         )}
 
-        <DashboardStats teams={judgeTeams} judgeAreas={assignedAreaCodes} />
+        <DashboardStats teams={judgeTeams} judgeAreas={assignedAreaCodes} currentUserId={user?.id} />
 
         <div className="space-y-8">
           <div>
             <h2 className="text-2xl font-bold text-[#F36F21] uppercase tracking-wide mb-6 pb-2 border-b-2 border-[#F36F21]/20">
               ÁREAS DE AVALIAÇÃO
             </h2>
-            {selectedTournament && selectedTournament.areas.length > 0 ? (
+            {fetchingAreas ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                  <p className="text-muted-foreground">Carregando áreas atribuídas...</p>
+                </CardContent>
+              </Card>
+            ) : assignedAreaCodes.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {EVALUATION_AREAS.filter(area => assignedAreaCodes.includes(area.id)).map((area) => {
-                  const canEvaluate = assignedAreaIds.includes(area.id)
-                  const evaluatedTeams = judgeTeams.filter(team => team.evaluations[area.id] !== undefined)
+                {EVALUATION_AREAS.filter(area => {
+                  const areaCodeNormalized = area.id?.trim().toLowerCase()
+                  const assignedCodesNormalized = assignedAreaCodes.map((code: string) => String(code).trim().toLowerCase())
+                  const isAssigned = assignedCodesNormalized.includes(areaCodeNormalized)
+                  console.log('🔵 Dashboard - Checking area:', {
+                    areaId: area.id,
+                    areaCodeNormalized,
+                    assignedCodesNormalized,
+                    isAssigned
+                  })
+                  return isAssigned
+                }).map((area) => {
+                  const areaCodeNormalized = area.id?.trim().toLowerCase()
+                  const assignedCodesNormalized = assignedAreaCodes.map((code: string) => String(code).trim().toLowerCase())
+                  const assignedIdsNormalized = assignedAreaIds.map((id: string) => String(id).trim().toLowerCase())
+                  const areaIdNormalized = area.id?.trim().toLowerCase()
+                  
+                  const canEvaluate = assignedCodesNormalized.includes(areaCodeNormalized) || 
+                                     assignedIdsNormalized.includes(areaIdNormalized)
+                  
+                  const evaluatedTeams = judgeTeams.filter(team => team.evaluations && team.evaluations[area.id] !== undefined)
                   const totalTeams = judgeTeams.length
                   const stats = {
                     total: totalTeams,
                     evaluated: evaluatedTeams.length,
                     pending: totalTeams - evaluatedTeams.length
                   }
+
+                  console.log('🔵 Dashboard - Rendering area card:', {
+                    areaId: area.id,
+                    areaName: area.displayName,
+                    canEvaluate,
+                    stats
+                  })
 
                   return (
                     <EvaluationCard
