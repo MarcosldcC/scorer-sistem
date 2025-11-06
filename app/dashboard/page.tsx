@@ -226,8 +226,10 @@ export default function DashboardPage() {
   }, [judgeTournaments])
 
   // Filter teams for selected tournament (for judges)
+  // Use teams hook only once, with selected tournament ID
   const tournamentTeams = useTeams(selectedTournamentId ? { tournamentId: selectedTournamentId } : undefined)
   const judgeTeams = tournamentTeams.teams || []
+  const teamsLoading = tournamentTeams?.loading ?? false
 
   // Fetch assigned areas from API for selected tournament (more reliable than user.assignedAreas)
   // MUST be before any conditional returns
