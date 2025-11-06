@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth-api"
 import { useRankings } from "@/hooks/use-rankings"
 import { useDeleteEvaluation } from "@/hooks/use-delete-evaluation"
+import { useTeams } from "@/hooks/use-teams"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
@@ -14,6 +15,7 @@ import { DeleteEvaluationModal } from "@/components/delete-evaluation-modal"
 import { useToast } from "@/hooks/use-toast"
 import type { RankingFilters } from "@/hooks/use-rankings"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { normalizeShift, normalizeGrade, shiftToSystemFormat } from "@/lib/text-normalization"
 
 export default function RankingsPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -24,6 +26,9 @@ export default function RankingsPage() {
   const { rankings, loading: rankingsLoading, refetch } = useRankings(filters)
   const { deleteEvaluation, loading: deleteLoading } = useDeleteEvaluation()
   const { toast } = useToast()
+  
+  // Buscar equipes do torneio para popular os filtros
+  const { teams: tournamentTeams } = useTeams(selectedTournamentId ? { tournamentId: selectedTournamentId } : undefined)
   
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean
@@ -155,9 +160,34 @@ export default function RankingsPage() {
     )
   }
 
-  // Get available filters from rankings data
-  const shifts = Array.from(new Set(rankings.map(r => r.team.shift)))
-  const grades = Array.from(new Set(rankings.map(r => r.team.grade))).sort()
+  // Get available filters from tournament teams (not from rankings)
+  // This ensures filters show all teams imported to the tournament, even if not yet evaluated
+  // Normalizar turnos e turmas para garantir valores únicos e consistentes
+  const shifts = Array.from(new Set(
+    (tournamentTeams || [])
+      .map(t => {
+        // Tentar obter turno de diferentes fontes
+        const teamShift = t.shift || (t as any).metadata?.shift || (t as any).metadata?.originalShift
+        if (!teamShift) return null
+        // Normalizar turno e converter para formato do sistema
+        const normalized = normalizeShift(teamShift)
+        return normalized ? shiftToSystemFormat(normalized) : null
+      })
+      .filter(Boolean) as string[]
+  )).sort()
+  
+  const grades = Array.from(new Set(
+    (tournamentTeams || [])
+      .map(t => {
+        // Tentar obter turma de diferentes fontes
+        const teamGrade = t.grade || (t as any).metadata?.grade || (t as any).metadata?.originalGrade
+        if (!teamGrade) return null
+        // Normalizar turma
+        const normalized = normalizeGrade(teamGrade)
+        return normalized || teamGrade
+      })
+      .filter(Boolean) as string[]
+  )).sort()
 
   return (
     <div className="min-h-screen bg-background">

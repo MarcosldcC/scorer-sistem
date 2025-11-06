@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth-api"
 import { useReports } from "@/hooks/use-reports"
+import { useTeams } from "@/hooks/use-teams"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -11,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ArrowLeft, Download, FileText, BarChart3, Users, Trophy, TrendingUp } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { normalizeShift, normalizeGrade, shiftToSystemFormat } from "@/lib/text-normalization"
 
 export default function ReportsPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -29,6 +31,9 @@ export default function ReportsPage() {
   }), [selectedTournamentId, selectedGrade, selectedShift])
   
   const { reportData, loading } = useReports(reportFilters)
+  
+  // Buscar equipes do torneio para popular os filtros
+  const { teams: tournamentTeams } = useTeams(selectedTournamentId ? { tournamentId: selectedTournamentId } : undefined)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -93,10 +98,30 @@ export default function ReportsPage() {
     )
   }
 
-  // Filtrar dados localmente
+  // Filtrar dados localmente usando normalização inteligente
   const filteredRankings = reportData.rankings.filter(ranking => {
-    if (selectedGrade !== "all" && ranking.team.grade !== selectedGrade) return false
-    if (selectedShift !== "all" && ranking.team.shift !== selectedShift) return false
+    // Normalizar valores do filtro
+    const normalizedFilterGrade = selectedGrade !== "all" ? normalizeGrade(selectedGrade) : null
+    const normalizedFilterShift = selectedShift !== "all" ? normalizeShift(selectedShift) : null
+    
+    // Normalizar valores da equipe
+    const normalizedTeamGrade = ranking.team.grade ? normalizeGrade(ranking.team.grade) : null
+    const normalizedTeamShift = ranking.team.shift ? normalizeShift(ranking.team.shift) : null
+    
+    // Comparar turma normalizada
+    if (normalizedFilterGrade) {
+      if (normalizedTeamGrade !== normalizedFilterGrade) {
+        return false
+      }
+    }
+    
+    // Comparar turno normalizado
+    if (normalizedFilterShift) {
+      if (normalizedTeamShift !== normalizedFilterShift) {
+        return false
+      }
+    }
+    
     return true
   })
 
@@ -127,14 +152,39 @@ export default function ReportsPage() {
     }
   }
 
+  // Get available filters from tournament teams (not fixed values)
+  // This ensures filters show only teams imported to the tournament
+  // Normalizar turnos e turmas para garantir valores únicos e consistentes
   const getAvailableGrades = () => {
-    const grades = ["2", "3", "4", "5"]
-    return grades
+    const grades = Array.from(new Set(
+      (tournamentTeams || [])
+        .map(t => {
+          // Tentar obter turma de diferentes fontes
+          const teamGrade = t.grade || (t as any).metadata?.grade || (t as any).metadata?.originalGrade
+          if (!teamGrade) return null
+          // Normalizar turma
+          const normalized = normalizeGrade(teamGrade)
+          return normalized || teamGrade
+        })
+        .filter(Boolean) as string[]
+    )).sort()
+    return grades.length > 0 ? grades : []
   }
 
   const getAvailableShifts = () => {
-    const shifts = ["morning", "afternoon"]
-    return shifts
+    const shifts = Array.from(new Set(
+      (tournamentTeams || [])
+        .map(t => {
+          // Tentar obter turno de diferentes fontes
+          const teamShift = t.shift || (t as any).metadata?.shift || (t as any).metadata?.originalShift
+          if (!teamShift) return null
+          // Normalizar turno e converter para formato do sistema
+          const normalized = normalizeShift(teamShift)
+          return normalized ? shiftToSystemFormat(normalized) : null
+        })
+        .filter(Boolean) as string[]
+    )).sort()
+    return shifts.length > 0 ? shifts : []
   }
 
   const exportToCSV = () => {

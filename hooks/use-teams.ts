@@ -4,8 +4,10 @@ import { getAuthHeaders } from './use-auth-api'
 export interface Team {
   id: string
   name: string
+  code?: string
   grade: string | null
   shift: string | null
+  metadata?: any
   evaluations: Record<string, any>
   evaluatedBy: Record<string, string>
   evaluatedById?: Record<string, string>

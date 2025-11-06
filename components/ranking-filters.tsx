@@ -38,9 +38,30 @@ export function RankingFiltersComponent({
     onFiltersChange({})
   }
 
-  const shiftLabels = {
+  const shiftLabels: Record<string, string> = {
     morning: "Manhã",
     afternoon: "Tarde",
+    manha: "Manhã",
+    tarde: "Tarde",
+  }
+
+  // Função para exibir o label do turno
+  const getShiftLabel = (shift: string): string => {
+    return shiftLabels[shift.toLowerCase()] || shift
+  }
+
+  // Função para extrair o número da turma para exibição
+  const getGradeDisplay = (grade: string): string => {
+    // Se já contém "º ano", retornar como está
+    if (grade.includes("º ano") || grade.includes("° ano")) {
+      return grade
+    }
+    // Extrair número da turma
+    const match = grade.match(/(\d+)/)
+    if (match) {
+      return `${match[1]}º Ano`
+    }
+    return grade
   }
 
   return (
@@ -60,7 +81,7 @@ export function RankingFiltersComponent({
                 <SelectItem value="all">Todos os turnos</SelectItem>
                 {availableShifts.map((shift) => (
                   <SelectItem key={shift} value={shift}>
-                    {shiftLabels[shift as keyof typeof shiftLabels]}
+                    {getShiftLabel(shift)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -77,7 +98,7 @@ export function RankingFiltersComponent({
                 <SelectItem value="all">Todas as turmas</SelectItem>
                 {availableGrades.map((grade) => (
                   <SelectItem key={grade} value={grade}>
-                    {grade}º Ano
+                    {getGradeDisplay(grade)}
                   </SelectItem>
                 ))}
               </SelectContent>

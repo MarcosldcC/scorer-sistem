@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
 import { calculatePercentage, getMaxPossibleScore, calculateTotalScore, RUBRICS } from '@/lib/rubrics'
-import { normalizeShift, normalizeGrade, shiftFromSystemFormat, normalizeText } from '@/lib/text-normalization'
+import { normalizeShift, normalizeGrade, shiftFromSystemFormat, shiftToSystemFormat, normalizeText } from '@/lib/text-normalization'
 
 export const dynamic = 'force-dynamic'
 
@@ -229,16 +229,20 @@ export async function GET(request: NextRequest) {
       }
 
       // Get grade and shift from team fields or metadata
-      const teamGrade = team.grade || (team.metadata as any)?.grade || null
-      const teamShift = team.shift || (team.metadata as any)?.shift || null
+      // Normalizar valores para garantir consistência mesmo com dados antigos
+      const rawGrade = team.grade || (team.metadata as any)?.grade || (team.metadata as any)?.originalGrade || null
+      const rawShift = team.shift || (team.metadata as any)?.shift || (team.metadata as any)?.originalShift || null
+      
+      const normalizedGrade = rawGrade ? (normalizeGrade(rawGrade) || rawGrade) : null
+      const normalizedShift = rawShift ? (normalizeShift(rawShift) ? shiftToSystemFormat(normalizeShift(rawShift)) : rawShift) : null
 
       return {
         position: 0, // Will be set when sorting
         team: {
           id: team.id,
           name: team.name,
-          grade: teamGrade,
-          shift: teamShift
+          grade: normalizedGrade,
+          shift: normalizedShift
         },
         totalScore,
         maxPossibleScore,

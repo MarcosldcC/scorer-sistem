@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
 import { hasPermission } from '@/lib/permissions'
+import { normalizeShift, normalizeGrade, shiftToSystemFormat } from '@/lib/text-normalization'
 
 export const dynamic = 'force-dynamic'
 
@@ -130,6 +131,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform data for frontend
+    // Normalizar dados de turno e turma para garantir consistência mesmo com dados antigos
     const transformedTeams = teams.map(team => {
       const evaluations: any = {}
       const evaluatedBy: any = {}
@@ -142,12 +144,20 @@ export async function GET(request: NextRequest) {
         evaluatedById[areaCode] = evaluation.evaluatedBy.id
       })
 
+      // Obter valores originais de turno e turma (de diferentes fontes)
+      const rawGrade = team.grade || (team.metadata as any)?.grade || (team.metadata as any)?.originalGrade || null
+      const rawShift = team.shift || (team.metadata as any)?.shift || (team.metadata as any)?.originalShift || null
+
+      // Normalizar valores para garantir consistência
+      const normalizedGrade = rawGrade ? (normalizeGrade(rawGrade) || rawGrade) : null
+      const normalizedShift = rawShift ? (normalizeShift(rawShift) ? shiftToSystemFormat(normalizeShift(rawShift)) : rawShift) : null
+
       return {
         id: team.id,
         name: team.name,
         code: team.code,
-        grade: team.grade || (team.metadata as any)?.grade || null,
-        shift: team.shift || (team.metadata as any)?.shift || null,
+        grade: normalizedGrade,
+        shift: normalizedShift,
         metadata: team.metadata,
         evaluations,
         evaluatedBy,

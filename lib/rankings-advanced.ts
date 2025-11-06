@@ -296,17 +296,38 @@ function sortRankings(rankings: TeamRanking[], tieBreak?: string[]): void {
 
 /**
  * Filter rankings by metadata
+ * Uses intelligent normalization for grade and shift filters
  */
 export function filterRankingsByMetadata(
   rankings: TeamRanking[],
   filters: Record<string, any>
 ): TeamRanking[] {
+  // Import normalization functions dynamically to avoid circular dependencies
+  const { normalizeShift, normalizeGrade } = require('@/lib/text-normalization')
+  
   return rankings.filter(ranking => {
     if (!ranking.team.metadata) return true
 
     for (const [key, value] of Object.entries(filters)) {
-      if (ranking.team.metadata[key] !== value) {
-        return false
+      const teamValue = ranking.team.metadata[key]
+      
+      // Use intelligent normalization for grade and shift
+      if (key === 'grade' || key === 'shift') {
+        const normalizedFilter = key === 'grade' 
+          ? normalizeGrade(value as string) 
+          : normalizeShift(value as string)
+        const normalizedTeam = key === 'grade'
+          ? normalizeGrade(teamValue as string)
+          : normalizeShift(teamValue as string)
+        
+        if (normalizedFilter && normalizedTeam !== normalizedFilter) {
+          return false
+        }
+      } else {
+        // For other metadata, use exact match
+        if (teamValue !== value) {
+          return false
+        }
       }
     }
 
