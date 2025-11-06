@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Plus, Search, Users, Trash2, Edit, Download, Upload, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
+import { normalizeTeamData } from "@/lib/text-normalization"
 
 interface Team {
   id: string
@@ -85,6 +86,14 @@ export default function TeamsManagement() {
       const token = localStorage.getItem('robotics-token')
       if (!token) return
 
+      // Normalizar dados de turno e turma
+      const normalized = normalizeTeamData({
+        name: formData.name,
+        code: formData.code,
+        grade: formData.grade,
+        shift: formData.shift
+      })
+
       const response = await fetch('/api/teams', {
         method: 'POST',
         headers: {
@@ -92,13 +101,15 @@ export default function TeamsManagement() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          name: formData.name.trim(),
-          code: formData.code.trim() || undefined,
-          grade: formData.grade.trim() || undefined,
-          shift: formData.shift.trim() || undefined,
+          name: normalized.name,
+          code: normalized.code || undefined,
+          grade: normalized.grade || undefined,
+          shift: normalized.shift || undefined,
           metadata: {
-            grade: formData.grade.trim() || undefined,
-            shift: formData.shift.trim() || undefined
+            grade: normalized.grade,
+            shift: normalized.shift,
+            originalGrade: formData.grade.trim() || undefined,
+            originalShift: formData.shift.trim() || undefined
           }
         })
       })
@@ -271,14 +282,22 @@ export default function TeamsManagement() {
           for (const row of teamsData) {
             const name = row[0]?.toString().trim()
             const code = row[1]?.toString().trim() || undefined
-            const grade = row[2]?.toString().trim() || undefined
-            const shift = row[3]?.toString().trim() || undefined
+            const rawGrade = row[2]?.toString().trim() || undefined
+            const rawShift = row[3]?.toString().trim() || undefined
 
             if (!name) {
               errorCount++
               errors.push(`Linha sem nome: ${JSON.stringify(row)}`)
               continue
             }
+
+            // Normalizar dados de turno e turma
+            const normalized = normalizeTeamData({
+              name,
+              code,
+              grade: rawGrade,
+              shift: rawShift
+            })
 
             try {
               const response = await fetch('/api/teams', {
@@ -288,13 +307,15 @@ export default function TeamsManagement() {
                   'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                  name,
-                  code,
-                  grade,
-                  shift,
+                  name: normalized.name,
+                  code: normalized.code,
+                  grade: normalized.grade || undefined,
+                  shift: normalized.shift || undefined,
                   metadata: {
-                    grade,
-                    shift
+                    grade: normalized.grade,
+                    shift: normalized.shift,
+                    originalGrade: rawGrade, // Manter valor original para referência
+                    originalShift: rawShift // Manter valor original para referência
                   }
                 })
               })

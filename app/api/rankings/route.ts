@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
 import { calculatePercentage, getMaxPossibleScore, calculateTotalScore, RUBRICS } from '@/lib/rubrics'
+import { normalizeShift, normalizeGrade, shiftFromSystemFormat, normalizeText } from '@/lib/text-normalization'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,14 +122,35 @@ export async function GET(request: NextRequest) {
     })
 
     // Filter teams by grade/shift if needed (after fetch, to handle metadata properly)
+    // Usar normalização inteligente para correspondência tolerante a variações
     let filteredTeams = teams
     if (shift || grade) {
+      // Normalizar valores de filtro
+      const normalizedFilterShift = shift ? normalizeShift(shift) : null
+      const normalizedFilterGrade = grade ? normalizeGrade(grade) : null
+      
       filteredTeams = teams.filter(team => {
         const teamGrade = team.grade || (team.metadata as any)?.grade
         const teamShift = team.shift || (team.metadata as any)?.shift
         
-        if (shift && teamShift !== shift) return false
-        if (grade && teamGrade !== grade) return false
+        // Normalizar valores da equipe para comparação
+        const normalizedTeamShift = teamShift ? normalizeShift(teamShift) : null
+        const normalizedTeamGrade = teamGrade ? normalizeGrade(teamGrade) : null
+        
+        // Comparar turno normalizado
+        if (normalizedFilterShift) {
+          if (normalizedTeamShift !== normalizedFilterShift) {
+            return false
+          }
+        }
+        
+        // Comparar turma normalizada
+        if (normalizedFilterGrade) {
+          if (normalizedTeamGrade !== normalizedFilterGrade) {
+            return false
+          }
+        }
+        
         return true
       })
     }

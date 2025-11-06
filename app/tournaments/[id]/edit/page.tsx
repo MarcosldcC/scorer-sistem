@@ -36,6 +36,7 @@ import {
 } from "lucide-react"
 import * as XLSX from 'xlsx'
 import { useToast } from "@/hooks/use-toast"
+import { normalizeTeamData } from "@/lib/text-normalization"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { IconSelector } from "@/components/icon-selector"
@@ -1927,14 +1928,22 @@ function TeamsSection({ teams, onChange, tournamentId }: { teams: any; onChange:
           for (const row of teamsData) {
             const name = row[0]?.toString().trim()
             const code = row[1]?.toString().trim() || undefined
-            const grade = row[2]?.toString().trim() || undefined
-            const shift = row[3]?.toString().trim() || undefined
+            const rawGrade = row[2]?.toString().trim() || undefined
+            const rawShift = row[3]?.toString().trim() || undefined
 
             if (!name) {
               errorCount++
               errors.push(`Linha sem nome: ${JSON.stringify(row)}`)
               continue
             }
+
+            // Normalizar dados de turno e turma
+            const normalized = normalizeTeamData({
+              name,
+              code,
+              grade: rawGrade,
+              shift: rawShift
+            })
 
             try {
               const response = await fetch('/api/teams', {
@@ -1944,14 +1953,16 @@ function TeamsSection({ teams, onChange, tournamentId }: { teams: any; onChange:
                   'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                  name,
-                  code,
-                  grade,
-                  shift,
+                  name: normalized.name,
+                  code: normalized.code,
+                  grade: normalized.grade || undefined,
+                  shift: normalized.shift || undefined,
                   tournamentId: tournamentId,
                   metadata: {
-                    grade,
-                    shift
+                    grade: normalized.grade,
+                    shift: normalized.shift,
+                    originalGrade: rawGrade, // Manter valor original para referência
+                    originalShift: rawShift // Manter valor original para referência
                   }
                 })
               })
