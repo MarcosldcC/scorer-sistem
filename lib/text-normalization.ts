@@ -171,14 +171,18 @@ export function normalizeShift(input: string | null | undefined): 'manha' | 'tar
   if (normalized === 'manha' || normalized === 'morning') return 'manha'
   if (normalized === 'tarde' || normalized === 'afternoon') return 'tarde'
 
-  // Verificar correspondência com manhã
+  // Verificar se contém palavras-chave (mais tolerante)
+  if (normalized.includes('manha') || normalized.includes('morning')) return 'manha'
+  if (normalized.includes('tarde') || normalized.includes('afternoon')) return 'tarde'
+
+  // Verificar correspondência com manhã usando similaridade
   for (const variation of manhaVariations) {
     if (matchesValue(normalized, variation, 0.7)) {
       return 'manha'
     }
   }
 
-  // Verificar correspondência com tarde
+  // Verificar correspondência com tarde usando similaridade
   for (const variation of tardeVariations) {
     if (matchesValue(normalized, variation, 0.7)) {
       return 'tarde'
