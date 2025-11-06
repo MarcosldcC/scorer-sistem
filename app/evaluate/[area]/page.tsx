@@ -58,27 +58,99 @@ export default function EvaluatePage() {
     }
   }, [isAuthenticated, loading, router])
 
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null)
+  const [checkingAccess, setCheckingAccess] = useState(true)
+
   useEffect(() => {
-    // Allow school_admin to access any area
-    if (user && user.role === 'school_admin') {
-      return
-    }
-    
-    // For judges, check if they have the area assigned for the selected tournament
-    if (user && user.role === 'judge' && tournamentId) {
-      const hasAreaAssignment = user.assignedAreas?.some(
-        assignment => assignment.areaCode === area && assignment.tournamentId === tournamentId
-      )
-      if (!hasAreaAssignment) {
-        router.push("/dashboard")
+    const checkAccess = async () => {
+      if (!user) {
+        setCheckingAccess(false)
+        return
       }
-    } else if (user && user.role !== 'school_admin') {
-      // Fallback to legacy areas check for backward compatibility
-      if (!user.areas || !Array.isArray(user.areas) || !user.areas.includes(area)) {
-        router.push("/dashboard")
+
+      // Allow school_admin and platform_admin to access any area
+      if (user.role === 'school_admin' || user.role === 'platform_admin') {
+        setHasAccess(true)
+        setCheckingAccess(false)
+        return
       }
+
+      // For judges, check if they have the area assigned for the selected tournament
+      if (user.role === 'judge') {
+        if (tournamentId) {
+          try {
+            const token = localStorage.getItem('robotics-token')
+            if (!token) {
+              setHasAccess(false)
+              setCheckingAccess(false)
+              return
+            }
+
+            // Fetch assigned areas for this tournament
+            const response = await fetch(`/api/user-areas?tournamentId=${tournamentId}&userId=${user.id}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              const assignments = data.assignments || []
+              
+              // Check if judge is assigned to this area (by area code)
+              const hasAreaAssignment = assignments.some((assignment: any) => {
+                const assignmentAreaCode = assignment.area?.code || assignment.areaCode
+                return assignmentAreaCode && assignmentAreaCode.trim().toLowerCase() === area.trim().toLowerCase()
+              })
+
+              console.log('Judge access check:', {
+                tournamentId,
+                area,
+                assignments: assignments.map((a: any) => ({
+                  areaCode: a.area?.code || a.areaCode,
+                  areaName: a.area?.name
+                })),
+                hasAreaAssignment
+              })
+
+              setHasAccess(hasAreaAssignment)
+            } else {
+              // Fallback to user.assignedAreas if API fails
+              const hasAreaAssignment = user.assignedAreas?.some(
+                assignment => assignment.areaCode?.trim().toLowerCase() === area.trim().toLowerCase() && 
+                             assignment.tournamentId === tournamentId
+              )
+              setHasAccess(hasAreaAssignment || false)
+            }
+          } catch (error) {
+            console.error('Error checking judge access:', error)
+            // Fallback to user.assignedAreas
+            const hasAreaAssignment = user.assignedAreas?.some(
+              assignment => assignment.areaCode?.trim().toLowerCase() === area.trim().toLowerCase() && 
+                           assignment.tournamentId === tournamentId
+            )
+            setHasAccess(hasAreaAssignment || false)
+          }
+        } else {
+          // No tournamentId - fallback to legacy areas check
+          const hasLegacyArea = user.areas && Array.isArray(user.areas) && user.areas.includes(area)
+          setHasAccess(hasLegacyArea)
+        }
+      } else {
+        // For other roles, use legacy areas check
+        const hasLegacyArea = user.areas && Array.isArray(user.areas) && user.areas.includes(area)
+        setHasAccess(hasLegacyArea)
+      }
+
+      setCheckingAccess(false)
     }
-  }, [user, area, tournamentId, router])
+
+    checkAccess()
+  }, [user, area, tournamentId])
+
+  useEffect(() => {
+    if (hasAccess === false && !checkingAccess) {
+      router.push("/dashboard")
+    }
+  }, [hasAccess, checkingAccess, router])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -100,12 +172,25 @@ export default function EvaluatePage() {
     }
   }, [syncOffline])
 
-  if (loading || teamsLoading) {
+  if (loading || teamsLoading || checkingAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p className="mt-2 text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (hasAccess === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive mb-4">Você não tem permissão para avaliar esta área.</p>
+          <Button onClick={() => router.push("/dashboard")}>
+            Voltar ao Dashboard
+          </Button>
         </div>
       </div>
     )

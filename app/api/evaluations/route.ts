@@ -154,15 +154,63 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           tournamentId: tournament.id,
           areaId: areaId
+        },
+        include: {
+          area: {
+            select: {
+              id: true,
+              code: true,
+              name: true
+            }
+          }
         }
       })
+      
       hasAccess = !!assignment
+      
+      // Log for debugging
+      console.log('Judge evaluation access check:', {
+        userId: user.id,
+        userName: user.name,
+        tournamentId: tournament.id,
+        tournamentName: tournament.name,
+        areaId: areaId,
+        areaCode: tournamentArea.code,
+        assignmentFound: !!assignment,
+        assignmentAreaCode: assignment?.area?.code,
+        hasAccess
+      })
+      
+      if (!hasAccess) {
+        // Also check by area code for additional verification
+        const assignmentByCode = await prisma.userTournamentArea.findFirst({
+          where: {
+            userId: user.id,
+            tournamentId: tournament.id,
+            area: {
+              code: tournamentArea.code
+            }
+          }
+        })
+        
+        if (assignmentByCode) {
+          console.log('Found assignment by area code:', assignmentByCode)
+          hasAccess = true
+        }
+      }
     } else if (!hasAccess) {
       // Fallback to legacy areas check for backward compatibility
       hasAccess = user.areas?.includes(area) || false
     }
 
     if (!hasAccess) {
+      console.log('Access denied for evaluation:', {
+        userId: user.id,
+        userRole: user.role,
+        tournamentId: tournament.id,
+        areaId: areaId,
+        areaCode: tournamentArea.code
+      })
       return NextResponse.json(
         { error: 'Usuário não autorizado para avaliar esta área neste torneio' },
         { status: 403 }

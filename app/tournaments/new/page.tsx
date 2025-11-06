@@ -1541,40 +1541,60 @@ function OfflineSection({ offline, onChange }: { offline: any; onChange: (offlin
 // Fully implemented Teams Section
 function TeamsSection({ teams, onChange }: { teams: any; onChange: (teams: any) => void }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Equipes e Organização</CardTitle>
-        <CardDescription>Configure as regras de organização das equipes</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={teams.uniqueName}
-              onCheckedChange={(checked) => onChange({ ...teams, uniqueName: checked })}
-            />
-            <div>
-              <Label>Nome das equipes deve ser único por torneio</Label>
-              <p className="text-xs text-muted-foreground">
-                Impede que duas equipes tenham o mesmo nome dentro do mesmo torneio
-              </p>
+    <div className="space-y-6">
+      {/* Configurações */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Configurações de Equipes</CardTitle>
+          <CardDescription>Configure as regras de organização das equipes</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={teams.uniqueName}
+                onCheckedChange={(checked) => onChange({ ...teams, uniqueName: checked })}
+              />
+              <div>
+                <Label>Nome das equipes deve ser único por torneio</Label>
+                <p className="text-xs text-muted-foreground">
+                  Impede que duas equipes tenham o mesmo nome dentro do mesmo torneio
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={teams.allowMixed}
+                onCheckedChange={(checked) => onChange({ ...teams, allowMixed: checked })}
+              />
+              <div>
+                <Label>Permitir equipes mistas (diferentes turnos)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Permite que integrantes de diferentes turnos participem da mesma equipe
+                </p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={teams.allowMixed}
-              onCheckedChange={(checked) => onChange({ ...teams, allowMixed: checked })}
-            />
-            <div>
-              <Label>Permitir equipes mistas (diferentes turnos)</Label>
-              <p className="text-xs text-muted-foreground">
-                Permite que integrantes de diferentes turnos participem da mesma equipe
-              </p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Mensagem sobre gerenciamento de equipes */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Gerenciamento de Equipes</CardTitle>
+          <CardDescription>Adicione e gerencie as equipes participantes do torneio</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              O gerenciamento de equipes (criação, importação via Excel, etc.) estará disponível após a criação do torneio. 
+              Após criar o torneio, você poderá editá-lo e gerenciar as equipes participantes.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
