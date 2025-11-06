@@ -287,7 +287,6 @@ export async function POST(request: NextRequest) {
         scores,
         comments,
         evaluationTime,
-        updatedAt: new Date(),
         version: existingEvaluation ? existingEvaluation.version + 1 : 1
       },
       create: {
