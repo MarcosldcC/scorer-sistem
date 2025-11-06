@@ -53,11 +53,28 @@ export function useRankings(filters?: RankingFilters) {
 
       const url = `/api/rankings?${searchParams.toString()}`
       
+      // Debug: Log da chamada da API
+      console.log('Fetching Rankings:', {
+        url,
+        filters,
+        tournamentId: filters.tournamentId,
+        shift: filters.shift,
+        grade: filters.grade
+      })
+      
       const response = await fetch(url, {
         headers: getAuthHeaders()
       })
 
       const data = await response.json()
+      
+      // Debug: Log da resposta da API
+      console.log('Rankings Response:', {
+        status: response.status,
+        ok: response.ok,
+        rankingsCount: data.rankings?.length || 0,
+        error: data.error
+      })
 
       if (response.ok) {
         setRankings(data.rankings || [])
