@@ -321,8 +321,8 @@ export default function RankingsPage() {
       <div className={`${isViewer && isFullscreen ? 'h-screen overflow-hidden' : 'container mx-auto px-4 py-6'}`}>
         {/* Viewer Controls Bar */}
         {isViewer && (
-          <div className="bg-primary/10 border-b border-primary/20 p-3 mb-4 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-4 flex-wrap">
+          <div className="bg-primary/10 border-b border-primary/20 p-3 mb-4">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
               <div>
                 <h1 className="text-xl font-bold text-primary">Rankings - Modo Telão</h1>
                 {selectedTournamentId && tournaments.find(t => t.id === selectedTournamentId) && (
@@ -331,17 +331,91 @@ export default function RankingsPage() {
                   </p>
                 )}
               </div>
-              
-              {showTimer && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-background rounded-lg border">
-                  <Clock className="h-4 w-4 text-primary" />
-                  <span className="font-mono text-lg font-semibold">{formatTimer(timerSeconds)}</span>
-                  <div className="flex gap-1">
+
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Timer Toggle */}
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="show-timer" className="text-sm cursor-pointer">Timer</Label>
+                  <Switch
+                    id="show-timer"
+                    checked={showTimer}
+                    onCheckedChange={setShowTimer}
+                  />
+                </div>
+
+                {/* Auto-refresh Toggle */}
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="auto-refresh" className="text-sm cursor-pointer">Auto-atualizar</Label>
+                  <Switch
+                    id="auto-refresh"
+                    checked={autoRefresh}
+                    onCheckedChange={setAutoRefresh}
+                  />
+                </div>
+
+                {/* Refresh Interval */}
+                {autoRefresh && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Intervalo (s):</Label>
+                    <Select value={refreshInterval.toString()} onValueChange={(v) => setRefreshInterval(parseInt(v))}>
+                      <SelectTrigger className="w-20 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10s</SelectItem>
+                        <SelectItem value="30">30s</SelectItem>
+                        <SelectItem value="60">1min</SelectItem>
+                        <SelectItem value="120">2min</SelectItem>
+                        <SelectItem value="300">5min</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Manual Refresh */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch()}
+                  disabled={rankingsLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${rankingsLoading ? 'animate-spin' : ''}`} />
+                  Atualizar
+                </Button>
+
+                {/* Fullscreen Toggle */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleFullscreen}
+                >
+                  {isFullscreen ? (
+                    <>
+                      <Minimize className="h-4 w-4 mr-2" />
+                      Sair da Tela Cheia
+                    </>
+                  ) : (
+                    <>
+                      <Maximize className="h-4 w-4 mr-2" />
+                      Tela Cheia
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Timer below the header, aligned to the right */}
+            {showTimer && (
+              <div className="flex justify-end">
+                <div className="flex items-center gap-4 px-6 py-3 bg-background rounded-lg border-2 border-primary/30 shadow-lg">
+                  <Clock className="h-8 w-8 text-primary" />
+                  <span className="font-mono text-4xl font-bold text-primary">{formatTimer(timerSeconds)}</span>
+                  <div className="flex gap-2 ml-2">
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={toggleTimer}
-                      className="h-6 px-2"
+                      className="h-10 px-4 text-xl hover:bg-primary/10"
                     >
                       {timerRunning ? '⏸️' : '▶️'}
                     </Button>
@@ -349,85 +423,14 @@ export default function RankingsPage() {
                       size="sm"
                       variant="ghost"
                       onClick={resetTimer}
-                      className="h-6 px-2"
+                      className="h-10 px-4 text-xl hover:bg-primary/10"
                     >
                       🔄
                     </Button>
                   </div>
                 </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Timer Toggle */}
-              <div className="flex items-center gap-2">
-                <Label htmlFor="show-timer" className="text-sm cursor-pointer">Timer</Label>
-                <Switch
-                  id="show-timer"
-                  checked={showTimer}
-                  onCheckedChange={setShowTimer}
-                />
               </div>
-
-              {/* Auto-refresh Toggle */}
-              <div className="flex items-center gap-2">
-                <Label htmlFor="auto-refresh" className="text-sm cursor-pointer">Auto-atualizar</Label>
-                <Switch
-                  id="auto-refresh"
-                  checked={autoRefresh}
-                  onCheckedChange={setAutoRefresh}
-                />
-              </div>
-
-              {/* Refresh Interval */}
-              {autoRefresh && (
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm">Intervalo (s):</Label>
-                  <Select value={refreshInterval.toString()} onValueChange={(v) => setRefreshInterval(parseInt(v))}>
-                    <SelectTrigger className="w-20 h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10s</SelectItem>
-                      <SelectItem value="30">30s</SelectItem>
-                      <SelectItem value="60">1min</SelectItem>
-                      <SelectItem value="120">2min</SelectItem>
-                      <SelectItem value="300">5min</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Manual Refresh */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()}
-                disabled={rankingsLoading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${rankingsLoading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </Button>
-
-              {/* Fullscreen Toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={toggleFullscreen}
-              >
-                {isFullscreen ? (
-                  <>
-                    <Minimize className="h-4 w-4 mr-2" />
-                    Sair da Tela Cheia
-                  </>
-                ) : (
-                  <>
-                    <Maximize className="h-4 w-4 mr-2" />
-                    Tela Cheia
-                  </>
-                )}
-              </Button>
-            </div>
+            )}
           </div>
         )}
 
@@ -477,6 +480,7 @@ export default function RankingsPage() {
             availableGrades={grades}
           />
         )}
+
 
         <div className={isViewer && isFullscreen ? 'h-[calc(100vh-200px)] overflow-auto px-4' : ''}>
           <RankingTable 
