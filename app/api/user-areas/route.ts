@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
     if (tournamentId) where.tournamentId = tournamentId
     if (userId) where.userId = userId
 
+    console.log('GET /api/user-areas - Query params:', { tournamentId, userId, requestingUserId: user.id, requestingUserRole: user.role })
+
     const assignments = await prisma.userTournamentArea.findMany({
       where,
       include: {
@@ -63,6 +65,19 @@ export async function GET(request: NextRequest) {
           }
         }
       }
+    })
+
+    console.log('GET /api/user-areas - Found assignments:', {
+      count: assignments.length,
+      assignments: assignments.map(a => ({
+        id: a.id,
+        userId: a.userId,
+        tournamentId: a.tournamentId,
+        areaId: a.areaId,
+        areaCode: a.area?.code,
+        areaName: a.area?.name,
+        userName: a.user?.name
+      }))
     })
 
     return NextResponse.json({ assignments })
