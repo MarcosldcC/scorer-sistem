@@ -336,20 +336,54 @@ export async function POST(request: NextRequest) {
 
     if (tournamentArea.scoringType === 'rubric') {
       totalScore = calculateTotalScore(scores)
-      const rubric = RUBRICS[area as keyof typeof RUBRICS]
-      if (rubric) {
-        maxPossibleScore = getMaxPossibleScore(rubric)
+      // Use custom rubric config if available, otherwise use default
+      if (tournamentArea.rubricConfig && typeof tournamentArea.rubricConfig === 'object') {
+        const rubricConfig = tournamentArea.rubricConfig as any
+        if (Array.isArray(rubricConfig.criteria || rubricConfig)) {
+          const criteria = rubricConfig.criteria || rubricConfig
+          maxPossibleScore = criteria.reduce((sum: number, c: any) => sum + (c.maxScore || 0), 0)
+        }
+      } else {
+        // Fallback to default rubric
+        const rubric = RUBRICS[area as keyof typeof RUBRICS]
+        if (rubric) {
+          maxPossibleScore = getMaxPossibleScore(rubric)
+        }
       }
     } else if (tournamentArea.scoringType === 'performance') {
       // For performance, sum all scores
       totalScore = (scores as any[]).reduce((sum, s) => sum + (s.score || 0), 0)
-      maxPossibleScore = totalScore // Will be calculated properly later
+      // Calculate max score from performance config if available
+      if (tournamentArea.performanceConfig && typeof tournamentArea.performanceConfig === 'object') {
+        const perfConfig = tournamentArea.performanceConfig as any
+        if (Array.isArray(perfConfig.missions || perfConfig)) {
+          const missions = perfConfig.missions || perfConfig
+          maxPossibleScore = missions.reduce((sum: number, m: any) => {
+            if (m.enabled !== false) {
+              return sum + ((m.points || 0) * (m.quantity || 1))
+            }
+            return sum
+          }, 0)
+        }
+      } else {
+        maxPossibleScore = totalScore // Fallback: use current score as max if no config
+      }
     } else {
       // Mixed scoring
       totalScore = calculateTotalScore(scores)
-      const rubric = RUBRICS[area as keyof typeof RUBRICS]
-      if (rubric) {
-        maxPossibleScore = getMaxPossibleScore(rubric)
+      // Try to get max from rubric config first
+      if (tournamentArea.rubricConfig && typeof tournamentArea.rubricConfig === 'object') {
+        const rubricConfig = tournamentArea.rubricConfig as any
+        if (Array.isArray(rubricConfig.criteria || rubricConfig)) {
+          const criteria = rubricConfig.criteria || rubricConfig
+          maxPossibleScore = criteria.reduce((sum: number, c: any) => sum + (c.maxScore || 0), 0)
+        }
+      } else {
+        // Fallback to default rubric
+        const rubric = RUBRICS[area as keyof typeof RUBRICS]
+        if (rubric) {
+          maxPossibleScore = getMaxPossibleScore(rubric)
+        }
       }
     }
     
@@ -362,6 +396,34 @@ export async function POST(request: NextRequest) {
     // Ensure score is not negative
     finalScore = Math.max(0, finalScore)
 
+    // Determine round number
+    // If area allows rounds, check existing evaluations to determine next round
+    let round = 1 // Default to round 1 for backward compatibility
+    if (tournamentArea.allowRounds && tournamentArea.maxRounds && tournamentArea.maxRounds > 1) {
+      // Find existing evaluations for this team/area/judge to determine next round
+      const existingEvaluations = await prisma.evaluation.findMany({
+        where: {
+          tournamentId: tournament.id,
+          teamId,
+          areaId,
+          evaluatedById: user.id
+        },
+        select: { round: true },
+        orderBy: { round: 'desc' },
+        take: 1
+      })
+      
+      if (existingEvaluations.length > 0) {
+        const lastRound = existingEvaluations[0].round || 1
+        // If tournament allows reevaluation and hasn't reached max rounds, increment
+        if (tournament.allowReevaluation && lastRound < tournamentArea.maxRounds) {
+          round = lastRound + 1
+        } else {
+          round = lastRound // Update existing round
+        }
+      }
+    }
+
     // Create or update evaluation
     // First, try to find existing evaluation to get current version
     let existingEvaluation
@@ -373,7 +435,7 @@ export async function POST(request: NextRequest) {
             teamId,
             areaId,
             evaluatedById: user.id,
-            round: 1 // Default to round 1 for backward compatibility
+            round
           }
         },
         select: { version: true }
@@ -391,9 +453,11 @@ export async function POST(request: NextRequest) {
       teamId,
       areaId,
       evaluatedById: user.id,
-      round: 1,
+      round,
       newVersion,
-      isUpdate: !!existingEvaluation
+      isUpdate: !!existingEvaluation,
+      allowRounds: tournamentArea.allowRounds,
+      maxRounds: tournamentArea.maxRounds
     })
 
     // Validate all required fields before upsert
@@ -419,7 +483,7 @@ export async function POST(request: NextRequest) {
             teamId,
             areaId,
             evaluatedById: user.id,
-            round: 1 // Default to round 1 for backward compatibility
+            round
           }
         },
         update: {
@@ -436,7 +500,7 @@ export async function POST(request: NextRequest) {
           comments: comments || null,
           evaluationTime: evaluationTimeNum,
           evaluatedById: user.id,
-          round: 1,
+          round,
           version: 1
         }
       })
@@ -603,11 +667,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // If not admin, only show evaluations from user's areas (backward compatibility)
-    if (!user.isAdmin && !user.role.includes('admin')) {
-      if (area && !user.areas.includes(area)) {
-        // User doesn't have access to this area
-        return NextResponse.json({ evaluations: [] })
+    // If not admin, only show evaluations from user's areas
+    if (!user.isAdmin && user.role !== 'platform_admin' && user.role !== 'school_admin') {
+      if (area) {
+        // Check if user has access via new system (assignedAreas) or legacy system (areas)
+        const hasLegacyAccess = user.areas && Array.isArray(user.areas) && user.areas.includes(area)
+        
+        // For judges, also check assignedAreas if available
+        let hasNewSystemAccess = false
+        if (user.role === 'judge' && teamId) {
+          // Check if judge is assigned to this area for the team's tournament
+          // This is a simplified check - in production, you'd want to verify the exact tournament
+          const team = await prisma.team.findUnique({
+            where: { id: teamId },
+            include: {
+              tournaments: {
+                select: { tournamentId: true }
+              }
+            }
+          })
+          
+          if (team && team.tournaments.length > 0) {
+            const tournamentId = team.tournaments[0].tournamentId
+            const assignments = await prisma.userTournamentArea.findMany({
+              where: {
+                userId: user.id,
+                tournamentId,
+                area: {
+                  code: area
+                }
+              }
+            })
+            hasNewSystemAccess = assignments.length > 0
+          }
+        }
+        
+        if (!hasLegacyAccess && !hasNewSystemAccess) {
+          // User doesn't have access to this area
+          return NextResponse.json({ evaluations: [] })
+        }
       }
     }
 

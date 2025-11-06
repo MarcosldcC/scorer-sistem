@@ -72,16 +72,17 @@ export function aggregateEvaluations(
       }
 
     case 'median':
-      // Calculate median
-      const sortedScores = evaluations.map(e => e.percentage).sort((a, b) => b - a)
-      const mid = Math.floor(sortedScores.length / 2)
-      const medianPercentage = sortedScores.length % 2 === 0
-        ? (sortedScores[mid - 1] + sortedScores[mid]) / 2
-        : sortedScores[mid]
+      // Calculate median - use both percentage and score for accuracy
+      const sortedByPercentage = [...evaluations].sort((a, b) => b.percentage - a.percentage)
+      const mid = Math.floor(sortedByPercentage.length / 2)
+      const medianEval = sortedByPercentage.length % 2 === 0
+        ? sortedByPercentage[mid - 1] // Use lower one in case of tie
+        : sortedByPercentage[mid]
       
+      // Map percentage back to score using the evaluation that has the median percentage
       return {
-        score: 0, // Would need to map back
-        percentage: Math.round(medianPercentage)
+        score: medianEval.score,
+        percentage: Math.round(medianEval.percentage)
       }
 
     case 'best':

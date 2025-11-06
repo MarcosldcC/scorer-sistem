@@ -13,17 +13,41 @@ export const config = {
   },
 }
 
-// Validate required environment variables only at runtime, not during build
+// Validate required environment variables at runtime
 function validateEnvironment() {
-  if (typeof window === 'undefined' && process.env.NODE_ENV === 'production' && process.env.VERCEL !== '1') {
-    if (!process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL is required in production')
+  // Only validate on server side
+  if (typeof window === 'undefined') {
+    // In production, require critical environment variables
+    if (process.env.NODE_ENV === 'production') {
+      if (!process.env.JWT_SECRET || process.env.JWT_SECRET === "your-super-secret-jwt-key-change-this-in-production") {
+        throw new Error('JWT_SECRET must be set to a secure value in production')
+      }
+      if (!process.env.DATABASE_URL) {
+        throw new Error('DATABASE_URL is required in production')
+      }
     }
-    if (!process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET is required in production')
+    // In development, warn if using defaults
+    else if (process.env.NODE_ENV === 'development') {
+      if (process.env.JWT_SECRET === "your-super-secret-jwt-key-change-this-in-production") {
+        console.warn('⚠️  WARNING: Using default JWT_SECRET. Set a secure JWT_SECRET in production!')
+      }
     }
   }
 }
 
-// Only validate when explicitly called, not during module import
+// Validate environment on module load (server-side only)
+if (typeof window === 'undefined') {
+  try {
+    validateEnvironment()
+  } catch (error) {
+    // In production, fail fast
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ Environment validation failed:', error)
+      throw error
+    }
+    // In development, just warn
+    console.warn('⚠️  Environment validation warning:', error)
+  }
+}
+
 export { validateEnvironment }

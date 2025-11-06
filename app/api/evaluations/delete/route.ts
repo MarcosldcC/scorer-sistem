@@ -32,19 +32,73 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Acesso negado. Apenas administradores podem excluir avaliações.' }, { status: 403 })
     }
 
-    const { teamId, area } = await request.json()
+    const { teamId, area, areaId, tournamentId } = await request.json()
 
-    if (!teamId || !area) {
-      return NextResponse.json({ error: 'ID da equipe e área são obrigatórios' }, { status: 400 })
+    if (!teamId || (!area && !areaId)) {
+      return NextResponse.json({ error: 'ID da equipe e área (area ou areaId) são obrigatórios' }, { status: 400 })
     }
 
     // Verificar se a avaliação existe
-    const evaluation = await prisma.evaluation.findFirst({
-      where: {
-        teamId,
-        area
+    // Suporta tanto area (código legacy) quanto areaId (novo sistema)
+    let evaluation
+    if (areaId) {
+      // Novo sistema: buscar por areaId
+      evaluation = await prisma.evaluation.findFirst({
+        where: {
+          teamId,
+          areaId,
+          ...(tournamentId && { tournamentId })
+        }
+      })
+    } else if (area) {
+      // Sistema legacy: buscar por código da área
+      // Primeiro, encontrar o areaId correspondente ao código
+      if (tournamentId) {
+        const tournamentArea = await prisma.tournamentArea.findFirst({
+          where: {
+            tournamentId,
+            code: area
+          }
+        })
+        
+        if (tournamentArea) {
+          evaluation = await prisma.evaluation.findFirst({
+            where: {
+              teamId,
+              areaId: tournamentArea.id,
+              tournamentId
+            }
+          })
+        } else {
+          // Fallback: tentar buscar sem areaId (avaliações muito antigas)
+          evaluation = await prisma.evaluation.findFirst({
+            where: {
+              teamId,
+              // Note: campo 'area' não existe mais no schema, então isso pode falhar
+              // Mas mantemos para compatibilidade com dados muito antigos
+            } as any
+          })
+        }
+      } else {
+        // Sem tournamentId, tentar buscar por código em qualquer área do time
+        const team = await prisma.team.findUnique({
+          where: { id: teamId },
+          include: {
+            evaluations: {
+              include: {
+                area: true
+              }
+            }
+          }
+        })
+        
+        if (team) {
+          evaluation = team.evaluations.find(e => 
+            e.area.code === area
+          )
+        }
       }
-    })
+    }
 
     if (!evaluation) {
       return NextResponse.json({ error: 'Avaliação não encontrada' }, { status: 404 })

@@ -147,8 +147,14 @@ export function normalizeShift(input: string | null | undefined): 'manha' | 'tar
 
   // Se já está no formato do sistema, converter diretamente
   const lowerInput = input.toLowerCase().trim()
-  if (lowerInput === 'morning') return 'manha'
-  if (lowerInput === 'afternoon') return 'tarde'
+  
+  // Direct matches first (fast path)
+  if (lowerInput === 'morning' || lowerInput === 'manhã' || lowerInput === 'manha') return 'manha'
+  if (lowerInput === 'afternoon' || lowerInput === 'tarde') return 'tarde'
+  
+  // Check common Portuguese variations
+  if (lowerInput === 'm' || lowerInput === 'matutino' || lowerInput === 'mat') return 'manha'
+  if (lowerInput === 'v' || lowerInput === 'vespertino' || lowerInput === 'vesp') return 'tarde'
 
   const normalized = normalizeText(input)
   
@@ -158,6 +164,9 @@ export function normalizeShift(input: string | null | undefined): 'manha' | 'tar
     'manha1',
     'turno manha',
     'morning', // Formato do sistema
+    'matutino',
+    'mat',
+    'm'
   ]
   
   const tardeVariations = [
@@ -165,29 +174,36 @@ export function normalizeShift(input: string | null | undefined): 'manha' | 'tar
     'tard',
     'turno tarde',
     'afternoon', // Formato do sistema
+    'vespertino',
+    'vesp',
+    'v'
   ]
 
   // Verificar correspondência exata primeiro
-  if (normalized === 'manha' || normalized === 'morning') return 'manha'
-  if (normalized === 'tarde' || normalized === 'afternoon') return 'tarde'
+  if (normalized === 'manha' || normalized === 'morning' || normalized === 'matutino' || normalized === 'mat') return 'manha'
+  if (normalized === 'tarde' || normalized === 'afternoon' || normalized === 'vespertino' || normalized === 'vesp') return 'tarde'
 
   // Verificar se contém palavras-chave (mais tolerante)
-  if (normalized.includes('manha') || normalized.includes('morning')) return 'manha'
-  if (normalized.includes('tarde') || normalized.includes('afternoon')) return 'tarde'
+  if (normalized.includes('manha') || normalized.includes('morning') || normalized.includes('matut')) return 'manha'
+  if (normalized.includes('tarde') || normalized.includes('afternoon') || normalized.includes('vespert')) return 'tarde'
 
   // Verificar correspondência com manhã usando similaridade
   for (const variation of manhaVariations) {
-    if (matchesValue(normalized, variation, 0.7)) {
+    if (matchesValue(normalized, variation, 0.6)) { // Lowered threshold for better matching
       return 'manha'
     }
   }
 
   // Verificar correspondência com tarde usando similaridade
   for (const variation of tardeVariations) {
-    if (matchesValue(normalized, variation, 0.7)) {
+    if (matchesValue(normalized, variation, 0.6)) { // Lowered threshold for better matching
       return 'tarde'
     }
   }
+
+  // Last resort: check if input starts with common prefixes
+  if (normalized.startsWith('manh') || normalized.startsWith('morn') || normalized.startsWith('mat')) return 'manha'
+  if (normalized.startsWith('tard') || normalized.startsWith('after') || normalized.startsWith('vesp')) return 'tarde'
 
   return null
 }
@@ -198,6 +214,50 @@ export function normalizeShift(input: string | null | undefined): 'manha' | 'tar
  */
 export function normalizeGrade(input: string | null | undefined): string | null {
   if (!input) return null
+
+  // Try direct match first (most common cases)
+  const trimmedInput = input.trim()
+  
+  // Direct patterns for common formats
+  const directPatterns: Record<string, string> = {
+    // Fundamental
+    '2': '2º ano',
+    '3': '3º ano',
+    '4': '4º ano',
+    '5': '5º ano',
+    '6': '6º ano',
+    '7': '7º ano',
+    '8': '8º ano',
+    '9': '9º ano',
+    '2º': '2º ano',
+    '3º': '3º ano',
+    '4º': '4º ano',
+    '5º': '5º ano',
+    '6º': '6º ano',
+    '7º': '7º ano',
+    '8º': '8º ano',
+    '9º': '9º ano',
+    '2º ano': '2º ano',
+    '3º ano': '3º ano',
+    '4º ano': '4º ano',
+    '5º ano': '5º ano',
+    '6º ano': '6º ano',
+    '7º ano': '7º ano',
+    '8º ano': '8º ano',
+    '9º ano': '9º ano',
+    // Médio
+    '1º ano ensino medio': '1º ano ensino medio',
+    '2º ano ensino medio': '2º ano ensino medio',
+    '3º ano ensino medio': '3º ano ensino medio',
+  }
+  
+  // Check direct match (case-insensitive)
+  const lowerInput = trimmedInput.toLowerCase()
+  for (const [pattern, result] of Object.entries(directPatterns)) {
+    if (lowerInput === pattern.toLowerCase() || lowerInput.includes(pattern.toLowerCase())) {
+      return result
+    }
+  }
 
   const normalized = normalizeText(input)
   
@@ -232,13 +292,16 @@ export function normalizeGrade(input: string | null | undefined): string | null 
       }
     }
     
-    // Se não encontrou ano específico, mas tem "medio", pode ser genérico
-    // Vamos tentar extrair o número
+    // Se não encontrou ano específico, mas tem "medio", tenta extrair o número
     const yearMatch = normalized.match(/\b([123])\b/)
     if (yearMatch) {
       const year = yearMatch[1]
       return medioPatterns[year] || null
     }
+    
+    // Last resort: return input as-is if it contains "medio" but we couldn't parse it
+    // This prevents losing data
+    return trimmedInput
   } else {
     // Verificar anos do fundamental (2º ao 9º)
     for (const [year, pattern] of Object.entries(fundamentalPatterns)) {
@@ -256,9 +319,18 @@ export function normalizeGrade(input: string | null | undefined): string | null 
         }
       }
     }
+    
+    // Last resort: if input is just a number between 2-9, assume it's fundamental
+    const numberMatch = normalized.match(/^\s*([2-9])\s*$/)
+    if (numberMatch) {
+      const year = numberMatch[1]
+      return fundamentalPatterns[year] || null
+    }
   }
 
-  return null
+  // If we can't normalize but have input, return as-is rather than null
+  // This prevents data loss while still allowing filtering
+  return trimmedInput || null
 }
 
 /**

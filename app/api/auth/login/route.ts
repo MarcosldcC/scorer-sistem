@@ -88,12 +88,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if school is active (if user belongs to a school)
-    if (user.schoolId && user.school?.status !== 'active') {
-      return NextResponse.json(
-        { error: 'Escola inativa' },
-        { status: 403 }
-      )
+    // Only check school status if user belongs to a school (platform_admin may not have schoolId)
+    if (user.schoolId && user.school) {
+      if (user.school.status !== 'active') {
+        return NextResponse.json(
+          { error: 'Escola inativa' },
+          { status: 403 }
+        )
+      }
     }
 
     // Verify password

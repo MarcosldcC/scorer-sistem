@@ -646,8 +646,9 @@ export default function NewTournamentPage() {
         return
       }
 
-      // Generate code from name
-      const code = tournamentData.name
+      // Generate code from name (suggested code, API will validate uniqueness)
+      // Note: Code generation is now done on server-side for better uniqueness handling
+      const suggestedCode = tournamentData.name
         .toUpperCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -658,6 +659,8 @@ export default function NewTournamentPage() {
 
       // Se houver template selecionado, criar template customizado primeiro
       let customTemplateId = null
+      let templateCreationError = null
+      
       if (selectedTemplateId && selectedTemplateId !== "none") {
         customTemplateId = selectedTemplateId
       } else if (tournamentData.areas.length > 0) {
@@ -689,11 +692,19 @@ export default function NewTournamentPage() {
           })
 
           const templateData = await templateResponse.json()
+          
           if (templateResponse.ok && templateData.template) {
             customTemplateId = templateData.template.id
+          } else {
+            // Template creation failed, but log error and continue
+            templateCreationError = templateData.error || 'Erro desconhecido ao criar template'
+            console.error('Erro ao criar template customizado:', templateCreationError)
+            // Continue without template - tournament can still be created
           }
-        } catch (templateErr) {
+        } catch (templateErr: any) {
+          templateCreationError = templateErr.message || 'Erro ao criar template customizado'
           console.error('Erro ao criar template customizado:', templateErr)
+          // Continue without template - tournament can still be created
         }
       }
 
@@ -705,7 +716,7 @@ export default function NewTournamentPage() {
         },
         body: JSON.stringify({
           name: tournamentData.name.trim(),
-          code,
+          code: suggestedCode, // API will handle uniqueness
           description: tournamentData.description?.trim() || null,
           icon: tournamentData.icon || null,
           templateId: customTemplateId,
@@ -719,18 +730,33 @@ export default function NewTournamentPage() {
       const data = await response.json()
 
       if (response.ok && data.success) {
-        setSuccess('Torneio criado com sucesso!')
-        toast({
-          title: "Torneio criado!",
-          description: `O torneio "${tournamentData.name}" foi criado.`,
-          variant: "default",
-        })
+        // Warn about template creation failure if it occurred
+        if (templateCreationError) {
+          setSuccess(`Torneio criado com sucesso! Aviso: Template customizado não foi criado (${templateCreationError}).`)
+          toast({
+            title: "Torneio criado!",
+            description: `O torneio "${tournamentData.name}" foi criado, mas houve um problema ao criar o template.`,
+            variant: "default",
+          })
+        } else {
+          setSuccess('Torneio criado com sucesso!')
+          toast({
+            title: "Torneio criado!",
+            description: `O torneio "${tournamentData.name}" foi criado.`,
+            variant: "default",
+          })
+        }
         
         setTimeout(() => {
           router.push('/dashboard')
         }, 1500)
       } else {
-        setError(data.error || 'Erro ao criar torneio')
+        // Check if error is related to code uniqueness
+        if (data.error && (data.error.includes('código') || data.error.includes('code')) && data.error.includes('já existe')) {
+          setError('Erro: O código do torneio já existe. A API tentará gerar um código único automaticamente. Tente novamente.')
+        } else {
+          setError(data.error || 'Erro ao criar torneio')
+        }
         console.error('Create tournament error:', data)
         toast({
           title: "Erro ao criar torneio",

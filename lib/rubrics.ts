@@ -753,7 +753,16 @@ export function calculateTotalScore(scores: EvaluationScore[]): number {
 }
 
 export function calculatePercentage(totalScore: number, maxPossibleScore: number): number {
-  return maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0
+  // Ensure we don't divide by zero and handle edge cases
+  if (!maxPossibleScore || maxPossibleScore <= 0) {
+    return 0
+  }
+  if (totalScore < 0) {
+    return 0
+  }
+  const percentage = (totalScore / maxPossibleScore) * 100
+  // Ensure percentage is between 0 and 100
+  return Math.max(0, Math.min(100, Math.round(percentage)))
 }
 
 export function getMaxPossibleScore(rubric: EvaluationRubric): number {

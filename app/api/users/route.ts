@@ -373,9 +373,60 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Validate email format if provided
+    if (email) {
+      if (!isValidGmail(email)) {
+        return NextResponse.json(
+          { error: 'Email deve ser um endereço Gmail válido (@gmail.com ou @googlemail.com)' },
+          { status: 400 }
+        )
+      }
+      // Normalize email
+      const normalizedEmail = email.toLowerCase().trim()
+      
+      // Check if email is already taken by another user
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email: normalizedEmail,
+          id: { not: id }
+        }
+      })
+      
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'Email já está cadastrado por outro usuário' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validate role change permissions
+    if (role) {
+      // Prevent users from elevating their own role
+      if (user.role !== 'platform_admin') {
+        // School admin cannot change roles to platform_admin
+        if (role === 'platform_admin') {
+          return NextResponse.json(
+            { error: 'Apenas platform admins podem criar ou alterar roles para platform_admin' },
+            { status: 403 }
+          )
+        }
+        // School admin cannot change their own role
+        if (user.id === id && role !== targetUser.role) {
+          return NextResponse.json(
+            { error: 'Você não pode alterar seu próprio role' },
+            { status: 403 }
+          )
+        }
+      }
+    }
+
     const updateData: any = {}
     if (name) updateData.name = name
-    if (email) updateData.email = email
+    if (email) {
+      // Use normalized email
+      updateData.email = email.toLowerCase().trim()
+    }
     if (role) updateData.role = role
     if (isActive !== undefined) updateData.isActive = isActive
     if (areas) updateData.areas = areas // Legacy field

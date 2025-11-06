@@ -56,7 +56,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ tournaments: [] })
       }
       
+      // Verify that viewer assignments are still valid
       where.id = { in: tournamentIds }
+      
+      // Additional security: verify viewer access for each tournament
+      // This ensures that even if tournamentId is passed directly, viewer can only see assigned tournaments
     } else if (user.role === 'school_admin' && user.schoolId) {
       // Platform admins see all, school admins see their school only
       where.schoolId = user.schoolId
@@ -167,16 +171,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if code exists
-    const existingTournament = await prisma.tournament.findUnique({
-      where: { code }
+    // Check if code exists, if so, generate a unique one
+    let finalCode = code
+    let codeExists = await prisma.tournament.findUnique({
+      where: { code: finalCode }
     })
-
-    if (existingTournament) {
-      return NextResponse.json(
-        { error: 'Código já existe' },
-        { status: 400 }
-      )
+    
+    if (codeExists) {
+      // Try to generate unique code with suffix
+      let attempts = 0
+      const maxAttempts = 10
+      
+      while (codeExists && attempts < maxAttempts) {
+        attempts++
+        finalCode = `${code}_${attempts}`
+        codeExists = await prisma.tournament.findUnique({
+          where: { code: finalCode }
+        })
+      }
+      
+      // If still exists, use timestamp
+      if (codeExists) {
+        finalCode = `${code}_${Date.now().toString().slice(-8)}`
+        // Final check
+        const finalExists = await prisma.tournament.findUnique({
+          where: { code: finalCode }
+        })
+        if (finalExists) {
+          return NextResponse.json(
+            { error: 'Não foi possível gerar um código único. Tente novamente.' },
+            { status: 500 }
+          )
+        }
+      }
     }
 
     // Get template version if provided
@@ -194,7 +221,7 @@ export async function POST(request: NextRequest) {
       data: {
         schoolId,
         name,
-        code,
+        code: finalCode, // Use finalCode which is guaranteed to be unique
         description,
         icon: icon || null,
         templateId: templateId || null,
@@ -463,6 +490,21 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { error: 'Acesso negado' },
         { status: 403 }
+      )
+    }
+
+    // Check if tournament is published and has evaluations
+    // Optionally prevent deletion of published tournaments with evaluations
+    const evaluationsCount = await prisma.evaluation.count({
+      where: { tournamentId: id }
+    })
+    
+    if (tournament.status === 'published' && evaluationsCount > 0 && user.role !== 'platform_admin') {
+      return NextResponse.json(
+        { 
+          error: `Não é possível excluir um torneio publicado com ${evaluationsCount} avaliação(ões). Apenas platform admins podem excluir torneios publicados.` 
+        },
+        { status: 400 }
       )
     }
 

@@ -159,118 +159,140 @@ export async function POST(request: NextRequest) {
     let code = baseCode
     let codeExists = true
     let attempts = 0
+    const maxAttempts = 20 // Increased from 10
     
-    // Generate unique code (try up to 10 times)
-    while (codeExists && attempts < 10) {
-      const existingSchool = await prisma.school.findUnique({
-        where: { code }
-      })
-      
-      if (!existingSchool) {
-        codeExists = false
-      } else {
-        // Add number suffix
-        code = `${baseCode}_${attempts + 1}`
-        attempts++
+    // Generate unique code with atomic check-and-create pattern
+    // Try with base code first, then with suffixes, then with timestamp
+    while (codeExists && attempts < maxAttempts) {
+      try {
+        // Use findUnique for atomic check
+        const existingSchool = await prisma.school.findUnique({
+          where: { code }
+        })
+        
+        if (!existingSchool) {
+          // Code is available, try to create atomically
+          try {
+            const school = await prisma.school.create({
+              data: {
+                name,
+                email: email || null,
+                code,
+                password: null,
+                location,
+                contactPhone: adminPhone || null,
+                status: 'active'
+              }
+            })
+            // Success - code was created atomically
+            codeExists = false
+            
+            // Create default settings for the school
+            await prisma.schoolSettings.create({
+              data: {
+                schoolId: school.id,
+                language: 'pt-BR',
+                branding: {}
+              }
+            })
+
+            // Generate reset token for password setup
+            const resetToken = crypto.randomBytes(32).toString('hex')
+            const expiryTimestamp = Date.now() + (60 * 60 * 1000) // 1 hour
+            const resetTokenData = `RESET_TOKEN:${resetToken}:${expiryTimestamp}`
+
+            // Hash temporary password (won't be used - user will set via email link)
+            const hashedPassword = await bcrypt.hash(tempPassword, 10)
+
+            const adminUser = await prisma.user.create({
+              data: {
+                name: `Admin - ${name}`,
+                email: normalizedAdminEmail,
+                password: hashedPassword,
+                tempPassword: resetTokenData,
+                role: 'school_admin',
+                schoolId: school.id,
+                phone: adminPhone || null,
+                isFirstLogin: true,
+                isActive: true,
+                areas: []
+              }
+            })
+
+            // Send welcome email with password setup link
+            let emailSent = false
+            try {
+              emailSent = await sendWelcomeEmail(normalizedAdminEmail, `Admin - ${name}`, resetToken, 'school_admin')
+              if (!emailSent) {
+                console.warn('Email não foi enviado, mas o usuário foi criado com sucesso')
+              }
+            } catch (emailError) {
+              console.error('Error sending welcome email:', emailError)
+            }
+
+            // Remove sensitive data from response
+            const { password: _, tempPassword: __, ...safeUser } = adminUser
+
+            const schoolResponse = {
+              ...school,
+              createdAt: school.createdAt.toISOString(),
+              updatedAt: school.updatedAt.toISOString(),
+            }
+
+            const userResponse = {
+              ...safeUser,
+              createdAt: safeUser.createdAt.toISOString(),
+              updatedAt: safeUser.updatedAt.toISOString(),
+              lastLoginAt: safeUser.lastLoginAt?.toISOString() || null,
+              sessionExpiresAt: safeUser.sessionExpiresAt?.toISOString() || null,
+            }
+
+            return NextResponse.json({
+              success: true,
+              school: schoolResponse,
+              adminUser: userResponse,
+              message: emailSent 
+                ? 'Escola criada com sucesso! Um email foi enviado para o admin configurar a senha.'
+                : 'Escola criada com sucesso! O admin pode solicitar redefinição de senha na tela de login.'
+            })
+          } catch (createError: any) {
+            // If unique constraint violation, code was taken between check and create
+            if (createError?.code === 'P2002') {
+              codeExists = true
+              attempts++
+              // Generate new code for next attempt
+              if (attempts < 10) {
+                code = `${baseCode}_${attempts}`
+              } else {
+                // Use timestamp with random suffix for better uniqueness
+                code = `SCHOOL_${Date.now()}_${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+              }
+              continue
+            }
+            // Other error, rethrow
+            throw createError
+          }
+        } else {
+          // Code exists, try next variation
+          attempts++
+          if (attempts < 10) {
+            code = `${baseCode}_${attempts}`
+          } else if (attempts < maxAttempts) {
+            // Use timestamp with random suffix
+            code = `SCHOOL_${Date.now()}_${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+          }
+        }
+      } catch (error) {
+        console.error('Error checking/creating school code:', error)
+        throw error
       }
     }
 
-    if (codeExists) {
-      // Fallback: use timestamp if all attempts failed
-      code = `SCHOOL_${Date.now()}`
-      const finalCheck = await prisma.school.findUnique({
-        where: { code }
-      })
-      if (finalCheck) {
-        return NextResponse.json(
-          { error: 'Não foi possível gerar um código único. Tente novamente.' },
-          { status: 500 }
-        )
-      }
-    }
-
-    const school = await prisma.school.create({
-      data: {
-        name,
-        email: email || null, // Contact email (optional)
-        code,
-        password: null, // No longer needed
-        location,
-        contactPhone: adminPhone || null,
-        status: 'active' // Always active when created
-      }
-    })
-
-    // Create default settings for the school
-    await prisma.schoolSettings.create({
-      data: {
-        schoolId: school.id,
-        language: 'pt-BR',
-        branding: {}
-      }
-    })
-
-    // Generate reset token for password setup
-    const resetToken = crypto.randomBytes(32).toString('hex')
-    const expiryTimestamp = Date.now() + (60 * 60 * 1000) // 1 hour
-    const resetTokenData = `RESET_TOKEN:${resetToken}:${expiryTimestamp}`
-
-    // Hash temporary password (won't be used - user will set via email link)
-    const hashedPassword = await bcrypt.hash(tempPassword, 10)
-
-    const adminUser = await prisma.user.create({
-      data: {
-        name: `Admin - ${name}`,
-        email: normalizedAdminEmail,
-        password: hashedPassword,
-        tempPassword: resetTokenData, // Store reset token instead of temp password
-        role: 'school_admin',
-        schoolId: school.id,
-        phone: adminPhone || null,
-        isFirstLogin: true,
-        isActive: true,
-        areas: []
-      }
-    })
-
-    // Send welcome email with password setup link
-    let emailSent = false
-    try {
-      emailSent = await sendWelcomeEmail(normalizedAdminEmail, `Admin - ${name}`, resetToken, 'school_admin')
-      if (!emailSent) {
-        console.warn('Email não foi enviado, mas o usuário foi criado com sucesso')
-      }
-    } catch (emailError) {
-      console.error('Error sending welcome email:', emailError)
-      // Continue even if email fails - user can still request password reset
-    }
-
-    // Remove sensitive data from response and ensure serialization
-    const { password: _, tempPassword: __, ...safeUser } = adminUser
-
-    // Ensure DateTime fields are serializable
-    const schoolResponse = {
-      ...school,
-      createdAt: school.createdAt.toISOString(),
-      updatedAt: school.updatedAt.toISOString(),
-    }
-
-    const userResponse = {
-      ...safeUser,
-      createdAt: safeUser.createdAt.toISOString(),
-      updatedAt: safeUser.updatedAt.toISOString(),
-      lastLoginAt: safeUser.lastLoginAt?.toISOString() || null,
-      sessionExpiresAt: safeUser.sessionExpiresAt?.toISOString() || null,
-    }
-
-    return NextResponse.json({
-      success: true,
-      school: schoolResponse,
-      adminUser: userResponse,
-      message: emailSent 
-        ? 'Escola criada com sucesso! Um email foi enviado para o admin configurar a senha.'
-        : 'Escola criada com sucesso! O admin pode solicitar redefinição de senha na tela de login.'
-    })
+    // If we exhausted all attempts, return error
+    return NextResponse.json(
+      { error: 'Não foi possível gerar um código único após várias tentativas. Tente novamente.' },
+      { status: 500 }
+    )
 
   } catch (error: any) {
     console.error('Create school error:', error)
@@ -406,14 +428,31 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Check if school has tournaments or users
-    if (school._count.tournaments > 0 || school._count.users > 0) {
+    // Check if school has tournaments, users, teams, or evaluations
+    // Get more detailed counts to check for all related data
+    const [teamsCount, evaluationsCount] = await Promise.all([
+      prisma.team.count({ where: { schoolId: id } }),
+      prisma.evaluation.count({
+        where: {
+          team: {
+            schoolId: id
+          }
+        }
+      })
+    ])
+
+    if (school._count.tournaments > 0 || school._count.users > 0 || teamsCount > 0) {
       return NextResponse.json(
         { 
-          error: `Não é possível excluir a escola. Ela possui ${school._count.tournaments} torneio(s) e ${school._count.users} usuário(s) associados. Primeiro remova ou transfira esses dados.` 
+          error: `Não é possível excluir a escola. Ela possui ${school._count.tournaments} torneio(s), ${school._count.users} usuário(s) e ${teamsCount} equipe(s) associados. Primeiro remova ou transfira esses dados.` 
         },
         { status: 400 }
       )
+    }
+    
+    // Warn if there are evaluations (even if teams are deleted, evaluations might remain)
+    if (evaluationsCount > 0) {
+      console.warn(`Warning: School ${id} has ${evaluationsCount} evaluations that may become orphaned`)
     }
 
     // Delete school settings first (if exists)

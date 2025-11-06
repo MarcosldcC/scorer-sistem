@@ -120,7 +120,17 @@ function checkConditions(user: User, conditions: string[], context?: any): boole
         return context?.assignedAreas?.includes(context?.areaId) || false
 
       case 'own_areas':
-        return context?.assignedAreas?.includes(context?.areaId) || true // Judge can see own areas
+        // Judge can see rankings if they have at least one area assigned
+        // If context has specific areaId, check if judge is assigned to that area
+        if (context?.areaId && context?.assignedAreas) {
+          return context.assignedAreas.includes(context.areaId)
+        }
+        // If no specific areaId, check if judge has any areas assigned
+        if (context?.assignedAreas) {
+          return Array.isArray(context.assignedAreas) && context.assignedAreas.length > 0
+        }
+        // If no assignedAreas in context, deny access (judge must have areas to see rankings)
+        return false
 
       case 'own_evaluation':
         return context?.evaluatedById === user.id

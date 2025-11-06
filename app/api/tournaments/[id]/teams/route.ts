@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import jwt from 'jsonwebtoken'
+import { config } from '@/lib/config'
 
 async function verifyToken(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+
+  const token = authHeader.substring(7)
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) return null
-    
-    const token = authHeader.substring(7)
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString())
-    return payload
+    const decoded = jwt.verify(token, config.jwt.secret) as any
+    // Map userId to id for consistency
+    if (decoded && decoded.userId) {
+      return {
+        ...decoded,
+        id: decoded.userId
+      }
+    }
+    return decoded
   } catch {
     return null
   }

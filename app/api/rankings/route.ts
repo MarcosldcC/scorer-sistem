@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import { config } from '@/lib/config'
 import { calculatePercentage, getMaxPossibleScore, calculateTotalScore, RUBRICS } from '@/lib/rubrics'
 import { normalizeShift, normalizeGrade, shiftFromSystemFormat, shiftToSystemFormat, normalizeText } from '@/lib/text-normalization'
+import { aggregateEvaluations } from '@/lib/rankings-advanced'
 
 export const dynamic = 'force-dynamic'
 
@@ -114,30 +115,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Filter by shift and/or grade if provided
-    // Note: Teams can have shift/grade in legacy fields or metadata
-    const filters: any[] = []
-    
-    if (shift) {
-      filters.push({
-        OR: [
-          { shift: shift },
-          { metadata: { path: ['shift'], equals: shift } }
-        ]
-      })
-    }
-    
-    if (grade) {
-      filters.push({
-        OR: [
-          { grade: grade },
-          { metadata: { path: ['grade'], equals: grade } }
-        ]
-      })
-    }
-    
-    if (filters.length > 0) {
-      where.AND = filters
-    }
+    // Note: We'll do normalization-based filtering after fetching teams
+    // This is more reliable than Prisma JSON filters for complex normalization
 
     // Get teams with evaluations
     const teams = await prisma.team.findMany({
@@ -175,7 +154,7 @@ export async function GET(request: NextRequest) {
     // IMPORTANTE: Os dados das equipes já vêm normalizados da API de teams
     // Precisamos normalizar o filtro da mesma forma para comparar
     let filteredTeams = teams
-    if (shift || grade) {
+    if ((shift && filterShiftSystem) || (grade && filterGrade)) {
       // Normalizar valores de filtro para o formato normalizado
       let normalizedFilterShift: string | null = null
       let normalizedFilterGrade: string | null = null
@@ -336,9 +315,24 @@ export async function GET(request: NextRequest) {
 
       // Calculate scores for each area
       areas.forEach((area) => {
-        const rubric = RUBRICS[area.code as keyof typeof RUBRICS]
-        const maxAreaScore = rubric ? getMaxPossibleScore(rubric) : 0
-        maxPossibleScore += maxAreaScore
+        // Get max score from rubric config or default rubric
+        let maxAreaScore = 0
+        if (area.rubricConfig && typeof area.rubricConfig === 'object') {
+          // Use custom rubric config
+          const rubricConfig = area.rubricConfig as any
+          if (Array.isArray(rubricConfig.criteria || rubricConfig)) {
+            const criteria = rubricConfig.criteria || rubricConfig
+            maxAreaScore = criteria.reduce((sum: number, c: any) => sum + (c.maxScore || 0), 0)
+          }
+        } else {
+          // Use default rubric
+          const rubric = RUBRICS[area.code as keyof typeof RUBRICS]
+          maxAreaScore = rubric ? getMaxPossibleScore(rubric) : 0
+        }
+        
+        // Apply area weight
+        const areaWeight = area.weight || 1.0
+        maxPossibleScore += maxAreaScore * areaWeight
 
         // Find evaluations for this area
         const evaluations = team.evaluations.filter(evaluation => 
@@ -346,42 +340,75 @@ export async function GET(request: NextRequest) {
         )
 
         if (evaluations.length > 0) {
-          // For now, use first evaluation (later we'll implement multi-judge aggregation)
-          const evaluation = evaluations[0]
-          const scores = evaluation.scores as any[]
-          
-          // Calculate area total based on scoring type
-          let areaTotal = 0
-          if (area.scoringType === 'rubric') {
-            areaTotal = calculateTotalScore(scores)
-          } else if (area.scoringType === 'performance') {
-            areaTotal = scores.reduce((sum, s) => sum + (s.score || 0), 0)
-          } else {
-            // Mixed
-            areaTotal = calculateTotalScore(scores)
-          }
-          
-          // Apply penalties
-          let finalAreaScore = areaTotal
-          evaluation.penalties.forEach(penalty => {
-            finalAreaScore += penalty.points
+          // Calculate scores for each evaluation
+          const evaluationScores = evaluations.map(evaluation => {
+            const scores = evaluation.scores as any[]
+            
+            // Calculate area total based on scoring type
+            let areaTotal = 0
+            if (area.scoringType === 'rubric') {
+              areaTotal = calculateTotalScore(scores)
+            } else if (area.scoringType === 'performance') {
+              areaTotal = scores.reduce((sum, s) => sum + (s.score || 0), 0)
+            } else {
+              // Mixed
+              areaTotal = calculateTotalScore(scores)
+            }
+            
+            // Apply penalties
+            let finalAreaScore = areaTotal
+            evaluation.penalties.forEach(penalty => {
+              finalAreaScore += penalty.points
+            })
+            
+            finalAreaScore = Math.max(0, finalAreaScore)
+            
+            // Ensure maxAreaScore is greater than 0 to avoid division by zero
+            const areaPercentage = (maxAreaScore && maxAreaScore > 0)
+              ? calculatePercentage(finalAreaScore, maxAreaScore)
+              : 0
+            
+            return {
+              score: finalAreaScore,
+              percentage: areaPercentage,
+              evaluatedBy: evaluation.evaluatedBy.name,
+              evaluationTime: evaluation.evaluationTime,
+              timestamp: evaluation.evaluatedAt.getTime(),
+              detailedScores: scores,
+              penalties: evaluation.penalties
+            }
           })
           
-          finalAreaScore = Math.max(0, finalAreaScore)
-          totalScore += finalAreaScore
+          // Aggregate multiple evaluations using configured method
+          const aggregationMethod = (area.aggregationMethod || 'last') as 'last' | 'average' | 'median' | 'best' | 'worst'
+          const aggregated = aggregateEvaluations(
+            evaluationScores.map(e => ({
+              score: e.score,
+              percentage: e.percentage,
+              evaluatedBy: e.evaluatedBy,
+              timestamp: e.timestamp
+            })),
+            aggregationMethod
+          )
           
-          const areaPercentage = maxAreaScore > 0 
-            ? calculatePercentage(finalAreaScore, maxAreaScore)
-            : 0
-          areaPercentages.push(areaPercentage)
+          // Apply weight to aggregated score
+          const weightedScore = aggregated.score * areaWeight
+          totalScore += weightedScore
+          
+          areaPercentages.push(aggregated.percentage)
+          
+          // Use most recent evaluation for display details
+          const mostRecent = evaluationScores.sort((a, b) => b.timestamp - a.timestamp)[0]
           
           areaScores[area.code] = {
-            score: finalAreaScore,
-            percentage: areaPercentage,
-            evaluatedBy: evaluation.evaluatedBy.name,
-            evaluationTime: evaluation.evaluationTime,
-            detailedScores: scores,
-            penalties: evaluation.penalties
+            score: aggregated.score,
+            percentage: aggregated.percentage,
+            evaluatedBy: mostRecent.evaluatedBy,
+            evaluationTime: mostRecent.evaluationTime,
+            detailedScores: mostRecent.detailedScores,
+            penalties: mostRecent.penalties,
+            evaluationCount: evaluations.length,
+            aggregationMethod
           }
         }
       })
@@ -389,16 +416,39 @@ export async function GET(request: NextRequest) {
       // Calculate final percentage based on tournament configuration
       let percentage = 0
       if (tournament.rankingMethod === 'percentage') {
-        // Average of area percentages
-        percentage = areaPercentages.length > 0 
-          ? Math.round(areaPercentages.reduce((sum, p) => sum + p, 0) / areaPercentages.length)
-          : 0
+        // Weighted average of area percentages
+        // Calculate weighted average considering area weights
+        let totalWeight = 0
+        let weightedSum = 0
+        let percentageIndex = 0
+        
+        areas.forEach((area) => {
+          const hasEvaluations = team.evaluations.some(e => e.area.id === area.id)
+          if (hasEvaluations && percentageIndex < areaPercentages.length) {
+            const areaWeight = area.weight || 1.0
+            weightedSum += areaPercentages[percentageIndex] * areaWeight
+            totalWeight += areaWeight
+            percentageIndex++
+          }
+        })
+        
+        if (totalWeight > 0) {
+          percentage = Math.round(weightedSum / totalWeight)
+        } else {
+          // Fallback: simple average if no weights
+          percentage = areaPercentages.length > 0 
+            ? Math.round(areaPercentages.reduce((sum, p) => sum + p, 0) / areaPercentages.length)
+            : 0
+        }
       } else {
-        // Raw score percentage
+        // Raw score percentage (already weighted in totalScore)
         percentage = maxPossibleScore > 0
           ? Math.round((totalScore / maxPossibleScore) * 100)
           : 0
       }
+      
+      // Ensure percentage is within valid range
+      percentage = Math.max(0, Math.min(100, percentage))
 
       // Get grade and shift from team fields or metadata
       // Normalizar valores para garantir consistência mesmo com dados antigos

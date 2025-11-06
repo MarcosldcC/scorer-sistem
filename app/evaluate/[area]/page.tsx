@@ -69,16 +69,22 @@ export default function EvaluatePage() {
   const [checkingAccess, setCheckingAccess] = useState(true)
 
   useEffect(() => {
+    let isCancelled = false
+    
     const checkAccess = async () => {
       if (!user) {
-        setCheckingAccess(false)
+        if (!isCancelled) {
+          setCheckingAccess(false)
+        }
         return
       }
 
       // Allow school_admin and platform_admin to access any area
       if (user.role === 'school_admin' || user.role === 'platform_admin') {
-        setHasAccess(true)
-        setCheckingAccess(false)
+        if (!isCancelled) {
+          setHasAccess(true)
+          setCheckingAccess(false)
+        }
         return
       }
 
@@ -88,8 +94,10 @@ export default function EvaluatePage() {
           try {
             const token = localStorage.getItem('robotics-token')
             if (!token) {
-              setHasAccess(false)
-              setCheckingAccess(false)
+              if (!isCancelled) {
+                setHasAccess(false)
+                setCheckingAccess(false)
+              }
               return
             }
 
@@ -98,59 +106,74 @@ export default function EvaluatePage() {
               headers: { 'Authorization': `Bearer ${token}` }
             })
 
-            if (response.ok) {
-              const data = await response.json()
-              const assignments = data.assignments || []
-              
-              // Check if judge is assigned to this area (by area code)
-              const hasAreaAssignment = assignments.some((assignment: any) => {
-                const assignmentAreaCode = assignment.area?.code || assignment.areaCode
-                return assignmentAreaCode && assignmentAreaCode.trim().toLowerCase() === area.trim().toLowerCase()
-              })
+            if (!isCancelled) {
+              if (response.ok) {
+                const data = await response.json()
+                const assignments = data.assignments || []
+                
+                // Check if judge is assigned to this area (by area code)
+                const hasAreaAssignment = assignments.some((assignment: any) => {
+                  const assignmentAreaCode = assignment.area?.code || assignment.areaCode
+                  return assignmentAreaCode && assignmentAreaCode.trim().toLowerCase() === area.trim().toLowerCase()
+                })
 
-              console.log('Judge access check:', {
-                tournamentId,
-                area,
-                assignments: assignments.map((a: any) => ({
-                  areaCode: a.area?.code || a.areaCode,
-                  areaName: a.area?.name
-                })),
-                hasAreaAssignment
-              })
+                console.log('Judge access check:', {
+                  tournamentId,
+                  area,
+                  assignments: assignments.map((a: any) => ({
+                    areaCode: a.area?.code || a.areaCode,
+                    areaName: a.area?.name
+                  })),
+                  hasAreaAssignment
+                })
 
-              setHasAccess(hasAreaAssignment)
-            } else {
-              // Fallback to user.assignedAreas if API fails
+                setHasAccess(hasAreaAssignment)
+              } else {
+                // Fallback to user.assignedAreas if API fails
+                const hasAreaAssignment = user.assignedAreas?.some(
+                  assignment => assignment.areaCode?.trim().toLowerCase() === area.trim().toLowerCase() && 
+                               assignment.tournamentId === tournamentId
+                )
+                setHasAccess(hasAreaAssignment || false)
+              }
+              setCheckingAccess(false)
+            }
+          } catch (error) {
+            if (!isCancelled) {
+              console.error('Error checking judge access:', error)
+              // Fallback to user.assignedAreas
               const hasAreaAssignment = user.assignedAreas?.some(
                 assignment => assignment.areaCode?.trim().toLowerCase() === area.trim().toLowerCase() && 
                              assignment.tournamentId === tournamentId
               )
               setHasAccess(hasAreaAssignment || false)
+              setCheckingAccess(false)
             }
-          } catch (error) {
-            console.error('Error checking judge access:', error)
-            // Fallback to user.assignedAreas
-            const hasAreaAssignment = user.assignedAreas?.some(
-              assignment => assignment.areaCode?.trim().toLowerCase() === area.trim().toLowerCase() && 
-                           assignment.tournamentId === tournamentId
-            )
-            setHasAccess(hasAreaAssignment || false)
           }
         } else {
           // No tournamentId - fallback to legacy areas check
-          const hasLegacyArea = user.areas && Array.isArray(user.areas) && user.areas.includes(area)
-          setHasAccess(hasLegacyArea)
+          if (!isCancelled) {
+            const hasLegacyArea = user.areas && Array.isArray(user.areas) && user.areas.includes(area)
+            setHasAccess(hasLegacyArea)
+            setCheckingAccess(false)
+          }
         }
       } else {
         // For other roles, use legacy areas check
-        const hasLegacyArea = user.areas && Array.isArray(user.areas) && user.areas.includes(area)
-        setHasAccess(hasLegacyArea)
+        if (!isCancelled) {
+          const hasLegacyArea = user.areas && Array.isArray(user.areas) && user.areas.includes(area)
+          setHasAccess(hasLegacyArea)
+          setCheckingAccess(false)
+        }
       }
-
-      setCheckingAccess(false)
     }
 
     checkAccess()
+    
+    // Cleanup function to cancel if dependencies change
+    return () => {
+      isCancelled = true
+    }
   }, [user, area, tournamentId])
 
   useEffect(() => {
