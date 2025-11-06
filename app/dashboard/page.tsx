@@ -292,6 +292,62 @@ export default function DashboardPage() {
     }
   }, [selectedTournamentId, user, fetchAssignedAreas])
 
+  // Escutar eventos de avaliação salva para atualizar automaticamente (para juízes)
+  useEffect(() => {
+    if (typeof window === 'undefined' || user?.role !== 'judge' || !selectedTournamentId || !refetchJudgeTeams) return
+
+    const handleEvaluationSaved = (event: CustomEvent) => {
+      const detail = event.detail as { teamId?: string; area?: string; tournamentId?: string }
+      // Se o evento é para este torneio, atualizar dados
+      if (!detail.tournamentId || detail.tournamentId === selectedTournamentId) {
+        console.log('🟢 Dashboard - Evaluation saved event received, refetching teams...', detail)
+        refetchJudgeTeams()
+        fetchAssignedAreas(selectedTournamentId)
+      }
+    }
+
+    const handleEvaluationSynced = (event: CustomEvent) => {
+      const detail = event.detail as { count?: number; tournamentId?: string }
+      // Se o evento é para este torneio, atualizar dados
+      if (!detail.tournamentId || detail.tournamentId === selectedTournamentId) {
+        console.log('🟢 Dashboard - Evaluation synced event received, refetching teams...', detail)
+        refetchJudgeTeams()
+        fetchAssignedAreas(selectedTournamentId)
+      }
+    }
+
+    const handleEvaluationDeleted = (event: CustomEvent) => {
+      const detail = event.detail as { teamId?: string; area?: string; tournamentId?: string }
+      // Se o evento é para este torneio, atualizar dados
+      if (!detail.tournamentId || detail.tournamentId === selectedTournamentId) {
+        console.log('🟢 Dashboard - Evaluation deleted event received, refetching teams...', detail)
+        refetchJudgeTeams()
+        fetchAssignedAreas(selectedTournamentId)
+      }
+    }
+
+    window.addEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
+    window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+    window.addEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
+
+    // Também atualizar quando a página volta ao foco
+    const handleFocus = () => {
+      console.log('🟢 Dashboard - Page focused, refetching teams...')
+      refetchJudgeTeams()
+      if (selectedTournamentId) {
+        fetchAssignedAreas(selectedTournamentId)
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
+      window.removeEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+      window.removeEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [selectedTournamentId, user?.role, refetchJudgeTeams, fetchAssignedAreas])
+
   // Get areas for selected tournament
   // Use fetched areas from API if available, otherwise fallback to user.assignedAreas
   const selectedTournament = judgeTournaments.find(t => t.tournamentId === selectedTournamentId)
