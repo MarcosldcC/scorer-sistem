@@ -38,7 +38,48 @@ export async function GET(request: NextRequest) {
     if (tournamentId) where.tournamentId = tournamentId
     if (userId) where.userId = userId
 
-    console.log('GET /api/user-areas - Query params:', { tournamentId, userId, requestingUserId: user.id, requestingUserRole: user.role })
+    console.log('🔵 GET /api/user-areas - Query params:', { tournamentId, userId, requestingUserId: user.id, requestingUserRole: user.role })
+    console.log('🔵 GET /api/user-areas - Where clause:', JSON.stringify(where, null, 2))
+
+    // First, check if there are ANY assignments in the database for debugging
+    const allAssignments = await prisma.userTournamentArea.findMany({
+      take: 10, // Limit to 10 for debugging
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        },
+        tournament: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        area: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        }
+      }
+    })
+    console.log('🔵 GET /api/user-areas - ALL assignments in DB (first 10):', {
+      count: allAssignments.length,
+      assignments: allAssignments.map(a => ({
+        id: a.id,
+        userId: a.userId,
+        tournamentId: a.tournamentId,
+        areaId: a.areaId,
+        areaCode: a.area?.code,
+        areaName: a.area?.name,
+        userName: a.user?.name
+      }))
+    })
 
     const assignments = await prisma.userTournamentArea.findMany({
       where,
@@ -67,8 +108,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log('GET /api/user-areas - Found assignments:', {
+    console.log('🔵 GET /api/user-areas - Found assignments (filtered):', {
       count: assignments.length,
+      whereClause: where,
       assignments: assignments.map(a => ({
         id: a.id,
         userId: a.userId,

@@ -12,10 +12,23 @@ import { Button } from "@/components/ui/button"
 import { Trophy, ArrowLeft } from "lucide-react"
 
 export default function TournamentViewPage() {
-  console.log('=== TournamentViewPage RENDER ===')
+  // Log básico que deve aparecer sempre
+  console.log('🔵 TournamentViewPage - COMPONENT STARTED')
+  console.log('🔵 TournamentViewPage - Timestamp:', new Date().toISOString())
+  
   const params = useParams()
   const tournamentId = params.id as string
+  console.log('🔵 TournamentViewPage - Params:', { tournamentId, params })
+  
   const { isAuthenticated, user, loading: authLoading } = useAuth()
+  console.log('🔵 TournamentViewPage - Auth state:', { 
+    isAuthenticated, 
+    authLoading, 
+    hasUser: !!user,
+    userRole: user?.role,
+    userId: user?.id 
+  })
+  
   const router = useRouter()
   // Use useMemo to stabilize the filters object and prevent infinite loops
   const teamFilters = useMemo(() => ({ tournamentId }), [tournamentId])
@@ -25,7 +38,7 @@ export default function TournamentViewPage() {
   const [userAssignedAreas, setUserAssignedAreas] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
-  console.log('Component state:', {
+  console.log('🔵 TournamentViewPage - Component state:', {
     tournamentId,
     isAuthenticated,
     authLoading,
@@ -72,16 +85,26 @@ export default function TournamentViewPage() {
   }
 
   const fetchUserAssignedAreas = useCallback(async () => {
-    console.log('=== fetchUserAssignedAreas CALLED ===', { userId: user?.id, tournamentId })
+    console.log('🟣 fetchUserAssignedAreas - FUNCTION CALLED', { 
+      userId: user?.id, 
+      tournamentId,
+      timestamp: new Date().toISOString()
+    })
     try {
       const token = localStorage.getItem('robotics-token')
+      console.log('🟣 fetchUserAssignedAreas - Token check:', { hasToken: !!token })
+      
       if (!token || !user || !tournamentId) {
-        console.log('Missing required data:', { hasToken: !!token, hasUser: !!user, hasTournamentId: !!tournamentId })
+        console.log('🔴 fetchUserAssignedAreas - Missing required data:', { 
+          hasToken: !!token, 
+          hasUser: !!user, 
+          hasTournamentId: !!tournamentId 
+        })
         setUserAssignedAreas([])
         return
       }
 
-      console.log('Fetching user assigned areas for user:', user.id, 'tournament:', tournamentId)
+      console.log('🟣 fetchUserAssignedAreas - Fetching for user:', user.id, 'tournament:', tournamentId)
       
       // Fetch assignments for current user in this tournament
       const response = await fetch(`/api/user-areas?tournamentId=${tournamentId}&userId=${user.id}`, {
@@ -89,10 +112,11 @@ export default function TournamentViewPage() {
       })
       const data = await response.json()
 
-      console.log('User areas API response:', {
+      console.log('🟣 fetchUserAssignedAreas - API response:', {
         status: response.status,
         ok: response.ok,
-        data
+        data,
+        assignmentsCount: data.assignments?.length || 0
       })
 
       if (response.ok) {
@@ -152,27 +176,38 @@ export default function TournamentViewPage() {
         }
       }
     } catch (err) {
-      console.error('Error fetching user assigned areas:', err)
+      console.error('🔴 fetchUserAssignedAreas - ERROR:', err)
       setUserAssignedAreas([])
       // Fallback: use user.areas if available
       if (user?.areas && Array.isArray(user.areas)) {
-        console.log('Using fallback user.areas:', user.areas)
+        console.log('🟡 fetchUserAssignedAreas - Using fallback user.areas:', user.areas)
         setUserAssignedAreas(user.areas)
       }
     }
+    console.log('🟣 fetchUserAssignedAreas - FUNCTION ENDED')
   }, [user, tournamentId, tournamentAreas])
+  
+  // Log quando fetchUserAssignedAreas é criado/atualizado
+  useEffect(() => {
+    console.log('🟡 fetchUserAssignedAreas callback created/updated', {
+      hasUser: !!user,
+      hasTournamentId: !!tournamentId,
+      tournamentAreasCount: tournamentAreas.length
+    })
+  }, [fetchUserAssignedAreas, user, tournamentId, tournamentAreas])
 
   useEffect(() => {
-    console.log('=== useEffect for user areas triggered ===', {
+    console.log('🟢 useEffect for user areas - TRIGGERED', {
       tournamentAreasLength: tournamentAreas.length,
       tournamentId,
       hasUser: !!user,
       userRole: user?.role,
-      userId: user?.id
+      userId: user?.id,
+      timestamp: new Date().toISOString()
     })
     
     if (tournamentAreas.length > 0 && tournamentId && user) {
-      console.log('Conditions met - processing user areas:', {
+      console.log('🟢 useEffect - Conditions MET - processing user areas:', {
         tournamentAreasCount: tournamentAreas.length,
         tournamentId,
         userRole: user.role,
@@ -182,21 +217,29 @@ export default function TournamentViewPage() {
       // For school_admin, set all areas when tournamentAreas are loaded
       if (user.role === 'school_admin' || user.role === 'platform_admin') {
         const allCodes = tournamentAreas.map((area: any) => area.code)
-        console.log('Setting all areas for admin:', allCodes)
+        console.log('🟢 useEffect - Setting all areas for admin:', allCodes)
         setUserAssignedAreas(allCodes)
       } else if (user.role === 'judge') {
         // For judges, fetch assigned areas
-        console.log('Fetching assigned areas for judge - calling fetchUserAssignedAreas')
-        fetchUserAssignedAreas()
+        console.log('🟢 useEffect - Judge detected, calling fetchUserAssignedAreas')
+        console.log('🟢 useEffect - fetchUserAssignedAreas function exists:', typeof fetchUserAssignedAreas)
+        try {
+          fetchUserAssignedAreas()
+        } catch (error) {
+          console.error('🔴 useEffect - Error calling fetchUserAssignedAreas:', error)
+        }
       } else {
-        console.log('User role not recognized, setting empty areas')
+        console.log('🟡 useEffect - User role not recognized:', user.role, 'setting empty areas')
         setUserAssignedAreas([])
       }
     } else {
-      console.log('useEffect conditions NOT met:', {
+      console.log('🟡 useEffect - Conditions NOT met:', {
         tournamentAreasLength: tournamentAreas.length,
         tournamentId,
-        hasUser: !!user
+        hasUser: !!user,
+        missingTournamentAreas: tournamentAreas.length === 0,
+        missingTournamentId: !tournamentId,
+        missingUser: !user
       })
       // Reset if conditions not met
       if (!tournamentId || !user) {
