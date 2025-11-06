@@ -37,6 +37,14 @@ export async function GET(request: NextRequest) {
     const shift = searchParams.get('shift')
     const grade = searchParams.get('grade')
 
+    // Debug: Log dos parâmetros recebidos
+    console.log('API Rankings Called:', {
+      tournamentId,
+      shift,
+      grade,
+      url: request.url
+    })
+
     // Tournament ID is required
     if (!tournamentId) {
       return NextResponse.json(
@@ -129,6 +137,14 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' }
     })
 
+    // Debug: Log dos dados das equipes do banco
+    console.log('Teams from DB:', teams.map(t => ({
+      name: t.name,
+      shift: t.shift,
+      grade: t.grade,
+      metadata: t.metadata
+    })))
+
     // Filter teams by grade/shift if needed (after fetch, to handle metadata properly)
     // Usar normalização inteligente para correspondência tolerante a variações
     // IMPORTANTE: Os dados das equipes já vêm normalizados da API de teams
@@ -161,6 +177,18 @@ export async function GET(request: NextRequest) {
         const rawGrade = team.grade || (team.metadata as any)?.grade || (team.metadata as any)?.originalGrade || null
         const rawShift = team.shift || (team.metadata as any)?.shift || (team.metadata as any)?.originalShift || null
         
+        // Debug: Log dos valores brutos
+        if (shift || grade) {
+          console.log('Team Raw Values:', {
+            teamName: team.name,
+            rawShift,
+            rawGrade,
+            teamShift: team.shift,
+            teamGrade: team.grade,
+            metadata: team.metadata
+          })
+        }
+        
         // Normalizar valores da equipe para comparação
         // Sempre normalizar turno para o formato do sistema para garantir comparação correta
         let normalizedTeamShift: string | null = null
@@ -190,18 +218,30 @@ export async function GET(request: NextRequest) {
         
         const normalizedTeamGrade = rawGrade ? (normalizeGrade(rawGrade) || rawGrade) : null
         
+        // Debug: Log dos valores normalizados
+        if (shift || grade) {
+          console.log('Team Normalized Values:', {
+            teamName: team.name,
+            rawShift,
+            normalizedTeamShift,
+            normalizedFilterShift,
+            rawGrade,
+            normalizedTeamGrade,
+            normalizedFilterGrade
+          })
+        }
+        
         // Comparar turno normalizado
         if (normalizedFilterShift) {
           const matches = normalizedTeamShift === normalizedFilterShift
-          if (!matches) {
-            console.log('Shift Filter Mismatch:', {
-              teamName: team.name,
-              rawShift,
-              normalizedTeamShift,
-              normalizedFilterShift,
-              matches
-            })
-          }
+          console.log('Shift Comparison:', {
+            teamName: team.name,
+            rawShift,
+            normalizedTeamShift,
+            normalizedFilterShift,
+            matches,
+            willInclude: matches
+          })
           if (!normalizedTeamShift || normalizedTeamShift !== normalizedFilterShift) {
             return false
           }
@@ -215,6 +255,14 @@ export async function GET(request: NextRequest) {
         }
         
         return true
+      })
+      
+      // Debug: Log do resultado da filtragem
+      console.log('Filtering Result:', {
+        totalTeams: teams.length,
+        filteredTeams: filteredTeams.length,
+        shiftFilter: normalizedFilterShift,
+        gradeFilter: normalizedFilterGrade
       })
     }
 
