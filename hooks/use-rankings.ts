@@ -34,17 +34,24 @@ export function useRankings(filters?: RankingFilters) {
   const [error, setError] = useState<string | null>(null)
 
   const fetchRankings = useCallback(async () => {
+    // Não fazer requisição se não houver tournamentId
+    if (!filters?.tournamentId) {
+      setRankings([])
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
 
       const searchParams = new URLSearchParams()
-      if (filters?.tournamentId) searchParams.set('tournamentId', filters.tournamentId)
+      searchParams.set('tournamentId', filters.tournamentId)
       if (filters?.shift) searchParams.set('shift', filters.shift)
       if (filters?.grade) searchParams.set('grade', filters.grade)
 
-      const queryString = searchParams.toString()
-      const url = queryString ? `/api/rankings?${queryString}` : '/api/rankings'
+      const url = `/api/rankings?${searchParams.toString()}`
       
       const response = await fetch(url, {
         headers: getAuthHeaders()
@@ -53,12 +60,14 @@ export function useRankings(filters?: RankingFilters) {
       const data = await response.json()
 
       if (response.ok) {
-        setRankings(data.rankings)
+        setRankings(data.rankings || [])
       } else {
         setError(data.error || 'Erro ao carregar rankings')
+        setRankings([])
       }
     } catch (err) {
       setError('Erro de conexão')
+      setRankings([])
       console.error('Fetch rankings error:', err)
     } finally {
       setLoading(false)

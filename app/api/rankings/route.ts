@@ -33,9 +33,17 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const tournamentId = searchParams.get('tournamentId') || 'DEFAULT_TOURNAMENT' // Backward compatibility
+    const tournamentId = searchParams.get('tournamentId')
     const shift = searchParams.get('shift')
     const grade = searchParams.get('grade')
+
+    // Tournament ID is required
+    if (!tournamentId) {
+      return NextResponse.json(
+        { error: 'ID do torneio é obrigatório' },
+        { status: 400 }
+      )
+    }
 
     // Get tournament
     const tournament = await prisma.tournament.findFirst({
