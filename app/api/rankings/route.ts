@@ -143,6 +143,11 @@ export async function GET(request: NextRequest) {
         // Normalizar o filtro de turno
         const normalized = normalizeShift(shift)
         normalizedFilterShift = normalized ? shiftToSystemFormat(normalized) : null
+        console.log('Filter Shift Debug:', {
+          originalShift: shift,
+          normalized,
+          normalizedFilterShift
+        })
       }
       
       if (grade) {
@@ -157,16 +162,29 @@ export async function GET(request: NextRequest) {
         const rawShift = team.shift || (team.metadata as any)?.shift || (team.metadata as any)?.originalShift || null
         
         // Normalizar valores da equipe para comparação
-        // Se o valor já estiver normalizado (morning/afternoon), manter; caso contrário, normalizar
+        // Sempre normalizar turno para o formato do sistema para garantir comparação correta
         let normalizedTeamShift: string | null = null
         if (rawShift) {
           // Se já está no formato do sistema, usar diretamente
           if (rawShift === 'morning' || rawShift === 'afternoon') {
             normalizedTeamShift = rawShift
           } else {
-            // Normalizar e converter
+            // Normalizar e converter - SEMPRE converter para formato do sistema
             const normalized = normalizeShift(rawShift)
-            normalizedTeamShift = normalized ? shiftToSystemFormat(normalized) : rawShift
+            if (normalized) {
+              normalizedTeamShift = shiftToSystemFormat(normalized)
+            } else {
+              // Se não conseguiu normalizar, tentar normalizar o texto e verificar novamente
+              const normalizedText = normalizeText(rawShift)
+              if (normalizedText === 'morning' || normalizedText === 'manha') {
+                normalizedTeamShift = 'morning'
+              } else if (normalizedText === 'afternoon' || normalizedText === 'tarde') {
+                normalizedTeamShift = 'afternoon'
+              } else {
+                // Se ainda não conseguiu, usar null (não corresponde)
+                normalizedTeamShift = null
+              }
+            }
           }
         }
         
@@ -174,6 +192,16 @@ export async function GET(request: NextRequest) {
         
         // Comparar turno normalizado
         if (normalizedFilterShift) {
+          const matches = normalizedTeamShift === normalizedFilterShift
+          if (!matches) {
+            console.log('Shift Filter Mismatch:', {
+              teamName: team.name,
+              rawShift,
+              normalizedTeamShift,
+              normalizedFilterShift,
+              matches
+            })
+          }
           if (!normalizedTeamShift || normalizedTeamShift !== normalizedFilterShift) {
             return false
           }
