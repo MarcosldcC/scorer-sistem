@@ -145,6 +145,11 @@ function matchesValue(
 export function normalizeShift(input: string | null | undefined): 'manha' | 'tarde' | null {
   if (!input) return null
 
+  // Se já está no formato do sistema, converter diretamente
+  const lowerInput = input.toLowerCase().trim()
+  if (lowerInput === 'morning') return 'manha'
+  if (lowerInput === 'afternoon') return 'tarde'
+
   const normalized = normalizeText(input)
   
   // Valores oficiais normalizados
@@ -161,6 +166,10 @@ export function normalizeShift(input: string | null | undefined): 'manha' | 'tar
     'turno tarde',
     'afternoon', // Formato do sistema
   ]
+
+  // Verificar correspondência exata primeiro
+  if (normalized === 'manha' || normalized === 'morning') return 'manha'
+  if (normalized === 'tarde' || normalized === 'afternoon') return 'tarde'
 
   // Verificar correspondência com manhã
   for (const variation of manhaVariations) {
