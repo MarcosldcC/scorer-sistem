@@ -151,13 +151,26 @@ export async function GET(request: NextRequest) {
       }
       
       filteredTeams = teams.filter(team => {
-        // Obter valores originais de turno e turma (de diferentes fontes)
+        // Obter valores de turno e turma (de diferentes fontes)
+        // IMPORTANTE: Os dados podem vir normalizados da API de teams ou do banco direto
         const rawGrade = team.grade || (team.metadata as any)?.grade || (team.metadata as any)?.originalGrade || null
         const rawShift = team.shift || (team.metadata as any)?.shift || (team.metadata as any)?.originalShift || null
         
         // Normalizar valores da equipe para comparação
+        // Se o valor já estiver normalizado (morning/afternoon), manter; caso contrário, normalizar
+        let normalizedTeamShift: string | null = null
+        if (rawShift) {
+          // Se já está no formato do sistema, usar diretamente
+          if (rawShift === 'morning' || rawShift === 'afternoon') {
+            normalizedTeamShift = rawShift
+          } else {
+            // Normalizar e converter
+            const normalized = normalizeShift(rawShift)
+            normalizedTeamShift = normalized ? shiftToSystemFormat(normalized) : rawShift
+          }
+        }
+        
         const normalizedTeamGrade = rawGrade ? (normalizeGrade(rawGrade) || rawGrade) : null
-        const normalizedTeamShift = rawShift ? (normalizeShift(rawShift) ? shiftToSystemFormat(normalizeShift(rawShift)) : rawShift) : null
         
         // Comparar turno normalizado
         if (normalizedFilterShift) {
