@@ -43,7 +43,10 @@ export function useRankings(filters?: RankingFilters) {
       if (filters?.shift) searchParams.set('shift', filters.shift)
       if (filters?.grade) searchParams.set('grade', filters.grade)
 
-      const response = await fetch(`/api/rankings?${searchParams.toString()}`, {
+      const queryString = searchParams.toString()
+      const url = queryString ? `/api/rankings?${queryString}` : '/api/rankings'
+      
+      const response = await fetch(url, {
         headers: getAuthHeaders()
       })
 

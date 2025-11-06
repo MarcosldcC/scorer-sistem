@@ -123,30 +123,44 @@ export async function GET(request: NextRequest) {
 
     // Filter teams by grade/shift if needed (after fetch, to handle metadata properly)
     // Usar normalização inteligente para correspondência tolerante a variações
+    // IMPORTANTE: Os dados das equipes já vêm normalizados da API de teams
+    // Precisamos normalizar o filtro da mesma forma para comparar
     let filteredTeams = teams
     if (shift || grade) {
-      // Normalizar valores de filtro
-      const normalizedFilterShift = shift ? normalizeShift(shift) : null
-      const normalizedFilterGrade = grade ? normalizeGrade(grade) : null
+      // Normalizar valores de filtro para o formato normalizado
+      let normalizedFilterShift: string | null = null
+      let normalizedFilterGrade: string | null = null
+      
+      if (shift) {
+        // Normalizar o filtro de turno
+        const normalized = normalizeShift(shift)
+        normalizedFilterShift = normalized ? shiftToSystemFormat(normalized) : null
+      }
+      
+      if (grade) {
+        // Normalizar o filtro de turma
+        normalizedFilterGrade = normalizeGrade(grade) || grade
+      }
       
       filteredTeams = teams.filter(team => {
-        const teamGrade = team.grade || (team.metadata as any)?.grade
-        const teamShift = team.shift || (team.metadata as any)?.shift
+        // Obter valores originais de turno e turma (de diferentes fontes)
+        const rawGrade = team.grade || (team.metadata as any)?.grade || (team.metadata as any)?.originalGrade || null
+        const rawShift = team.shift || (team.metadata as any)?.shift || (team.metadata as any)?.originalShift || null
         
         // Normalizar valores da equipe para comparação
-        const normalizedTeamShift = teamShift ? normalizeShift(teamShift) : null
-        const normalizedTeamGrade = teamGrade ? normalizeGrade(teamGrade) : null
+        const normalizedTeamGrade = rawGrade ? (normalizeGrade(rawGrade) || rawGrade) : null
+        const normalizedTeamShift = rawShift ? (normalizeShift(rawShift) ? shiftToSystemFormat(normalizeShift(rawShift)) : rawShift) : null
         
         // Comparar turno normalizado
         if (normalizedFilterShift) {
-          if (normalizedTeamShift !== normalizedFilterShift) {
+          if (!normalizedTeamShift || normalizedTeamShift !== normalizedFilterShift) {
             return false
           }
         }
         
         // Comparar turma normalizada
         if (normalizedFilterGrade) {
-          if (normalizedTeamGrade !== normalizedFilterGrade) {
+          if (!normalizedTeamGrade || normalizedTeamGrade !== normalizedFilterGrade) {
             return false
           }
         }
