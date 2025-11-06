@@ -79,12 +79,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate evaluationTime is a valid number
+    if (typeof evaluationTime !== 'number' || isNaN(evaluationTime) || evaluationTime < 0) {
+      console.error('Invalid evaluationTime:', evaluationTime)
+      return NextResponse.json(
+        { error: 'Tempo de avaliação deve ser um número válido maior ou igual a zero' },
+        { status: 400 }
+      )
+    }
+
     if (!Array.isArray(scores)) {
       console.error('Scores is not an array:', scores)
       return NextResponse.json(
         { error: 'Scores deve ser um array' },
         { status: 400 }
       )
+    }
+
+    // Validate scores array is not empty and has valid structure
+    if (scores.length === 0) {
+      console.error('Scores array is empty')
+      return NextResponse.json(
+        { error: 'Scores não pode estar vazio' },
+        { status: 400 }
+      )
+    }
+
+    // Validate each score has required fields
+    for (const score of scores) {
+      if (!score || typeof score !== 'object') {
+        console.error('Invalid score entry:', score)
+        return NextResponse.json(
+          { error: 'Cada score deve ser um objeto válido' },
+          { status: 400 }
+        )
+      }
     }
 
     // Get team
@@ -161,8 +190,21 @@ export async function POST(request: NextRequest) {
     let areaId: string
     try {
       areaId = await getAreaIdFromCode(tournament.id, area)
+      if (!areaId) {
+        console.error('AreaId is null or undefined:', { tournamentId: tournament.id, areaCode: area })
+        return NextResponse.json(
+          { error: 'Área de avaliação não encontrada no torneio' },
+          { status: 404 }
+        )
+      }
     } catch (error) {
       console.error('Error getting areaId from code:', error)
+      console.error('Error details:', {
+        tournamentId: tournament.id,
+        areaCode: area,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined
+      })
       return NextResponse.json(
         { error: error instanceof Error ? error.message : 'Área de avaliação não encontrada no torneio' },
         { status: 404 }
@@ -324,6 +366,20 @@ export async function POST(request: NextRequest) {
       isUpdate: !!existingEvaluation
     })
 
+    // Validate all required fields before upsert
+    if (!tournament.id || !teamId || !areaId || !user.id) {
+      console.error('Missing required fields for evaluation:', {
+        tournamentId: tournament.id,
+        teamId,
+        areaId,
+        evaluatedById: user.id
+      })
+      return NextResponse.json(
+        { error: 'Dados inválidos para criar avaliação' },
+        { status: 400 }
+      )
+    }
+
     let evaluation
     try {
       evaluation = await prisma.evaluation.upsert({
@@ -364,9 +420,53 @@ export async function POST(request: NextRequest) {
         evaluatedById: user.id,
         round: 1,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        errorName: error instanceof Error ? error.name : 'Unknown'
+        errorName: error instanceof Error ? error.name : 'Unknown',
+        errorCode: (error as any)?.code,
+        errorMeta: (error as any)?.meta
       })
-      throw error // Re-throw to be caught by outer try-catch
+      
+      // Check for specific Prisma errors
+      if (error instanceof Error) {
+        // Unique constraint violation
+        if (error.message.includes('Unique constraint') || error.message.includes('Unique constraint failed')) {
+          console.error('Unique constraint violation - trying to find existing evaluation')
+          // Try to find and update instead
+          try {
+            const existing = await prisma.evaluation.findUnique({
+              where: {
+                tournamentId_teamId_areaId_evaluatedById_round: {
+                  tournamentId: tournament.id,
+                  teamId,
+                  areaId,
+                  evaluatedById: user.id,
+                  round: 1
+                }
+              }
+            })
+            
+            if (existing) {
+              evaluation = await prisma.evaluation.update({
+                where: { id: existing.id },
+                data: {
+                  scores,
+                  comments: comments || null,
+                  evaluationTime,
+                  version: newVersion
+                }
+              })
+              console.log('Evaluation updated successfully after constraint error:', evaluation.id)
+            } else {
+              throw error // Re-throw if we can't find it
+            }
+          } catch (retryError) {
+            throw error // Re-throw original error
+          }
+        } else {
+          throw error // Re-throw to be caught by outer try-catch
+        }
+      } else {
+        throw error // Re-throw to be caught by outer try-catch
+      }
     }
 
     // Create penalties if any
@@ -416,11 +516,29 @@ export async function POST(request: NextRequest) {
     console.error('Error details:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       name: error instanceof Error ? error.name : 'Unknown',
+      code: (error as any)?.code,
+      meta: (error as any)?.meta,
       ...(error instanceof Error && error.cause ? { cause: error.cause } : {})
     })
+    
+    // Provide more specific error messages
+    let errorMessage = 'Erro interno do servidor'
+    if (error instanceof Error) {
+      // Prisma errors
+      if (error.message.includes('Unique constraint')) {
+        errorMessage = 'Esta avaliação já existe. Tente atualizar a avaliação existente.'
+      } else if (error.message.includes('Foreign key constraint')) {
+        errorMessage = 'Dados inválidos: referência não encontrada no banco de dados.'
+      } else if (error.message.includes('Record to update not found')) {
+        errorMessage = 'Avaliação não encontrada para atualização.'
+      } else {
+        errorMessage = error.message
+      }
+    }
+    
     return NextResponse.json(
       { 
-        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        error: errorMessage,
         details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : String(error)) : undefined
       },
       { status: 500 }
