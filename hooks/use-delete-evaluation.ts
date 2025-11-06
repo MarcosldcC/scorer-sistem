@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getAuthHeaders } from './use-auth-api'
+import { dispatchEvaluationDeleted } from '@/lib/evaluation-events'
 
 export function useDeleteEvaluation() {
   const [loading, setLoading] = useState(false)
@@ -22,6 +23,11 @@ export function useDeleteEvaluation() {
       const data = await response.json()
 
       if (response.ok) {
+        // Disparar evento para notificar outros componentes
+        dispatchEvaluationDeleted({
+          teamId,
+          area
+        })
         return { success: true, message: data.message }
       } else {
         setError(data.error || 'Erro ao excluir avaliação')

@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth-api"
 import { useReports } from "@/hooks/use-reports"
 import { useTeams } from "@/hooks/use-teams"
 import { Button } from "@/components/ui/button"
+import { EVALUATION_EVENTS } from "@/lib/evaluation-events"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -30,10 +31,49 @@ export default function ReportsPage() {
     shift: selectedShift !== "all" ? selectedShift : undefined
   }), [selectedTournamentId, selectedGrade, selectedShift])
   
-  const { reportData, loading } = useReports(reportFilters)
+  const { reportData, loading, refetch: refetchReports } = useReports(reportFilters)
   
   // Buscar equipes do torneio para popular os filtros
   const { teams: tournamentTeams } = useTeams(selectedTournamentId ? { tournamentId: selectedTournamentId } : undefined)
+
+  // Escutar eventos de avaliação salva para atualizar relatórios automaticamente
+  useEffect(() => {
+    if (typeof window === 'undefined' || !refetchReports) return
+
+    const handleEvaluationSaved = (event: CustomEvent) => {
+      const detail = event.detail as { teamId?: string; area?: string; tournamentId?: string }
+      // Se o evento é para o torneio atual, atualizar relatórios
+      if (!detail.tournamentId || detail.tournamentId === selectedTournamentId) {
+        console.log('🟢 Reports - Evaluation saved event received, refetching reports...', detail)
+        refetchReports()
+      }
+    }
+
+    const handleEvaluationSynced = (event: CustomEvent) => {
+      const detail = event.detail as { count?: number; tournamentId?: string }
+      // Se o evento é para o torneio atual, atualizar relatórios
+      if (!detail.tournamentId || detail.tournamentId === selectedTournamentId) {
+        console.log('🟢 Reports - Evaluation synced event received, refetching reports...', detail)
+        refetchReports()
+      }
+    }
+
+    window.addEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
+    window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+
+    // Também atualizar quando a página volta ao foco
+    const handleFocus = () => {
+      console.log('🟢 Reports - Page focused, refetching reports...')
+      refetchReports()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
+      window.removeEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [selectedTournamentId, refetchReports])
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

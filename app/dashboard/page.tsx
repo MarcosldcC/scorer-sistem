@@ -15,6 +15,7 @@ import { Trophy, Users, Settings, Plus, FileText, Award, BarChart3, Edit, Trash2
 import * as LucideIcons from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { EVALUATION_EVENTS } from "@/lib/evaluation-events"
 
 export default function DashboardPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -230,6 +231,7 @@ export default function DashboardPage() {
   const tournamentTeams = useTeams(selectedTournamentId ? { tournamentId: selectedTournamentId } : undefined)
   const judgeTeams = tournamentTeams.teams || []
   const teamsLoading = tournamentTeams?.loading ?? false
+  const refetchJudgeTeams = tournamentTeams?.refetch
 
   // Fetch assigned areas from API for selected tournament (more reliable than user.assignedAreas)
   // MUST be before any conditional returns

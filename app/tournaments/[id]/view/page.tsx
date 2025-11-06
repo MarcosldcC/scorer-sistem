@@ -10,6 +10,7 @@ import { EvaluationCard } from "@/components/evaluation-card"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Trophy, ArrowLeft } from "lucide-react"
+import { EVALUATION_EVENTS } from "@/lib/evaluation-events"
 
 export default function TournamentViewPage() {
   // Log básico que deve aparecer sempre
@@ -32,7 +33,7 @@ export default function TournamentViewPage() {
   const router = useRouter()
   // Use useMemo to stabilize the filters object and prevent infinite loops
   const teamFilters = useMemo(() => ({ tournamentId }), [tournamentId])
-  const { teams, loading: teamsLoading } = useTeams(teamFilters)
+  const { teams, loading: teamsLoading, refetch: refetchTeams } = useTeams(teamFilters)
   const [tournament, setTournament] = useState<any>(null)
   const [tournamentAreas, setTournamentAreas] = useState<any[]>([])
   const [userAssignedAreas, setUserAssignedAreas] = useState<string[]>([])
@@ -65,7 +66,7 @@ export default function TournamentViewPage() {
     }
   }, [isAuthenticated, authLoading, tournamentId, router])
 
-  const loadTournamentData = async () => {
+  const loadTournamentData = useCallback(async () => {
     console.log('Loading tournament data for:', tournamentId)
     setLoading(true)
     try {
@@ -82,7 +83,7 @@ export default function TournamentViewPage() {
       console.log('Setting loading to false')
       setLoading(false)
     }
-  }
+  }, [tournamentId])
 
   const fetchUserAssignedAreas = useCallback(async () => {
     console.log('🟣 fetchUserAssignedAreas - FUNCTION CALLED', { 
@@ -247,6 +248,50 @@ export default function TournamentViewPage() {
       }
     }
   }, [tournamentAreas, tournamentId, user, fetchUserAssignedAreas])
+
+  // Escutar eventos de avaliação salva para atualizar automaticamente
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleEvaluationSaved = (event: CustomEvent) => {
+      const detail = event.detail as { teamId?: string; area?: string; tournamentId?: string }
+      // Se o evento é para este torneio, atualizar dados
+      if (!detail.tournamentId || detail.tournamentId === tournamentId) {
+        console.log('🟢 Evaluation saved event received, refetching teams...', detail)
+        refetchTeams()
+        // Recarregar dados do torneio
+        loadTournamentData()
+      }
+    }
+
+    const handleEvaluationSynced = (event: CustomEvent) => {
+      const detail = event.detail as { count?: number; tournamentId?: string }
+      // Se o evento é para este torneio, atualizar dados
+      if (!detail.tournamentId || detail.tournamentId === tournamentId) {
+        console.log('🟢 Evaluation synced event received, refetching teams...', detail)
+        refetchTeams()
+        // Recarregar dados do torneio
+        loadTournamentData()
+      }
+    }
+
+    window.addEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
+    window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+
+    // Também atualizar quando a página volta ao foco (usuário volta de outra aba)
+    const handleFocus = () => {
+      console.log('🟢 Page focused, refetching teams...')
+      refetchTeams()
+      loadTournamentData()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
+      window.removeEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [tournamentId, refetchTeams, loadTournamentData])
 
   const fetchTournament = async () => {
     try {

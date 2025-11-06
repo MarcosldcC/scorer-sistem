@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { RankingFilters } from "@/hooks/use-rankings"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { normalizeShift, normalizeGrade, shiftToSystemFormat } from "@/lib/text-normalization"
+import { EVALUATION_EVENTS } from "@/lib/evaluation-events"
 
 export default function RankingsPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth()
@@ -29,6 +30,46 @@ export default function RankingsPage() {
   
   // Buscar equipes do torneio para popular os filtros
   const { teams: tournamentTeams } = useTeams(selectedTournamentId ? { tournamentId: selectedTournamentId } : undefined)
+
+  // Escutar eventos de avaliação salva para atualizar rankings automaticamente
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleEvaluationSaved = (event: CustomEvent) => {
+      const detail = event.detail as { teamId?: string; area?: string; tournamentId?: string }
+      // Se o evento é para o torneio atual, atualizar rankings
+      if (!detail.tournamentId || detail.tournamentId === selectedTournamentId || detail.tournamentId === filters.tournamentId) {
+        console.log('🟢 Rankings - Evaluation saved event received, refetching rankings...', detail)
+        refetch()
+      }
+    }
+
+    const handleEvaluationSynced = (event: CustomEvent) => {
+      const detail = event.detail as { count?: number; tournamentId?: string }
+      // Se o evento é para o torneio atual, atualizar rankings
+      if (!detail.tournamentId || detail.tournamentId === selectedTournamentId || detail.tournamentId === filters.tournamentId) {
+        console.log('🟢 Rankings - Evaluation synced event received, refetching rankings...', detail)
+        refetch()
+      }
+    }
+
+    window.addEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
+    window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+
+    // Também atualizar quando a página volta ao foco
+    const handleFocus = () => {
+      console.log('🟢 Rankings - Page focused, refetching rankings...')
+      refetch()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
+      window.removeEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+      window.removeEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [selectedTournamentId, filters.tournamentId, refetch])
   
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean

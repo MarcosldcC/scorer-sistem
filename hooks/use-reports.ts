@@ -41,10 +41,16 @@ export function useReports(filters?: ReportFilters) {
     grade: filters?.grade
   }), [filters?.tournamentId, filters?.shift, filters?.grade])
   
-  const { teams, loading: teamsLoading } = useTeams(teamFilters)
-  const { rankings, loading: rankingsLoading } = useRankings(rankingFilters)
+  const { teams, loading: teamsLoading, refetch: refetchTeams } = useTeams(teamFilters)
+  const { rankings, loading: rankingsLoading, refetch: refetchRankings } = useRankings(rankingFilters)
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Método para refetch dos dados
+  const refetch = useCallback(() => {
+    refetchTeams()
+    refetchRankings()
+  }, [refetchTeams, refetchRankings])
 
   useEffect(() => {
     if (!teamsLoading && !rankingsLoading && teams && rankings) {
@@ -104,6 +110,7 @@ export function useReports(filters?: ReportFilters) {
 
   return {
     reportData,
-    loading: loading || teamsLoading || rankingsLoading
+    loading: loading || teamsLoading || rankingsLoading,
+    refetch
   }
 }

@@ -7,6 +7,7 @@ import {
   getOfflineEvaluations,
   type OfflineEvaluation
 } from '@/lib/offline'
+import { dispatchEvaluationSaved, dispatchEvaluationSynced } from '@/lib/evaluation-events'
 
 export interface EvaluationData {
   teamId: string
@@ -53,6 +54,8 @@ export function useEvaluations() {
       syncOfflineEvaluations().then(count => {
         if (count > 0) {
           checkOffline()
+          // Disparar evento quando avaliações são sincronizadas
+          dispatchEvaluationSynced({ count })
         }
       })
     }
@@ -67,6 +70,8 @@ export function useEvaluations() {
         if (count > 0) {
           const offline = getOfflineEvaluations().filter(e => !e.isSynced)
           setOfflineCount(offline.length)
+          // Disparar evento quando avaliações são sincronizadas
+          dispatchEvaluationSynced({ count })
         }
       })
     }
@@ -127,6 +132,12 @@ export function useEvaluations() {
         const data = await response.json()
 
         if (response.ok) {
+          // Disparar evento para notificar outros componentes
+          dispatchEvaluationSaved({
+            teamId: evaluationData.teamId,
+            area: evaluationData.area,
+            tournamentId: evaluationData.tournamentId
+          })
           return { success: true, evaluation: data.evaluation, offline: false }
         } else {
           // If server error, save offline
@@ -234,6 +245,10 @@ export function useEvaluations() {
     syncOffline: () => syncOfflineEvaluations().then(count => {
       const offline = getOfflineEvaluations().filter(e => !e.isSynced)
       setOfflineCount(offline.length)
+      // Disparar evento quando avaliações são sincronizadas
+      if (count > 0) {
+        dispatchEvaluationSynced({ count })
+      }
       return count
     })
   }
