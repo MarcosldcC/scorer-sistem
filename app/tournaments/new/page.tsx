@@ -27,10 +27,14 @@ import {
   AlertCircle,
   AlertTriangle,
   Trophy,
-  FileJson
+  FileJson,
+  Gavel,
+  UserPlus,
+  X
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { IconSelector } from "@/components/icon-selector"
 import { DashboardHeader } from "@/components/dashboard-header"
 
@@ -233,10 +237,14 @@ export default function NewTournamentPage() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 mb-6">
+          <TabsList className="grid w-full grid-cols-8 mb-6">
             <TabsTrigger value="general">Informações</TabsTrigger>
             <TabsTrigger value="template">Template</TabsTrigger>
             <TabsTrigger value="areas">Áreas</TabsTrigger>
+            <TabsTrigger value="judges">
+              <Gavel className="h-4 w-4 mr-1" />
+              Juízes
+            </TabsTrigger>
             <TabsTrigger value="ranking">Ranking</TabsTrigger>
             <TabsTrigger value="teams">Equipes</TabsTrigger>
             <TabsTrigger value="offline">Offline</TabsTrigger>
@@ -358,6 +366,25 @@ export default function NewTournamentPage() {
                       />
                     ))
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Juízes */}
+          <TabsContent value="judges" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Atribuição de Juízes</CardTitle>
+                <CardDescription>Atribua juízes às áreas de avaliação do torneio</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    A atribuição de juízes às áreas será feita após a criação do torneio. 
+                    Após criar o torneio, você poderá editá-lo e atribuir juízes às áreas específicas.
+                  </AlertDescription>
+                </Alert>
               </CardContent>
             </Card>
           </TabsContent>

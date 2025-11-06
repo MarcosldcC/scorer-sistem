@@ -27,10 +27,14 @@ import {
   AlertCircle,
   AlertTriangle,
   Trophy,
-  FileJson
+  FileJson,
+  Gavel,
+  UserPlus,
+  X
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { IconSelector } from "@/components/icon-selector"
 import { DashboardHeader } from "@/components/dashboard-header"
 
@@ -343,10 +347,14 @@ export default function EditTournamentPage() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 mb-6">
+          <TabsList className="grid w-full grid-cols-8 mb-6">
             <TabsTrigger value="general">Informações</TabsTrigger>
             <TabsTrigger value="template">Template</TabsTrigger>
             <TabsTrigger value="areas">Áreas</TabsTrigger>
+            <TabsTrigger value="judges">
+              <Gavel className="h-4 w-4 mr-1" />
+              Juízes
+            </TabsTrigger>
             <TabsTrigger value="ranking">Ranking</TabsTrigger>
             <TabsTrigger value="teams">Equipes</TabsTrigger>
             <TabsTrigger value="offline">Offline</TabsTrigger>
@@ -470,6 +478,11 @@ export default function EditTournamentPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Juízes */}
+          <TabsContent value="judges" className="space-y-6">
+            <JudgesSection tournamentId={tournamentId} areas={tournamentData.areas} />
           </TabsContent>
 
           {/* Ranking */}
@@ -1918,6 +1931,338 @@ function PreviewSection({ tournamentData }: { tournamentData: TournamentData }) 
         </Card>
       </CardContent>
     </Card>
+  )
+}
+
+// Judges Section Component
+function JudgesSection({ tournamentId, areas }: { tournamentId: string; areas: Area[] }) {
+  const { toast } = useToast()
+  const [judges, setJudges] = useState<any[]>([])
+  const [assignments, setAssignments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [assigning, setAssigning] = useState(false)
+  const [selectedArea, setSelectedArea] = useState<string>("")
+  const [selectedJudge, setSelectedJudge] = useState<string>("")
+  const [showAssignDialog, setShowAssignDialog] = useState(false)
+
+  useEffect(() => {
+    if (tournamentId) {
+      fetchJudges()
+      fetchAssignments()
+    }
+  }, [tournamentId])
+
+  const fetchJudges = async () => {
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch('/api/users?role=judge', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+
+      if (response.ok && data.users) {
+        setJudges(data.users || [])
+      }
+    } catch (err) {
+      console.error('Error fetching judges:', err)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os juízes.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAssignments = async () => {
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch(`/api/user-areas?tournamentId=${tournamentId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+
+      if (response.ok && data.assignments) {
+        setAssignments(data.assignments || [])
+      }
+    } catch (err) {
+      console.error('Error fetching assignments:', err)
+    }
+  }
+
+  const handleAssignJudge = async () => {
+    if (!selectedArea || !selectedJudge) {
+      toast({
+        title: "Erro",
+        description: "Selecione uma área e um juiz.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAssigning(true)
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch('/api/user-areas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: selectedJudge,
+          tournamentId,
+          areaId: selectedArea
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Juiz atribuído!",
+          description: "O juiz foi atribuído à área com sucesso.",
+          variant: "default",
+        })
+        setShowAssignDialog(false)
+        setSelectedArea("")
+        setSelectedJudge("")
+        fetchAssignments()
+      } else {
+        toast({
+          title: "Erro",
+          description: data.error || "Não foi possível atribuir o juiz.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error('Error assigning judge:', err)
+      toast({
+        title: "Erro",
+        description: "Erro ao atribuir juiz.",
+        variant: "destructive",
+      })
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const handleUnassignJudge = async (assignmentId: string) => {
+    try {
+      const token = localStorage.getItem('robotics-token')
+      if (!token) return
+
+      const response = await fetch(`/api/user-areas?id=${assignmentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Atribuição removida!",
+          description: "O juiz foi removido da área.",
+          variant: "default",
+        })
+        fetchAssignments()
+      } else {
+        toast({
+          title: "Erro",
+          description: data.error || "Não foi possível remover a atribuição.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error('Error unassigning judge:', err)
+      toast({
+        title: "Erro",
+        description: "Erro ao remover atribuição.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const getAssignmentsForArea = (areaId: string) => {
+    return assignments.filter(a => a.areaId === areaId)
+  }
+
+  const getJudgeName = (userId: string) => {
+    const judge = judges.find(j => j.id === userId)
+    return judge ? judge.name : 'Juiz desconhecido'
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Carregando juízes...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Atribuição de Juízes</CardTitle>
+            <CardDescription>Atribua juízes às áreas de avaliação do torneio</CardDescription>
+          </div>
+          <Button onClick={() => setShowAssignDialog(true)} disabled={areas.filter(a => a.id.startsWith('cm')).length === 0}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Atribuir Juiz
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {areas.filter(a => a.id.startsWith('cm')).length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Configure e salve pelo menos uma área antes de atribuir juízes.</p>
+            </div>
+          ) : judges.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhum juiz cadastrado. Crie juízes antes de atribuí-los às áreas.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {areas.filter(a => a.id.startsWith('cm')).map((area) => {
+                const areaAssignments = getAssignmentsForArea(area.id)
+                return (
+                  <Card key={area.id} className={!area.isActive ? "opacity-60" : ""}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{area.name}</CardTitle>
+                          <CardDescription>{area.code}</CardDescription>
+                        </div>
+                        <Badge variant="outline">{areaAssignments.length} juiz(es)</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {areaAssignments.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nenhum juiz atribuído a esta área.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {areaAssignments.map((assignment) => (
+                            <div
+                              key={assignment.id}
+                              className="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <Gavel className="h-4 w-4 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-medium">{assignment.user?.name || getJudgeName(assignment.userId)}</p>
+                                  <p className="text-sm text-muted-foreground">{assignment.user?.email}</p>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleUnassignJudge(assignment.id)}
+                                className="text-destructive"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+              {areas.filter(a => !a.id.startsWith('cm')).length > 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Algumas áreas ainda não foram salvas. Salve o torneio primeiro para poder atribuir juízes a essas áreas.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Assign Judge Dialog */}
+      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Atribuir Juiz à Área</DialogTitle>
+            <DialogDescription>
+              Selecione uma área e um juiz para criar a atribuição.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Área</Label>
+              <Select value={selectedArea} onValueChange={setSelectedArea}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma área" />
+                </SelectTrigger>
+                <SelectContent>
+                  {areas.filter(a => a.isActive && a.id.startsWith('cm')).map((area) => (
+                    <SelectItem key={area.id} value={area.id}>
+                      {area.name} ({area.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Juiz</Label>
+              <Select value={selectedJudge} onValueChange={setSelectedJudge}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um juiz" />
+                </SelectTrigger>
+                <SelectContent>
+                  {judges.map((judge) => {
+                    // Verificar se já está atribuído à área selecionada
+                    const alreadyAssigned = selectedArea && assignments.some(
+                      a => a.userId === judge.id && a.areaId === selectedArea
+                    )
+                    return (
+                      <SelectItem
+                        key={judge.id}
+                        value={judge.id}
+                        disabled={!!alreadyAssigned}
+                      >
+                        {judge.name} {alreadyAssigned && "(já atribuído)"}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAssignDialog(false)
+              setSelectedArea("")
+              setSelectedJudge("")
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAssignJudge} disabled={assigning || !selectedArea || !selectedJudge}>
+              {assigning ? "Atribuindo..." : "Atribuir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
 
