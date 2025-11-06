@@ -157,17 +157,24 @@ export async function GET(request: NextRequest) {
       
       if (shift) {
         // Normalizar o filtro de turno
-        // O filtro vem como "morning" ou "afternoon" do frontend
-        // Se já está no formato do sistema, usar diretamente
-        if (shift === 'morning' || shift === 'afternoon') {
-          normalizedFilterShift = shift
-        } else {
-          // Se não está no formato do sistema, normalizar
-          const normalized = normalizeShift(shift)
-          normalizedFilterShift = normalized ? shiftToSystemFormat(normalized) : shift
+        // O filtro pode vir como "morning"/"afternoon" (inglês) ou "Manhã"/"Tarde" (português)
+        // Sempre converter para português para comparação
+        let filterShift = shift
+        // Se está em inglês, converter para português
+        if (shift === 'morning') {
+          filterShift = 'Manhã'
+        } else if (shift === 'afternoon') {
+          filterShift = 'Tarde'
         }
+        
+        // Normalizar o valor (pode vir em qualquer formato)
+        const normalized = normalizeShift(filterShift)
+        normalizedFilterShift = normalized ? shiftToSystemFormat(normalized) : filterShift
+        
         console.log('Filter Shift Debug:', {
           originalShift: shift,
+          filterShift,
+          normalized,
           normalizedFilterShift
         })
       }
@@ -196,15 +203,22 @@ export async function GET(request: NextRequest) {
         }
         
         // Normalizar valores da equipe para comparação
-        // Sempre normalizar turno para o formato do sistema para garantir comparação correta
+        // Sempre normalizar turno para o formato do sistema (PORTUGUÊS) para garantir comparação correta
         let normalizedTeamShift: string | null = null
         if (rawShift) {
-          // Se já está no formato do sistema, usar diretamente
-          if (rawShift === 'morning' || rawShift === 'afternoon') {
+          // Se já está no formato do sistema (português), usar diretamente
+          if (rawShift === 'Manhã' || rawShift === 'Tarde') {
             normalizedTeamShift = rawShift
-          } else {
-            // Normalizar e converter - SEMPRE converter para formato do sistema
-            // Primeiro tentar normalizar diretamente
+          } 
+          // Se está em inglês, converter para português
+          else if (rawShift === 'morning') {
+            normalizedTeamShift = 'Manhã'
+          } else if (rawShift === 'afternoon') {
+            normalizedTeamShift = 'Tarde'
+          } 
+          // Se não está em nenhum formato conhecido, normalizar
+          else {
+            // Normalizar e converter - SEMPRE converter para formato do sistema (português)
             const normalized = normalizeShift(rawShift)
             if (normalized) {
               normalizedTeamShift = shiftToSystemFormat(normalized)
@@ -215,20 +229,20 @@ export async function GET(request: NextRequest) {
               // Verificar se contém palavras-chave de manhã
               if (normalizedText.includes('manha') || normalizedText.includes('morning') || 
                   normalizedText === 'manha' || normalizedText === 'morning') {
-                normalizedTeamShift = 'morning'
+                normalizedTeamShift = 'Manhã'
               } 
               // Verificar se contém palavras-chave de tarde
               else if (normalizedText.includes('tarde') || normalizedText.includes('afternoon') || 
                        normalizedText === 'tarde' || normalizedText === 'afternoon') {
-                normalizedTeamShift = 'afternoon'
+                normalizedTeamShift = 'Tarde'
               } 
               // Se ainda não conseguiu, tentar verificar o valor original
               else {
                 const lowerRawShift = rawShift.toLowerCase().trim()
                 if (lowerRawShift === 'manhã' || lowerRawShift === 'manha' || lowerRawShift === 'morning') {
-                  normalizedTeamShift = 'morning'
+                  normalizedTeamShift = 'Manhã'
                 } else if (lowerRawShift === 'tarde' || lowerRawShift === 'afternoon') {
-                  normalizedTeamShift = 'afternoon'
+                  normalizedTeamShift = 'Tarde'
                 } else {
                   // Se ainda não conseguiu, usar null (não corresponde)
                   normalizedTeamShift = null

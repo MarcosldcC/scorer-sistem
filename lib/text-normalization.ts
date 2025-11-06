@@ -262,20 +262,20 @@ export function normalizeGrade(input: string | null | undefined): string | null 
 }
 
 /**
- * Converte turno normalizado para formato usado no sistema
- * 'manha' -> 'morning'
- * 'tarde' -> 'afternoon'
+ * Converte turno normalizado para formato usado no sistema (PORTUGUÊS)
+ * 'manha' -> 'Manhã'
+ * 'tarde' -> 'Tarde'
  */
-export function shiftToSystemFormat(shift: 'manha' | 'tarde' | null): 'morning' | 'afternoon' | null {
-  if (shift === 'manha') return 'morning'
-  if (shift === 'tarde') return 'afternoon'
+export function shiftToSystemFormat(shift: 'manha' | 'tarde' | null): 'Manhã' | 'Tarde' | null {
+  if (shift === 'manha') return 'Manhã'
+  if (shift === 'tarde') return 'Tarde'
   return null
 }
 
 /**
  * Converte turno do sistema para formato normalizado
- * 'morning' -> 'manha'
- * 'afternoon' -> 'tarde'
+ * 'Manhã' ou 'morning' -> 'manha'
+ * 'Tarde' ou 'afternoon' -> 'tarde'
  */
 export function shiftFromSystemFormat(shift: string | null | undefined): 'manha' | 'tarde' | null {
   if (!shift) return null

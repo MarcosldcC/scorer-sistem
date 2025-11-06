@@ -148,9 +148,27 @@ export async function GET(request: NextRequest) {
       const rawGrade = team.grade || (team.metadata as any)?.grade || (team.metadata as any)?.originalGrade || null
       const rawShift = team.shift || (team.metadata as any)?.shift || (team.metadata as any)?.originalShift || null
 
-      // Normalizar valores para garantir consistência
+      // Normalizar valores para garantir consistência (PORTUGUÊS)
       const normalizedGrade = rawGrade ? (normalizeGrade(rawGrade) || rawGrade) : null
-      const normalizedShift = rawShift ? (normalizeShift(rawShift) ? shiftToSystemFormat(normalizeShift(rawShift)) : rawShift) : null
+      // Sempre converter turno para português (Manhã/Tarde)
+      let normalizedShift: string | null = null
+      if (rawShift) {
+        // Se já está em português, usar diretamente
+        if (rawShift === 'Manhã' || rawShift === 'Tarde') {
+          normalizedShift = rawShift
+        } 
+        // Se está em inglês, converter para português
+        else if (rawShift === 'morning') {
+          normalizedShift = 'Manhã'
+        } else if (rawShift === 'afternoon') {
+          normalizedShift = 'Tarde'
+        } 
+        // Se não está em nenhum formato conhecido, normalizar
+        else {
+          const normalized = normalizeShift(rawShift)
+          normalizedShift = normalized ? shiftToSystemFormat(normalized) : rawShift
+        }
+      }
 
       return {
         id: team.id,

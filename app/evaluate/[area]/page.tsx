@@ -321,16 +321,31 @@ export default function EvaluatePage() {
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-primary mb-2">
-                Avaliação -{" "}
-                {rubric.area === "programming"
-                  ? "Programação"
-                  : rubric.area === "research"
-                    ? (selectedTeamData?.grade === "2" ? "Storytelling" : "Pesquisa")
-                    : "Torcida"}
-              </h1>
-              <p className="text-muted-foreground">Juiz: {user.name}</p>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const redirectUrl = tournamentId 
+                    ? `/tournaments/${tournamentId}/view`
+                    : "/dashboard"
+                  router.push(redirectUrl)
+                }}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Voltar
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold text-primary mb-2">
+                  Avaliação -{" "}
+                  {rubric.area === "programming"
+                    ? "Programação"
+                    : rubric.area === "research"
+                      ? (selectedTeamData?.grade === "2" ? "Storytelling" : "Pesquisa")
+                      : "Torcida"}
+                </h1>
+                <p className="text-muted-foreground">Juiz: {user.name}</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {isOffline && (

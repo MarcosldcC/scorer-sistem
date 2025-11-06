@@ -162,14 +162,25 @@ export default function RankingsPage() {
 
   // Get available filters from tournament teams (not from rankings)
   // This ensures filters show all teams imported to the tournament, even if not yet evaluated
-  // Normalizar turnos e turmas para garantir valores únicos e consistentes
+  // Normalizar turnos e turmas para garantir valores únicos e consistentes (PORTUGUÊS)
   const shifts = Array.from(new Set(
     (tournamentTeams || [])
       .map(t => {
         // Tentar obter turno de diferentes fontes
         const teamShift = t.shift || (t as any).metadata?.shift || (t as any).metadata?.originalShift
         if (!teamShift) return null
-        // Normalizar turno e converter para formato do sistema
+        // Se já está em português, usar diretamente
+        if (teamShift === 'Manhã' || teamShift === 'Tarde') {
+          return teamShift
+        }
+        // Se está em inglês, converter para português
+        if (teamShift === 'morning') {
+          return 'Manhã'
+        }
+        if (teamShift === 'afternoon') {
+          return 'Tarde'
+        }
+        // Normalizar turno e converter para formato do sistema (português)
         const normalized = normalizeShift(teamShift)
         return normalized ? shiftToSystemFormat(normalized) : null
       })
@@ -254,7 +265,7 @@ export default function RankingsPage() {
         <div className="mt-6 text-center text-sm text-muted-foreground">
           <p>
             Mostrando {rankings.length} equipe{rankings.length !== 1 ? "s" : ""}
-            {filters.shift && ` • Turno: ${filters.shift === "morning" ? "Manhã" : "Tarde"}`}
+            {filters.shift && ` • Turno: ${filters.shift === "morning" ? "Manhã" : filters.shift === "afternoon" ? "Tarde" : filters.shift}`}
             {filters.grade && ` • Turma: ${filters.grade}º Ano`}
           </p>
         </div>

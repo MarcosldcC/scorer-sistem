@@ -98,26 +98,60 @@ export default function ReportsPage() {
     )
   }
 
-  // Filtrar dados localmente usando normalização inteligente
+  // Filtrar dados localmente usando normalização inteligente (PORTUGUÊS)
   const filteredRankings = reportData.rankings.filter(ranking => {
-    // Normalizar valores do filtro
+    // Normalizar valores do filtro (PORTUGUÊS)
     const normalizedFilterGrade = selectedGrade !== "all" ? normalizeGrade(selectedGrade) : null
-    const normalizedFilterShift = selectedShift !== "all" ? normalizeShift(selectedShift) : null
+    let normalizedFilterShift: string | null = null
+    if (selectedShift !== "all") {
+      // Se já está em português, usar diretamente
+      if (selectedShift === "Manhã" || selectedShift === "Tarde") {
+        normalizedFilterShift = selectedShift
+      } 
+      // Se está em inglês, converter para português
+      else if (selectedShift === "morning") {
+        normalizedFilterShift = "Manhã"
+      } else if (selectedShift === "afternoon") {
+        normalizedFilterShift = "Tarde"
+      } 
+      // Se não está em nenhum formato conhecido, normalizar
+      else {
+        const normalized = normalizeShift(selectedShift)
+        normalizedFilterShift = normalized ? shiftToSystemFormat(normalized) : selectedShift
+      }
+    }
     
-    // Normalizar valores da equipe
+    // Normalizar valores da equipe (PORTUGUÊS)
     const normalizedTeamGrade = ranking.team.grade ? normalizeGrade(ranking.team.grade) : null
-    const normalizedTeamShift = ranking.team.shift ? normalizeShift(ranking.team.shift) : null
+    let normalizedTeamShift: string | null = null
+    if (ranking.team.shift) {
+      // Se já está em português, usar diretamente
+      if (ranking.team.shift === "Manhã" || ranking.team.shift === "Tarde") {
+        normalizedTeamShift = ranking.team.shift
+      } 
+      // Se está em inglês, converter para português
+      else if (ranking.team.shift === "morning") {
+        normalizedTeamShift = "Manhã"
+      } else if (ranking.team.shift === "afternoon") {
+        normalizedTeamShift = "Tarde"
+      } 
+      // Se não está em nenhum formato conhecido, normalizar
+      else {
+        const normalized = normalizeShift(ranking.team.shift)
+        normalizedTeamShift = normalized ? shiftToSystemFormat(normalized) : ranking.team.shift
+      }
+    }
     
     // Comparar turma normalizada
     if (normalizedFilterGrade) {
-      if (normalizedTeamGrade !== normalizedFilterGrade) {
+      if (!normalizedTeamGrade || normalizedTeamGrade !== normalizedFilterGrade) {
         return false
       }
     }
     
-    // Comparar turno normalizado
+    // Comparar turno normalizado (ambos em português)
     if (normalizedFilterShift) {
-      if (normalizedTeamShift !== normalizedFilterShift) {
+      if (!normalizedTeamShift || normalizedTeamShift !== normalizedFilterShift) {
         return false
       }
     }
@@ -178,7 +212,18 @@ export default function ReportsPage() {
           // Tentar obter turno de diferentes fontes
           const teamShift = t.shift || (t as any).metadata?.shift || (t as any).metadata?.originalShift
           if (!teamShift) return null
-          // Normalizar turno e converter para formato do sistema
+          // Se já está em português, usar diretamente
+          if (teamShift === 'Manhã' || teamShift === 'Tarde') {
+            return teamShift
+          }
+          // Se está em inglês, converter para português
+          if (teamShift === 'morning') {
+            return 'Manhã'
+          }
+          if (teamShift === 'afternoon') {
+            return 'Tarde'
+          }
+          // Normalizar turno e converter para formato do sistema (português)
           const normalized = normalizeShift(teamShift)
           return normalized ? shiftToSystemFormat(normalized) : null
         })
@@ -195,7 +240,7 @@ export default function ReportsPage() {
     const rows = filteredRankings.map(ranking => [
       ranking.team.name,
       `${ranking.team.grade}º Ano`,
-      ranking.team.shift === "morning" ? "Manhã" : "Tarde",
+      ranking.team.shift === "morning" || ranking.team.shift === "Manhã" ? "Manhã" : "Tarde",
       ranking.areaScores.programming?.score || "N/A",
       ranking.areaScores.research?.score || "N/A",
       ranking.areaScores.identity?.score || "N/A",
@@ -209,7 +254,7 @@ export default function ReportsPage() {
       fileName += `_${selectedGrade}ano`
     }
     if (selectedShift !== "all") {
-      fileName += `_${selectedShift === "morning" ? "manha" : "tarde"}`
+      fileName += `_${selectedShift === "morning" || selectedShift === "Manhã" ? "manha" : "tarde"}`
     }
     fileName += ".csv"
 
@@ -298,7 +343,7 @@ export default function ReportsPage() {
                     <SelectItem value="all">Todos os turnos</SelectItem>
                     {getAvailableShifts().map(shift => (
                       <SelectItem key={shift} value={shift}>
-                        {shift === "morning" ? "Manhã" : "Tarde"}
+                        {shift === "morning" || shift === "Manhã" ? "Manhã" : "Tarde"}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -500,7 +545,7 @@ export default function ReportsPage() {
                       <TableCell className="font-medium">{ranking.team.name}</TableCell>
                       <TableCell className="text-center">{ranking.team.grade}º Ano</TableCell>
                       <TableCell className="text-center">
-                        {ranking.team.shift === "morning" ? "Manhã" : "Tarde"}
+                        {ranking.team.shift === "morning" || ranking.team.shift === "Manhã" ? "Manhã" : "Tarde"}
                       </TableCell>
                       <TableCell className="text-center">
                         {ranking.areaScores.programming?.score || "N/A"}

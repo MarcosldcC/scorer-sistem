@@ -23,7 +23,8 @@ export function RankingFiltersComponent({
   const handleShiftChange = (shift: string) => {
     onFiltersChange({
       ...filters,
-      shift: shift === "all" ? undefined : (shift as "morning" | "afternoon"),
+      // Aceitar tanto português quanto inglês, mas converter para português
+      shift: shift === "all" ? undefined : (shift === "morning" ? "Manhã" : shift === "afternoon" ? "Tarde" : shift),
     })
   }
 
@@ -43,10 +44,16 @@ export function RankingFiltersComponent({
     afternoon: "Tarde",
     manha: "Manhã",
     tarde: "Tarde",
+    "Manhã": "Manhã",
+    "Tarde": "Tarde",
   }
 
   // Função para exibir o label do turno
   const getShiftLabel = (shift: string): string => {
+    // Se já está em português, retornar diretamente
+    if (shift === "Manhã" || shift === "Tarde") {
+      return shift
+    }
     return shiftLabels[shift.toLowerCase()] || shift
   }
 
