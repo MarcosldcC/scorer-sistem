@@ -96,7 +96,9 @@ export function RankingTable({ rankings, isAdmin = false, onDeleteEvaluation, de
                     <TableCell className="font-medium">{ranking.team.name}</TableCell>
                     <TableCell className="text-center">{ranking.team.grade}º Ano</TableCell>
                     <TableCell className="text-center">
-                      {ranking.team.shift === "morning" ? "Manhã" : "Tarde"}
+                      {ranking.team.shift === "morning" || ranking.team.shift === "Manhã" ? "Manhã" : 
+                       ranking.team.shift === "afternoon" || ranking.team.shift === "Tarde" ? "Tarde" : 
+                       ranking.team.shift || "N/A"}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge
