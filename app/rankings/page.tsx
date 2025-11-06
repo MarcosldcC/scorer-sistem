@@ -317,7 +317,7 @@ export default function RankingsPage() {
 
   return (
     <div className={`min-h-screen bg-background ${isViewer && isFullscreen ? 'p-0' : ''}`}>
-      {!isViewer && <DashboardHeader />}
+      {(!isViewer || (isViewer && !isFullscreen)) && <DashboardHeader />}
       <div className={`${isViewer && isFullscreen ? 'h-screen overflow-hidden' : 'container mx-auto px-4 py-6'}`}>
         {/* Viewer Controls Bar */}
         {isViewer && (
