@@ -53,8 +53,15 @@ export default function TournamentViewPage() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/")
+      return
     }
-  }, [isAuthenticated, authLoading, router])
+    
+    // Redirect viewers to rankings page - they can only view rankings, not tournament details
+    if (!authLoading && isAuthenticated && user?.role === 'viewer') {
+      router.push(`/rankings?tournamentId=${tournamentId}`)
+      return
+    }
+  }, [isAuthenticated, authLoading, router, user, tournamentId])
 
   useEffect(() => {
     // Wait for auth to finish loading before fetching data

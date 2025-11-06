@@ -30,6 +30,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Viewers cannot access user areas - they can only view rankings
+    if (user.role === 'viewer') {
+      return NextResponse.json(
+        { error: 'Visualizadores não têm acesso a áreas de avaliação. Apenas visualização de rankings é permitida.' },
+        { status: 403 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const tournamentId = searchParams.get('tournamentId')
     const userId = searchParams.get('userId')

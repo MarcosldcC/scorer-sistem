@@ -13,7 +13,15 @@ async function verifyToken(request: NextRequest) {
 
   const token = authHeader.substring(7)
   try {
-    return jwt.verify(token, config.jwt.secret) as any
+    const decoded = jwt.verify(token, config.jwt.secret) as any
+    // Map userId to id for consistency
+    if (decoded && decoded.userId) {
+      return {
+        ...decoded,
+        id: decoded.userId
+      }
+    }
+    return decoded
   } catch {
     return null
   }
@@ -36,8 +44,21 @@ export async function GET(request: NextRequest) {
 
     const where: any = {}
 
-    // Platform admins see all, school admins see their school only
-    if (user.role === 'school_admin' && user.schoolId) {
+    // Viewers can only see tournaments they are assigned to
+    if (user.role === 'viewer') {
+      const viewerAssignments = await prisma.tournamentViewer.findMany({
+        where: { userId: user.id },
+        select: { tournamentId: true }
+      })
+      const tournamentIds = viewerAssignments.map(a => a.tournamentId)
+      
+      if (tournamentIds.length === 0) {
+        return NextResponse.json({ tournaments: [] })
+      }
+      
+      where.id = { in: tournamentIds }
+    } else if (user.role === 'school_admin' && user.schoolId) {
+      // Platform admins see all, school admins see their school only
       where.schoolId = user.schoolId
     } else if (schoolId) {
       where.schoolId = schoolId
@@ -72,7 +93,18 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json({ tournaments })
+    // For viewers, remove area count information (they shouldn't see areas)
+    const tournamentsResponse = user.role === 'viewer'
+      ? tournaments.map(({ _count, ...tournament }) => ({
+          ...tournament,
+          _count: {
+            ..._count,
+            areas: 0 // Hide area count from viewers
+          }
+        }))
+      : tournaments
+
+    return NextResponse.json({ tournaments: tournamentsResponse })
 
   } catch (error) {
     console.error('Get tournaments error:', error)

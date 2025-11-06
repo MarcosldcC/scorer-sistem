@@ -46,8 +46,15 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/")
+      return
     }
-  }, [isAuthenticated, authLoading, router])
+    
+    // Redirect viewers to rankings page - they can only view rankings
+    if (!authLoading && isAuthenticated && user?.role === 'viewer') {
+      router.push("/rankings")
+      return
+    }
+  }, [isAuthenticated, authLoading, router, user])
 
   useEffect(() => {
     if (isAuthenticated && user && user.role === 'school_admin') {

@@ -55,8 +55,15 @@ export default function EvaluatePage() {
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push("/")
+      return
     }
-  }, [isAuthenticated, loading, router])
+    
+    // Block viewers from accessing evaluation page
+    if (!loading && isAuthenticated && user?.role === 'viewer') {
+      router.push("/rankings")
+      return
+    }
+  }, [isAuthenticated, loading, router, user])
 
   const [hasAccess, setHasAccess] = useState<boolean | null>(null)
   const [checkingAccess, setCheckingAccess] = useState(true)

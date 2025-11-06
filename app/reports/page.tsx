@@ -24,6 +24,14 @@ export default function ReportsPage() {
   const [selectedGrade, setSelectedGrade] = useState<string>("all")
   const [selectedShift, setSelectedShift] = useState<string>("all")
 
+  // Block viewers from accessing reports - they can only view rankings
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user?.role === 'viewer') {
+      router.push("/rankings")
+      return
+    }
+  }, [isAuthenticated, authLoading, router, user])
+
   // Use useMemo to stabilize the filters object and prevent infinite loops
   const reportFilters = useMemo(() => ({ 
     tournamentId: selectedTournamentId || undefined,

@@ -52,7 +52,8 @@ export function DashboardHeader() {
 
           {/* Desktop: Areas and User Info */}
           <div className="hidden lg:flex items-center gap-6">
-            {user?.areas && user.areas.length > 0 && (
+            {/* Don't show areas for viewers - they can only view rankings */}
+            {user?.areas && user.areas.length > 0 && user?.role !== 'viewer' && (
               <div className="flex items-center gap-2 text-sm text-[#5A5A5A]">
                 <span className="font-medium">Áreas:</span>
                 <div className="flex gap-2">
@@ -65,6 +66,12 @@ export function DashboardHeader() {
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+            {/* Show role badge for viewers */}
+            {user?.role === 'viewer' && (
+              <div className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium text-xs">
+                Visualizador
               </div>
             )}
             <div className="flex items-center gap-3">
@@ -82,7 +89,8 @@ export function DashboardHeader() {
 
           {/* Tablet: User Dropdown */}
           <div className="hidden md:flex lg:hidden items-center gap-3">
-            {user?.areas && user.areas.length > 0 && (
+            {/* Don't show areas for viewers */}
+            {user?.areas && user.areas.length > 0 && user?.role !== 'viewer' && (
               <div className="flex items-center gap-1">
                 {user.areas.slice(0, 2).map((area) => (
                   <span 
@@ -92,6 +100,11 @@ export function DashboardHeader() {
                     {areaNames[area as keyof typeof areaNames]?.slice(0, 3) || area.slice(0, 3)}
                   </span>
                 ))}
+              </div>
+            )}
+            {user?.role === 'viewer' && (
+              <div className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 font-medium text-xs">
+                Visualizador
               </div>
             )}
             <DropdownMenu>
@@ -107,7 +120,8 @@ export function DashboardHeader() {
                   <p className="text-sm font-medium text-[#0C2340]">{user?.name}</p>
                   <p className="text-xs text-[#5A5A5A]">{user?.email}</p>
                 </div>
-                {user?.areas && user.areas.length > 0 && (
+                {/* Don't show areas for viewers */}
+                {user?.areas && user.areas.length > 0 && user?.role !== 'viewer' && (
                   <>
                     <DropdownMenuSeparator />
                     <div className="px-2 py-1.5">
@@ -122,6 +136,14 @@ export function DashboardHeader() {
                           </span>
                         ))}
                       </div>
+                    </div>
+                  </>
+                )}
+                {user?.role === 'viewer' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5">
+                      <p className="text-xs font-medium text-[#5A5A5A]">Visualizador - Acesso apenas aos rankings</p>
                     </div>
                   </>
                 )}
@@ -149,7 +171,8 @@ export function DashboardHeader() {
                   <p className="text-sm font-medium text-[#0C2340]">{user?.name}</p>
                   <p className="text-xs text-[#5A5A5A] truncate">{user?.email}</p>
                 </div>
-                {user?.areas && user.areas.length > 0 && (
+                {/* Don't show areas for viewers */}
+                {user?.areas && user.areas.length > 0 && user?.role !== 'viewer' && (
                   <>
                     <DropdownMenuSeparator />
                     <div className="px-2 py-1.5">
@@ -164,6 +187,14 @@ export function DashboardHeader() {
                           </span>
                         ))}
                       </div>
+                    </div>
+                  </>
+                )}
+                {user?.role === 'viewer' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5">
+                      <p className="text-xs font-medium text-[#5A5A5A]">Visualizador - Acesso apenas aos rankings</p>
                     </div>
                   </>
                 )}

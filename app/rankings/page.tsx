@@ -299,8 +299,8 @@ export default function RankingsPage() {
 
         <RankingTable 
           rankings={rankings} 
-          isAdmin={user.isAdmin}
-          onDeleteEvaluation={handleDeleteEvaluation}
+          isAdmin={user?.role === 'school_admin' || user?.role === 'platform_admin'}
+          onDeleteEvaluation={user?.role !== 'viewer' ? handleDeleteEvaluation : undefined}
           deleteLoading={deleteLoading}
         />
 

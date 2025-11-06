@@ -17,8 +17,18 @@ export async function DELETE(request: NextRequest) {
     const token = authHeader.substring(7)
     const decoded = jwt.verify(token, config.jwt.secret) as any
 
+    // Map userId to id for consistency
+    const user = decoded && decoded.userId ? { ...decoded, id: decoded.userId } : decoded
+
+    // Block viewers from deleting evaluations
+    if (user.role === 'viewer') {
+      return NextResponse.json({ 
+        error: 'Visualizadores não podem excluir avaliações. Apenas visualização de rankings é permitida.' 
+      }, { status: 403 })
+    }
+
     // Verificar se é administrador
-    if (!decoded.isAdmin) {
+    if (!user.isAdmin && user.role !== 'school_admin' && user.role !== 'platform_admin') {
       return NextResponse.json({ error: 'Acesso negado. Apenas administradores podem excluir avaliações.' }, { status: 403 })
     }
 
