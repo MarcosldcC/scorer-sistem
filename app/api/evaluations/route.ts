@@ -127,7 +127,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert legacy area code to areaId
-    const areaId = await getAreaIdFromCode(tournament.id, area)
+    let areaId: string
+    try {
+      areaId = await getAreaIdFromCode(tournament.id, area)
+    } catch (error) {
+      console.error('Error getting areaId from code:', error)
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Área de avaliação não encontrada no torneio' },
+        { status: 404 }
+      )
+    }
     
     // Get area info
     const tournamentArea = await prisma.tournamentArea.findUnique({
@@ -135,6 +144,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!tournamentArea) {
+      console.error('Tournament area not found:', { areaId, tournamentId: tournament.id, areaCode: area })
       return NextResponse.json(
         { error: 'Área de avaliação não encontrada' },
         { status: 404 }
@@ -330,8 +340,17 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Create evaluation error:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      name: error instanceof Error ? error.name : 'Unknown',
+      ...(error instanceof Error && error.cause ? { cause: error.cause } : {})
+    })
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erro interno do servidor' },
+      { 
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : String(error)) : undefined
+      },
       { status: 500 }
     )
   }
