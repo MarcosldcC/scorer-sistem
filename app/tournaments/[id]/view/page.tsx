@@ -275,8 +275,20 @@ export default function TournamentViewPage() {
       }
     }
 
+    const handleEvaluationDeleted = (event: CustomEvent) => {
+      const detail = event.detail as { teamId?: string; area?: string; tournamentId?: string }
+      // Se o evento é para este torneio, atualizar dados
+      if (!detail.tournamentId || detail.tournamentId === tournamentId) {
+        console.log('🟢 Evaluation deleted event received, refetching teams...', detail)
+        refetchTeams()
+        // Recarregar dados do torneio
+        loadTournamentData()
+      }
+    }
+
     window.addEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
     window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+    window.addEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
 
     // Também atualizar quando a página volta ao foco (usuário volta de outra aba)
     const handleFocus = () => {
@@ -289,6 +301,7 @@ export default function TournamentViewPage() {
     return () => {
       window.removeEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
       window.removeEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+      window.removeEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
       window.removeEventListener('focus', handleFocus)
     }
   }, [tournamentId, refetchTeams, loadTournamentData])

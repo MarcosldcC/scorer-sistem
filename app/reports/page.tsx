@@ -58,8 +58,18 @@ export default function ReportsPage() {
       }
     }
 
+    const handleEvaluationDeleted = (event: CustomEvent) => {
+      const detail = event.detail as { teamId?: string; area?: string; tournamentId?: string }
+      // Se o evento é para o torneio atual, atualizar relatórios
+      if (!detail.tournamentId || detail.tournamentId === selectedTournamentId) {
+        console.log('🟢 Reports - Evaluation deleted event received, refetching reports...', detail)
+        refetchReports()
+      }
+    }
+
     window.addEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
     window.addEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+    window.addEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
 
     // Também atualizar quando a página volta ao foco
     const handleFocus = () => {
@@ -71,6 +81,7 @@ export default function ReportsPage() {
     return () => {
       window.removeEventListener(EVALUATION_EVENTS.SAVED, handleEvaluationSaved as EventListener)
       window.removeEventListener(EVALUATION_EVENTS.SYNCED, handleEvaluationSynced as EventListener)
+      window.removeEventListener(EVALUATION_EVENTS.DELETED, handleEvaluationDeleted as EventListener)
       window.removeEventListener('focus', handleFocus)
     }
   }, [selectedTournamentId, refetchReports])
